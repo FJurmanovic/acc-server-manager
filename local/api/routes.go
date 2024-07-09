@@ -21,9 +21,8 @@ func Routes(app *fiber.App) {
 	c := dig.New()
 	groups := app.Group(configs.Prefix)
 
-	apiGroup := groups.Group("api")
 	routeGroups := &common.RouteGroups{
-		Api: apiGroup,
+		Api: groups.Group("api"),
 	}
 
 	c.Provide(func() *common.RouteGroups {
