@@ -17,9 +17,7 @@ import (
 func main() {
 	godotenv.Load()
 
-	app := fiber.New(fiber.Config{
-		Immutable: true,
-	})
+	app := fiber.New()
 
 	app.Use(cors.New())
 

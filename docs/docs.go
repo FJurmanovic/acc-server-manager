@@ -33,6 +33,24 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "description": "Return API",
+                "tags": [
+                    "api"
+                ],
+                "summary": "Return API",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
             }
         }
     }
