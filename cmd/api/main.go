@@ -7,7 +7,11 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/swagger"
 	"github.com/joho/godotenv"
+
+	_ "acc-server-manager/docs"
 )
 
 func main() {
@@ -16,6 +20,10 @@ func main() {
 	app := fiber.New(fiber.Config{
 		Immutable: true,
 	})
+
+	app.Use(cors.New())
+
+	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	file, err := os.OpenFile("logs.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {

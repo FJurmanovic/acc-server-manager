@@ -1,0 +1,17 @@
+info:
+  contact: {}
+paths:
+  /v1/api:
+    get:
+      description: Return API
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      summary: Return API
+      tags:
+      - api
+swagger: "2.0"

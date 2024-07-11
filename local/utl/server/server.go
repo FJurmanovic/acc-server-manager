@@ -13,9 +13,6 @@ func Start(r *fiber.App) *fiber.App {
 		return c.SendString("pong")
 	})
 	port := os.Getenv("PORT")
-	if port == "" {
-		port = "4000"
-	}
 	err := r.Listen(":" + port)
 	if err != nil {
 		msg := fmt.Sprintf("Running on %s:%s", common.GetIP(), port)

@@ -32,12 +32,13 @@ func NewApiController(as *service.ApiService, routeGroups *common.RouteGroups) *
 	return ac
 }
 
-/*
-getFirst
-	Args:
-		*fiber.Ctx: Fiber Application Context
-*/
-// ROUTE (GET /api).
+// getFirst returns API
+//
+//	@Summary		Return API
+//	@Description	Return API
+//	@Tags			api
+//	@Success		200	{array}		string
+//	@Router			/v1/api [get]
 func (ac *ApiController) getFirst(c *fiber.Ctx) error {
 	apiModel := ac.service.GetFirst(c)
 	return c.SendString(apiModel)
