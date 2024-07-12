@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/dig"
 )
 
 /*
@@ -12,8 +13,8 @@ Initializes Web API Routes.
 	Args:
 		*fiber.App: Fiber Application.
 */
-func Init(app *fiber.App) {
-	Routes(app)
+func Init(di *dig.Container, app *fiber.App) {
+	Routes(di, app)
 }
 
 type API struct {

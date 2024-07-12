@@ -19,8 +19,7 @@ Initializes web api controllers and its corresponding routes.
 	Args:
 		*fiber.App: Fiber Application
 */
-func Routes(app *fiber.App) {
-	c := dig.New()
+func Routes(di *dig.Container, app *fiber.App) {
 	groups := app.Group(configs.Prefix)
 
 	basicAuthConfig := basicauth.New(basicauth.Config{
@@ -35,9 +34,9 @@ func Routes(app *fiber.App) {
 
 	routeGroups.Api.Use(basicAuthConfig)
 
-	c.Provide(func() *common.RouteGroups {
+	di.Provide(func() *common.RouteGroups {
 		return routeGroups
 	})
 
-	controller.InitializeControllers(c)
+	controller.InitializeControllers(di)
 }

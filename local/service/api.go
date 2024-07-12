@@ -1,6 +1,7 @@
 package service
 
 import (
+	"acc-server-manager/local/repository"
 	"acc-server-manager/local/utl/configs"
 	"os/exec"
 
@@ -8,10 +9,13 @@ import (
 )
 
 type ApiService struct {
+	Repository *repository.ApiRepository
 }
 
-func NewApiService() *ApiService {
-	return &ApiService{}
+func NewApiService(repository *repository.ApiRepository) *ApiService {
+	return &ApiService{
+		Repository: repository,
+	}
 }
 
 /*
