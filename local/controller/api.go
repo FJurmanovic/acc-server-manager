@@ -54,7 +54,7 @@ func (ac *ApiController) getFirst(c *fiber.Ctx) error {
 //	@Router			/v1/api [post]
 func (ac *ApiController) startServer(c *fiber.Ctx) error {
 	c.Locals("service", "ACC-Server")
-	apiModel, err := ac.service.StartServer(c)
+	apiModel, err := ac.service.ApiStartServer(c)
 	if err != nil {
 		return c.SendStatus(400)
 	}

@@ -1,9 +1,11 @@
 package common
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 
@@ -53,4 +55,13 @@ func Find[T any](lst *[]T, callback func(item *T) bool) *T {
 		}
 	}
 	return nil
+}
+
+func RunElevatedCommand(command string, service string) (string, error) {
+	cmd := exec.Command("powershell", "-File", "run_sc.ps1", command, service)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("error: %v, output: %s", err, output)
+	}
+	return string(output), nil
 }

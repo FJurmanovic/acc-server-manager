@@ -14,7 +14,9 @@ import (
 )
 
 func Start(di *dig.Container) *fiber.App {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		EnablePrintRoutes: true,
+	})
 
 	app.Use(cors.New())
 
