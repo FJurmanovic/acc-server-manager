@@ -1,36 +1,33 @@
 package service
 
 import (
+	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
 	"acc-server-manager/local/utl/common"
-	"acc-server-manager/local/utl/configs"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type ApiService struct {
-	Repository *repository.ApiRepository
+	repository *repository.ApiRepository
 }
 
 func NewApiService(repository *repository.ApiRepository) *ApiService {
 	return &ApiService{
-		Repository: repository,
+		repository: repository,
 	}
 }
 
-/*
-GetFirst
-
-Gets first row from API table.
-
-	   	Args:
-	   		context.Context: Application context
-		Returns:
-			string: Application version
-*/
-func (as ApiService) GetFirst(ctx *fiber.Ctx) string {
-	return configs.Version
+// GetFirst
+// Gets first row from API table.
+//
+//	   	Args:
+//	   		context.Context: Application context
+//		Returns:
+//			string: Application version
+func (as ApiService) GetFirst(ctx *fiber.Ctx) *model.ApiModel {
+	return as.repository.GetFirst(ctx.UserContext())
 }
 
 func (as ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {

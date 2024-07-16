@@ -11,24 +11,21 @@ type ApiController struct {
 	service *service.ApiService
 }
 
-/*
-NewApiController
-
-Initializes ApiController.
-
-	Args:
-		*services.ApiService: API service
-		*Fiber.RouterGroup: Fiber Router Group
-	Returns:
-		*ApiController: Controller for "api" interactions
-*/
+// NewApiController
+// Initializes ApiController.
+//
+//	Args:
+//		*services.ApiService: API service
+//		*Fiber.RouterGroup: Fiber Router Group
+//	Returns:
+//		*ApiController: Controller for "api" interactions
 func NewApiController(as *service.ApiService, routeGroups *common.RouteGroups) *ApiController {
 	ac := &ApiController{
 		service: as,
 	}
 
-	routeGroups.Api.Get("", ac.getFirst)
-	routeGroups.Api.Post("", ac.startServer)
+	routeGroups.Api.Get("/", ac.getFirst)
+	routeGroups.Api.Post("/", ac.startServer)
 
 	return ac
 }
@@ -42,7 +39,7 @@ func NewApiController(as *service.ApiService, routeGroups *common.RouteGroups) *
 //	@Router			/v1/api [get]
 func (ac *ApiController) getFirst(c *fiber.Ctx) error {
 	apiModel := ac.service.GetFirst(c)
-	return c.SendString(apiModel)
+	return c.SendString(apiModel.Api)
 }
 
 // startServer returns API

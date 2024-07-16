@@ -17,19 +17,16 @@ func NewApiRepository(db *gorm.DB) *ApiRepository {
 	}
 }
 
-/*
-GetFirst
-
-Gets first row from API table.
-
-	   	Args:
-	   		context.Context: Application context
-		Returns:
-			model.ApiModel: Api object from database.
-*/
-func (as ApiRepository) GetFirst(ctx context.Context) model.ApiModel {
+// GetFirst
+// Gets first row from API table.
+//
+//	   	Args:
+//	   		context.Context: Application context
+//		Returns:
+//			model.ApiModel: Api object from database.
+func (as ApiRepository) GetFirst(ctx context.Context) *model.ApiModel {
 	db := as.db.WithContext(ctx)
-	apiModel := model.ApiModel{Api: "Works"}
+	apiModel := new(model.ApiModel)
 	db.First(&apiModel)
 	return apiModel
 }

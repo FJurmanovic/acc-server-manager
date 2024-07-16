@@ -12,31 +12,27 @@ import (
 	"go.uber.org/dig"
 )
 
-/*
-InitializeControllers
-
-Initializes Dependency Injection modules and registers controllers
-
-	Args:
-		*dig.Container: Dig Container
-*/
+// InitializeControllers
+// Initializes Dependency Injection modules and registers controllers
+//
+//	Args:
+//		*dig.Container: Dig Container
 func InitializeControllers(c *dig.Container) {
 	service.InitializeServices(c)
 
-	c.Invoke(NewApiController)
-
+	err := c.Invoke(NewApiController)
+	if err != nil {
+		panic("unable to initialize api controller")
+	}
 }
 
-/*
-FilteredResponse
-
-Gets query parameters and populates FilteredResponse model.
-
-	Args:
-		*gin.Context: Gin Application Context
-	Returns:
-		*model.FilteredResponse: Filtered response
-*/
+// FilteredResponse
+// Gets query parameters and populates FilteredResponse model.
+//
+//	Args:
+//		*gin.Context: Gin Application Context
+//	Returns:
+//		*model.FilteredResponse: Filtered response
 func FilteredResponse(c *fiber.Ctx) *model.FilteredResponse {
 	filtered := new(model.FilteredResponse)
 	page := c.Params("page")

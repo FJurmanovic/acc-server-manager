@@ -29,8 +29,8 @@ _testmain.go
 *.exe
 *.test
 *.prof
+*.log
+*.db
 
 # .Dockerfile
 
-logs.log
-querys.log
