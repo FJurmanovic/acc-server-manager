@@ -35,7 +35,7 @@ func NewApiController(as *service.ApiService, routeGroups *common.RouteGroups) *
 //	@Summary		Return API
 //	@Description	Return API
 //	@Tags			api
-//	@Success		200	{array}		string
+//	@Success		200	{array}	string
 //	@Router			/v1/api [get]
 func (ac *ApiController) getFirst(c *fiber.Ctx) error {
 	apiModel := ac.service.GetFirst(c)
@@ -46,14 +46,23 @@ func (ac *ApiController) getFirst(c *fiber.Ctx) error {
 //
 //	@Summary		Return API
 //	@Description	Return API
+//	@Param			name body string true "required"
 //	@Tags			api
-//	@Success		200	{array}		string
+//	@Success		200	{array}	string
 //	@Router			/v1/api [post]
 func (ac *ApiController) startServer(c *fiber.Ctx) error {
-	c.Locals("service", "ACC-Server")
+	model := new(Service)
+	if err := c.BodyParser(model); err != nil {
+		c.SendStatus(400)
+	}
+	c.Locals("service", model.Name)
 	apiModel, err := ac.service.ApiStartServer(c)
 	if err != nil {
 		return c.SendStatus(400)
 	}
 	return c.SendString(apiModel)
+}
+
+type Service struct {
+	Name string `json:"name" xml:"name" form:"name"`
 }

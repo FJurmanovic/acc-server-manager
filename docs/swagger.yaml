@@ -16,6 +16,13 @@ paths:
       - api
     post:
       description: Return API
+      parameters:
+      - description: required
+        in: body
+        name: name
+        required: true
+        schema:
+          type: string
       responses:
         "200":
           description: OK

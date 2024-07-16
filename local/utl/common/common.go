@@ -58,10 +58,11 @@ func Find[T any](lst *[]T, callback func(item *T) bool) *T {
 }
 
 func RunElevatedCommand(command string, service string) (string, error) {
-	cmd := exec.Command("powershell", "-File", "run_sc.ps1", command, service)
+	cmd := exec.Command("powershell", "-nologo", "-noprofile", "-File", "run_sc.ps1", command, service)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("error: %v, output: %s", err, output)
+		log.Panic("error: %v, output: %s", err, string(output))
+		return "", fmt.Errorf("error: %v, output: %s", err, string(output))
 	}
 	return string(output), nil
 }

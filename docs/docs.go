@@ -40,6 +40,17 @@ const docTemplate = `{
                     "api"
                 ],
                 "summary": "Return API",
+                "parameters": [
+                    {
+                        "description": "required",
+                        "name": "name",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
