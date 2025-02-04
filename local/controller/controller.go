@@ -24,6 +24,21 @@ func InitializeControllers(c *dig.Container) {
 	if err != nil {
 		panic("unable to initialize api controller")
 	}
+
+	err = c.Invoke(NewConfigController)
+	if err != nil {
+		panic("unable to initialize config controller")
+	}
+
+	err = c.Invoke(NewServerController)
+	if err != nil {
+		panic("unable to initialize server controller")
+	}
+
+	err = c.Invoke(NewLookupController)
+	if err != nil {
+		panic("unable to initialize lookup controller")
+	}
 }
 
 // FilteredResponse

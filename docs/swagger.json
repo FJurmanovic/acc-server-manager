@@ -22,17 +22,338 @@
                         }
                     }
                 }
-            },
+            }
+        },
+        "/v1/api/restart": {
             "post": {
-                "description": "Return API",
+                "description": "Restarts service",
                 "tags": [
                     "api"
                 ],
-                "summary": "Return API",
+                "summary": "Restart service",
                 "parameters": [
                     {
                         "description": "required",
                         "name": "name",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/api/start": {
+            "post": {
+                "description": "Starts service",
+                "tags": [
+                    "api"
+                ],
+                "summary": "Start service",
+                "parameters": [
+                    {
+                        "description": "required",
+                        "name": "name",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/api/stop": {
+            "post": {
+                "description": "Stops service",
+                "tags": [
+                    "api"
+                ],
+                "summary": "Stop service",
+                "parameters": [
+                    {
+                        "description": "required",
+                        "name": "name",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/api/{service}": {
+            "get": {
+                "description": "Returns service status",
+                "tags": [
+                    "api"
+                ],
+                "summary": "Return service status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "required",
+                        "name": "service",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/lookup/car-models": {
+            "get": {
+                "description": "Return CarModels Lookup",
+                "tags": [
+                    "Lookup"
+                ],
+                "summary": "Return CarModels Lookup",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/lookup/cup-categories": {
+            "get": {
+                "description": "Return CupCategories Lookup",
+                "tags": [
+                    "Lookup"
+                ],
+                "summary": "Return CupCategories Lookup",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/lookup/driver-categories": {
+            "get": {
+                "description": "Return DriverCategories Lookup",
+                "tags": [
+                    "Lookup"
+                ],
+                "summary": "Return DriverCategories Lookup",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/lookup/session-types": {
+            "get": {
+                "description": "Return SessionTypes Lookup",
+                "tags": [
+                    "Lookup"
+                ],
+                "summary": "Return SessionTypes Lookup",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/lookup/tracks": {
+            "get": {
+                "description": "Return Tracks Lookup",
+                "tags": [
+                    "Lookup"
+                ],
+                "summary": "Return Tracks Lookup",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/server": {
+            "get": {
+                "description": "Return Servers",
+                "tags": [
+                    "Server"
+                ],
+                "summary": "Return Servers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/server/{id}/config": {
+            "get": {
+                "description": "Return Config files",
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Return Configs",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "required",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/server/{id}/config/{file}": {
+            "get": {
+                "description": "Returns Config file",
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Return Config file",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "required",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "required",
+                        "name": "file",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Updates config",
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Update config",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "required",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "required",
+                        "name": "file",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "required",
+                        "name": "content",
                         "in": "body",
                         "required": true,
                         "schema": {

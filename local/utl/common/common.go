@@ -13,7 +13,10 @@ import (
 )
 
 type RouteGroups struct {
-	Api fiber.Router
+	Api    fiber.Router
+	Server fiber.Router
+	Config fiber.Router
+	Lookup fiber.Router
 }
 
 func CheckError(err error) {
@@ -58,10 +61,10 @@ func Find[T any](lst *[]T, callback func(item *T) bool) *T {
 }
 
 func RunElevatedCommand(command string, service string) (string, error) {
-	cmd := exec.Command("powershell", "-nologo", "-noprofile", "-File", "run_sc.ps1", command, service)
+	cmd := exec.Command("powershell", "-nologo", "-noprofile", ".\\nssm", command, service)
+	// cmd := exec.Command("powershell", "-nologo", "-noprofile", "-File", "run_sc.ps1", command, service)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Panic("error: %v, output: %s", err, string(output))
 		return "", fmt.Errorf("error: %v, output: %s", err, string(output))
 	}
 	return string(output), nil

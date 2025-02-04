@@ -3,6 +3,7 @@ package repository
 import (
 	"acc-server-manager/local/model"
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -27,6 +28,9 @@ func NewApiRepository(db *gorm.DB) *ApiRepository {
 func (as ApiRepository) GetFirst(ctx context.Context) *model.ApiModel {
 	db := as.db.WithContext(ctx)
 	apiModel := new(model.ApiModel)
-	db.First(&apiModel)
+	result := db.First(&apiModel)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil
+	}
 	return apiModel
 }

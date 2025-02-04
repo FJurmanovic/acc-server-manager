@@ -26,7 +26,10 @@ func Init(di *dig.Container, app *fiber.App) {
 	})
 
 	routeGroups := &common.RouteGroups{
-		Api: groups.Group("/api"),
+		Api:    groups.Group("/api"),
+		Server: groups.Group("/server"),
+		Config: groups.Group("/server/:id").Group("/config"),
+		Lookup: groups.Group("/lookup"),
 	}
 
 	routeGroups.Api.Use(basicAuthConfig)
