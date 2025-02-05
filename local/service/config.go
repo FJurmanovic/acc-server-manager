@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/qjebbs/go-jsons"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
@@ -38,6 +39,7 @@ func NewConfigService(repository *repository.ConfigRepository, serverRepository 
 func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{}) (*model.Config, error) {
 	serverID, _ := ctx.ParamsInt("id")
 	configFile := ctx.Params("file")
+	merge := ctx.QueryBool("merge")
 
 	server := as.serverRepository.GetFirst(ctx.UserContext(), serverID)
 
@@ -61,6 +63,13 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 	newData, err := json.MarshalIndent(&body, "", "  ")
 	if err != nil {
 		return nil, err
+	}
+
+	if merge {
+		newData, err = jsons.Merge(oldDataUTF8, newData)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	newDataUTF16, err := EncodeUTF16LEBOM(newData)
