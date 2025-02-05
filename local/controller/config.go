@@ -8,7 +8,8 @@ import (
 )
 
 type ConfigController struct {
-	service *service.ConfigService
+	service    *service.ConfigService
+	apiService *service.ApiService
 }
 
 // NewConfigController
@@ -19,9 +20,10 @@ type ConfigController struct {
 //		*Fiber.RouterGroup: Fiber Router Group
 //	Returns:
 //		*ConfigController: Controller for "Config" interactions
-func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGroups) *ConfigController {
+func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGroups, as2 *service.ApiService) *ConfigController {
 	ac := &ConfigController{
-		service: as,
+		service:    as,
+		apiService: as2,
 	}
 
 	routeGroups.Config.Put("/:file", ac.updateConfig)
@@ -42,6 +44,9 @@ func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGro
 //	@Success		200	{array}	string
 //	@Router			/v1/server/{id}/config/{file} [put]
 func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
+	restart := c.QueryBool("restart")
+	serverID, _ := c.ParamsInt("id")
+	c.Locals("serverId", serverID)
 
 	var config map[string]interface{}
 	if err := c.BodyParser(&config); err != nil {
@@ -52,6 +57,10 @@ func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).SendString(err.Error())
 	}
+	if restart {
+		ac.apiService.RestartServer(c)
+	}
+
 	return c.JSON(ConfigModel)
 }
 

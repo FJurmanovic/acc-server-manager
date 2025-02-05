@@ -54,6 +54,16 @@ func (ac *ApiController) getFirst(c *fiber.Ctx) error {
 //	@Success		200	{array}	string
 //	@Router			/v1/api/{service} [get]
 func (ac *ApiController) getStatus(c *fiber.Ctx) error {
+	serverId, err := c.ParamsInt("serverId")
+	if err != nil {
+		return c.Status(400).SendString(err.Error())
+	}
+	if serverId == 0 {
+		service := c.Params("service")
+		c.Locals("service", service)
+	} else {
+		c.Locals("serverId", serverId)
+	}
 	apiModel, err := ac.service.GetStatus(c)
 	if err != nil {
 		return c.Status(400).SendString(err.Error())
@@ -75,6 +85,7 @@ func (ac *ApiController) startServer(c *fiber.Ctx) error {
 		c.SendStatus(400)
 	}
 	c.Locals("service", model.Name)
+	c.Locals("serverId", model.ServerId)
 	apiModel, err := ac.service.ApiStartServer(c)
 	if err != nil {
 		return c.Status(400).SendString(err.Error())
@@ -96,6 +107,7 @@ func (ac *ApiController) stopServer(c *fiber.Ctx) error {
 		c.SendStatus(400)
 	}
 	c.Locals("service", model.Name)
+	c.Locals("serverId", model.ServerId)
 	apiModel, err := ac.service.ApiStopServer(c)
 	if err != nil {
 		return c.Status(400).SendString(err.Error())
@@ -117,6 +129,7 @@ func (ac *ApiController) restartServer(c *fiber.Ctx) error {
 		c.SendStatus(400)
 	}
 	c.Locals("service", model.Name)
+	c.Locals("serverId", model.ServerId)
 	apiModel, err := ac.service.ApiRestartServer(c)
 	if err != nil {
 		return c.Status(400).SendString(err.Error())
@@ -125,5 +138,6 @@ func (ac *ApiController) restartServer(c *fiber.Ctx) error {
 }
 
 type Service struct {
-	Name string `json:"name" xml:"name" form:"name"`
+	Name     string `json:"name" xml:"name" form:"name"`
+	ServerId int    `json:"serverId" xml:"serverId" form:"serverId"`
 }

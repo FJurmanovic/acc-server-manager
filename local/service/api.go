@@ -34,57 +34,54 @@ func (as ApiService) GetFirst(ctx *fiber.Ctx) *model.ApiModel {
 }
 
 func (as ApiService) GetStatus(ctx *fiber.Ctx) (string, error) {
-	service := ctx.Params("service")
-	return as.StatusServer(ctx, service)
+	return as.StatusServer(ctx)
 }
 
 func (as ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
-	service, ok := ctx.Locals("service").(string)
-	if !ok {
-		return "", errors.New("service name missing")
-	}
-	return as.StartServer(ctx, service)
+	return as.StartServer(ctx)
 }
 
 func (as ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
-	service, ok := ctx.Locals("service").(string)
-	if !ok {
-		return "", errors.New("service name missing")
-	}
-	return as.StopServer(ctx, service)
+	return as.StopServer(ctx)
 }
 
 func (as ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
-	service, ok := ctx.Locals("service").(string)
-	if !ok {
-		return "", errors.New("service name missing")
+	return as.RestartServer(ctx)
+}
+
+func (as ApiService) StatusServer(ctx *fiber.Ctx) (string, error) {
+	return as.ManageService(ctx, "status")
+}
+
+func (as ApiService) StartServer(ctx *fiber.Ctx) (string, error) {
+	return as.ManageService(ctx, "start")
+}
+
+func (as ApiService) StopServer(ctx *fiber.Ctx) (string, error) {
+	return as.ManageService(ctx, "stop")
+}
+
+func (as ApiService) RestartServer(ctx *fiber.Ctx) (string, error) {
+	return as.ManageService(ctx, "restart")
+}
+
+func (as ApiService) ManageService(ctx *fiber.Ctx, action string) (string, error) {
+	var server *model.Server
+	serviceName, ok := ctx.Locals("service").(string)
+	if !ok || serviceName == "" {
+		serverId, ok2 := ctx.Locals("serverId").(int)
+		if !ok2 || serverId == 0 {
+			return "", errors.New("service name missing")
+		}
+		server = as.serverRepository.GetFirst(ctx.UserContext(), serverId)
+	} else {
+		server = as.serverRepository.GetFirstByServiceName(ctx.UserContext(), serviceName)
 	}
-	return as.RestartServer(ctx, service)
-}
-
-func (as ApiService) StatusServer(ctx *fiber.Ctx, serviceName string) (string, error) {
-	return as.ManageService(ctx, "status", serviceName)
-}
-
-func (as ApiService) StartServer(ctx *fiber.Ctx, serviceName string) (string, error) {
-	return as.ManageService(ctx, "start", serviceName)
-}
-
-func (as ApiService) StopServer(ctx *fiber.Ctx, serviceName string) (string, error) {
-	return as.ManageService(ctx, "stop", serviceName)
-}
-
-func (as ApiService) RestartServer(ctx *fiber.Ctx, serviceName string) (string, error) {
-	return as.ManageService(ctx, "restart", serviceName)
-}
-
-func (as ApiService) ManageService(ctx *fiber.Ctx, action string, serviceName string) (string, error) {
-	server := as.serverRepository.GetFirstByServiceName(ctx.UserContext(), serviceName)
 	if server == nil {
 		return "", fiber.NewError(404, "Server not found")
 	}
 
-	output, err := common.RunElevatedCommand(action, serviceName)
+	output, err := common.RunElevatedCommand(action, server.ServiceName)
 	if err != nil {
 		return "", err
 	}

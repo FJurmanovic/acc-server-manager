@@ -3,6 +3,7 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
+	"acc-server-manager/local/utl/common"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -37,9 +38,9 @@ func NewConfigService(repository *repository.ConfigRepository, serverRepository 
 //		Returns:
 //			string: Application version
 func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{}) (*model.Config, error) {
-	serverID, _ := ctx.ParamsInt("id")
+	serverID := ctx.Locals("serverId").(int)
 	configFile := ctx.Params("file")
-	merge := ctx.QueryBool("merge")
+	override := ctx.QueryBool("override")
 
 	server := as.serverRepository.GetFirst(ctx.UserContext(), serverID)
 
@@ -60,20 +61,20 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 	}
 
 	// Write new config
-	newData, err := json.MarshalIndent(&body, "", "  ")
+	newData, err := json.Marshal(&body)
 	if err != nil {
 		return nil, err
 	}
 
-	if merge {
+	if !override {
 		newData, err = jsons.Merge(oldDataUTF8, newData)
 		if err != nil {
 			return nil, err
 		}
-		newData, err = json.MarshalIndent(newData, "", "  ")
-		if err != nil {
-			return nil, err
-		}
+	}
+	newData, err = common.IndentJson(newData)
+	if err != nil {
+		return nil, err
 	}
 
 	newDataUTF16, err := EncodeUTF16LEBOM(newData)

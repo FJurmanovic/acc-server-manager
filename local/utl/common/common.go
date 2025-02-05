@@ -1,6 +1,8 @@
 package common
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -68,4 +70,14 @@ func RunElevatedCommand(command string, service string) (string, error) {
 		return "", fmt.Errorf("error: %v, output: %s", err, string(output))
 	}
 	return string(output), nil
+}
+
+func IndentJson(body []byte) ([]byte, error) {
+	newBody := new([]byte)
+	unmarshaledBody := bytes.NewBuffer(*newBody)
+	err := json.Indent(unmarshaledBody, body, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return unmarshaledBody.Bytes(), nil
 }
