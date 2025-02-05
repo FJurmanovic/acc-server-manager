@@ -70,6 +70,10 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 		if err != nil {
 			return nil, err
 		}
+		newData, err = json.MarshalIndent(newData, "", "  ")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	newDataUTF16, err := EncodeUTF16LEBOM(newData)
