@@ -32,7 +32,7 @@ func Init(di *dig.Container, app *fiber.App) {
 		Lookup: groups.Group("/lookup"),
 	}
 
-	routeGroups.Api.Use(basicAuthConfig)
+	groups.Use(basicAuthConfig)
 
 	err := di.Provide(func() *common.RouteGroups {
 		return routeGroups
