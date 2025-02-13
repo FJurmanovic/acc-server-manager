@@ -9,11 +9,13 @@ import (
 
 type ServerService struct {
 	repository *repository.ServerRepository
+	apiService *ApiService
 }
 
-func NewServerService(repository *repository.ServerRepository) *ServerService {
+func NewServerService(repository *repository.ServerRepository, apiService *ApiService) *ServerService {
 	return &ServerService{
 		repository: repository,
+		apiService: apiService,
 	}
 }
 
@@ -25,5 +27,27 @@ func NewServerService(repository *repository.ServerRepository) *ServerService {
 //		Returns:
 //			string: Application version
 func (as ServerService) GetAll(ctx *fiber.Ctx) *[]model.Server {
-	return as.repository.GetAll(ctx.UserContext())
+	servers := as.repository.GetAll(ctx.UserContext())
+
+	for i, server := range *servers {
+		status, _ := as.apiService.StatusServer(server.ServiceName)
+		(*servers)[i].Status = status
+	}
+
+	return servers
 }
+
+// GetById
+// Gets rows by ID from Server table.
+//
+//	   	Args:
+//	   		context.Context: Application context
+//		Returns:
+//			string: Application version
+func (as ServerService) GetById(ctx *fiber.Ctx, serverID int) *model.Server {
+	server := as.repository.GetFirst(ctx.UserContext(), serverID)
+	server.Status, _ = as.apiService.StatusServer(server.ServiceName);
+
+	return server
+}
+

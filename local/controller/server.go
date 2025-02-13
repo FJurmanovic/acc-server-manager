@@ -25,6 +25,7 @@ func NewServerController(as *service.ServerService, routeGroups *common.RouteGro
 	}
 
 	routeGroups.Server.Get("/", ac.getAll)
+	routeGroups.Server.Get("/:id", ac.getById)
 
 	return ac
 }
@@ -38,5 +39,18 @@ func NewServerController(as *service.ServerService, routeGroups *common.RouteGro
 //	@Router			/v1/server [get]
 func (ac *ServerController) getAll(c *fiber.Ctx) error {
 	ServerModel := ac.service.GetAll(c)
+	return c.JSON(ServerModel)
+}
+
+// getById returns Servers
+//
+//	@Summary		Return Servers
+//	@Description	Return Servers
+//	@Tags			Server
+//	@Success		200	{array}	string
+//	@Router			/v1/server [get]
+func (ac *ServerController) getById(c *fiber.Ctx) error {
+	serverID, _ := c.ParamsInt("id")
+	ServerModel := ac.service.GetById(c, serverID)
 	return c.JSON(ServerModel)
 }

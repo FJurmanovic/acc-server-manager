@@ -3,6 +3,7 @@ package controller
 import (
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -54,19 +55,19 @@ func (ac *ApiController) getFirst(c *fiber.Ctx) error {
 //	@Success		200	{array}	string
 //	@Router			/v1/api/{service} [get]
 func (ac *ApiController) getStatus(c *fiber.Ctx) error {
-	serverId, err := c.ParamsInt("serverId")
-	if err != nil {
-		return c.Status(400).SendString(err.Error())
-	}
-	if serverId == 0 {
-		service := c.Params("service")
-		c.Locals("service", service)
-	} else {
+	service := c.Params("service")
+	if service == "" {
+		serverId, err := c.ParamsInt("service")
+		if err != nil {
+			return c.Status(400).SendString(err.Error())
+		}
 		c.Locals("serverId", serverId)
+	} else {
+		c.Locals("service", service)
 	}
 	apiModel, err := ac.service.GetStatus(c)
 	if err != nil {
-		return c.Status(400).SendString(err.Error())
+		return c.Status(400).SendString(strings.ReplaceAll(err.Error(), "\x00", ""))
 	}
 	return c.SendString(apiModel)
 }
@@ -88,7 +89,7 @@ func (ac *ApiController) startServer(c *fiber.Ctx) error {
 	c.Locals("serverId", model.ServerId)
 	apiModel, err := ac.service.ApiStartServer(c)
 	if err != nil {
-		return c.Status(400).SendString(err.Error())
+		return c.Status(400).SendString(strings.ReplaceAll(err.Error(), "\x00", ""))
 	}
 	return c.SendString(apiModel)
 }
@@ -110,7 +111,7 @@ func (ac *ApiController) stopServer(c *fiber.Ctx) error {
 	c.Locals("serverId", model.ServerId)
 	apiModel, err := ac.service.ApiStopServer(c)
 	if err != nil {
-		return c.Status(400).SendString(err.Error())
+		return c.Status(400).SendString(strings.ReplaceAll(err.Error(), "\x00", ""))
 	}
 	return c.SendString(apiModel)
 }
@@ -132,7 +133,7 @@ func (ac *ApiController) restartServer(c *fiber.Ctx) error {
 	c.Locals("serverId", model.ServerId)
 	apiModel, err := ac.service.ApiRestartServer(c)
 	if err != nil {
-		return c.Status(400).SendString(err.Error())
+		return c.Status(400).SendString(strings.ReplaceAll(err.Error(), "\x00", ""))
 	}
 	return c.SendString(apiModel)
 }
