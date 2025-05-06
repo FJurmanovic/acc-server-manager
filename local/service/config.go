@@ -127,18 +127,6 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 	
 	context := ctx.UserContext()
 
-	if (configFile == ConfigurationJson) {
-		config, err := DecodeToMap[model.Configuration](newDataUTF16)
-		if err != nil {
-			return nil, err
-		}
-		if (server.BroadcastPort != config.UdpPort || server.Port != config.TcpPort) {
-			server.BroadcastPort = config.UdpPort
-			server.Port = config.TcpPort
-			as.serverRepository.UpdateServer(context, server)
-		}
-	}
-
 	if err := os.WriteFile(configPath, newDataUTF16, 0644); err != nil {
 		return nil, err
 	}

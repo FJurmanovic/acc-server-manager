@@ -1,6 +1,13 @@
 package model
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"time"
+)
+
+type IntString int
 
 // Config tracks configuration modifications
 type Config struct {
@@ -24,77 +31,101 @@ type ServerSettings struct {
 	ServerName                 string `json:"serverName"`
 	AdminPassword              string `json:"adminPassword"`
 	CarGroup                   string `json:"carGroup"`
-	TrackMedalsRequirement     int    `json:"trackMedalsRequirement"`
-	SafetyRatingRequirement    int    `json:"safetyRatingRequirement"`
-	RacecraftRatingRequirement int    `json:"racecraftRatingRequirement"`
+	TrackMedalsRequirement     IntString    `json:"trackMedalsRequirement"`
+	SafetyRatingRequirement    IntString    `json:"safetyRatingRequirement"`
+	RacecraftRatingRequirement IntString    `json:"racecraftRatingRequirement"`
 	Password                   string `json:"password"`
 	SpectatorPassword          string `json:"spectatorPassword"`
-	MaxCarSlots                int    `json:"maxCarSlots"`
-	DumpLeaderboards           int    `json:"dumpLeaderboards"`
-	IsRaceLocked               int    `json:"isRaceLocked"`
-	RandomizeTrackWhenEmpty    int    `json:"randomizeTrackWhenEmpty"`
+	MaxCarSlots                IntString    `json:"maxCarSlots"`
+	DumpLeaderboards           IntString    `json:"dumpLeaderboards"`
+	IsRaceLocked               IntString    `json:"isRaceLocked"`
+	RandomizeTrackWhenEmpty    IntString    `json:"randomizeTrackWhenEmpty"`
 	CentralEntryListPath       string `json:"centralEntryListPath"`
-	AllowAutoDQ                int    `json:"allowAutoDQ"`
-	ShortFormationLap          int    `json:"shortFormationLap"`
-	FormationLapType           int    `json:"formationLapType"`
-	IgnorePrematureDisconnects int    `json:"ignorePrematureDisconnects"`
+	AllowAutoDQ                IntString    `json:"allowAutoDQ"`
+	ShortFormationLap          IntString    `json:"shortFormationLap"`
+	FormationLapType           IntString    `json:"formationLapType"`
+	IgnorePrematureDisconnects IntString    `json:"ignorePrematureDisconnects"`
 }
 
 type EventConfig struct {
 	Track                         string  `json:"track"`
-	PreRaceWaitingTimeSeconds     int     `json:"preRaceWaitingTimeSeconds"`
-	SessionOverTimeSeconds        int     `json:"sessionOverTimeSeconds"`
-	AmbientTemp                   int     `json:"ambientTemp"`
+	PreRaceWaitingTimeSeconds     IntString     `json:"preRaceWaitingTimeSeconds"`
+	SessionOverTimeSeconds        IntString     `json:"sessionOverTimeSeconds"`
+	AmbientTemp                   IntString     `json:"ambientTemp"`
 	CloudLevel                    float64 `json:"cloudLevel"`
 	Rain                          float64 `json:"rain"`
-	WeatherRandomness             int     `json:"weatherRandomness"`
-	PostQualySeconds              int     `json:"postQualySeconds"`
-	PostRaceSeconds               int     `json:"postRaceSeconds"`
-	SimracerWeatherConditions     int     `json:"simracerWeatherConditions"`
-	IsFixedConditionQualification int     `json:"isFixedConditionQualification"`
+	WeatherRandomness             IntString     `json:"weatherRandomness"`
+	PostQualySeconds              IntString     `json:"postQualySeconds"`
+	PostRaceSeconds               IntString     `json:"postRaceSeconds"`
+	SimracerWeatherConditions     IntString     `json:"simracerWeatherConditions"`
+	IsFixedConditionQualification IntString     `json:"isFixedConditionQualification"`
 
 	Sessions []Session `json:"sessions"`
 }
 
 type Session struct {
-	HourOfDay              int    `json:"hourOfDay"`
-	DayOfWeekend           int    `json:"dayOfWeekend"`
-	TimeMultiplier         int    `json:"timeMultiplier"`
+	HourOfDay              IntString    `json:"hourOfDay"`
+	DayOfWeekend           IntString    `json:"dayOfWeekend"`
+	TimeMultiplier         IntString    `json:"timeMultiplier"`
 	SessionType            string `json:"sessionType"`
-	SessionDurationMinutes int    `json:"sessionDurationMinutes"`
+	SessionDurationMinutes IntString    `json:"sessionDurationMinutes"`
 }
 
 type AssistRules struct {
-	StabilityControlLevelMax                  int  `json:"stabilityControlLevelMax"`
-	DisableAutosteer                   int  `json:"disableAutosteer"`
-	DisableAutoLights                   int  `json:"disableAutoLights"`
-	DisableAutoWiper                int  `json:"disableAutoWiper"`
-	DisableAutoEngineStart                  int  `json:"disableAutoEngineStart"`
-	DisableAutoPitLimiter                         int  `json:"disableAutoPitLimiter"`
-	DisableAutoGear                         int  `json:"disableAutoGear"`
-	DisableAutoClutch                         int  `json:"disableAutoClutch"`
-	DisableIdealLine                         int  `json:"disableIdealLine"`
+	StabilityControlLevelMax                  IntString  `json:"stabilityControlLevelMax"`
+	DisableAutosteer                   IntString  `json:"disableAutosteer"`
+	DisableAutoLights                   IntString  `json:"disableAutoLights"`
+	DisableAutoWiper                IntString  `json:"disableAutoWiper"`
+	DisableAutoEngineStart                  IntString  `json:"disableAutoEngineStart"`
+	DisableAutoPitLimiter                         IntString  `json:"disableAutoPitLimiter"`
+	DisableAutoGear                         IntString  `json:"disableAutoGear"`
+	DisableAutoClutch                         IntString  `json:"disableAutoClutch"`
+	DisableIdealLine                         IntString  `json:"disableIdealLine"`
 }
 
 type EventRules struct {
-	QualifyStandingType                  int  `json:"qualifyStandingType"`
-	PitWindowLengthSec                   int  `json:"pitWindowLengthSec"`
-	DriverStintTimeSec                   int  `json:"driverStintTimeSec"`
-	MandatoryPitstopCount                int  `json:"mandatoryPitstopCount"`
-	MaxTotalDrivingTime                  int  `json:"maxTotalDrivingTime"`
+	QualifyStandingType                  IntString  `json:"qualifyStandingType"`
+	PitWindowLengthSec                   IntString  `json:"pitWindowLengthSec"`
+	DriverStIntStringTimeSec                   IntString  `json:"driverStIntStringTimeSec"`
+	MandatoryPitstopCount                IntString  `json:"mandatoryPitstopCount"`
+	MaxTotalDrivingTime                  IntString  `json:"maxTotalDrivingTime"`
 	IsRefuellingAllowedInRace            bool `json:"isRefuellingAllowedInRace"`
 	IsRefuellingTimeFixed                bool `json:"isRefuellingTimeFixed"`
 	IsMandatoryPitstopRefuellingRequired bool `json:"isMandatoryPitstopRefuellingRequired"`
 	IsMandatoryPitstopTyreChangeRequired bool `json:"isMandatoryPitstopTyreChangeRequired"`
 	IsMandatoryPitstopSwapDriverRequired bool `json:"isMandatoryPitstopSwapDriverRequired"`
-	TyreSetCount                         int  `json:"tyreSetCount"`
+	TyreSetCount                         IntString  `json:"tyreSetCount"`
 }
 
 type Configuration struct {
-	UdpPort              int    `json:"udpPort"`
-	TcpPort           int    `json:"tcpPort"`
-	MaxConnections         int    `json:"maxConnections"`
-	LanDiscovery            int `json:"lanDiscovery"`
-	RegisterToLobby int    `json:"registerToLobby"`
-	ConfigVersion int    `json:"configVersion"`
+	UdpPort              IntString    `json:"udpPort"`
+	TcpPort           IntString    `json:"tcpPort"`
+	MaxConnections         IntString    `json:"maxConnections"`
+	LanDiscovery            IntString `json:"lanDiscovery"`
+	RegisterToLobby IntString    `json:"registerToLobby"`
+	ConfigVersion IntString    `json:"configVersion"`
+}
+
+func (i *IntString) UnmarshalJSON(b []byte) error {
+	var str string
+	if err := json.Unmarshal(b, &str); err == nil {
+		if (str == "") {
+			*i = IntString(0)
+		} else {
+			n, err := strconv.Atoi(str)
+			if err != nil {
+				return err
+			}
+			*i = IntString(n)
+		}
+		return nil
+	}
+
+	var num int
+	if err := json.Unmarshal(b, &num); err == nil {
+		*i = IntString(num)
+		return nil
+	}
+
+	return fmt.Errorf("invalid postQualySeconds value")
 }

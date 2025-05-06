@@ -60,7 +60,10 @@ func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
 		return c.Status(400).SendString(err.Error())
 	}
 	if restart {
-		ac.apiService.ApiRestartServer(c)
+		_, err := ac.apiService.ApiRestartServer(c)
+		if err != nil {
+			log.Print(err.Error())
+		}
 	}
 
 	return c.JSON(ConfigModel)

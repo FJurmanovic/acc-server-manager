@@ -14,9 +14,6 @@ type Server struct {
 	Port        int    `gorm:"not null" json:"-"`
 	ConfigPath  string `gorm:"not null" json:"-"` // e.g. "/acc/servers/server1/"
 	ServiceName string `gorm:"not null" json:"-"` // Windows service name
-    BroadcastIP  string `json:"-"`
-    BroadcastPort int `json:"-"`
-    BroadcastPassword string `json:"-"`
 }
 
 type PlayerState struct {
