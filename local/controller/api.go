@@ -3,6 +3,7 @@ package controller
 import (
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
+	"log"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -111,6 +112,7 @@ func (ac *ApiController) stopServer(c *fiber.Ctx) error {
 	c.Locals("serverId", model.ServerId)
 	apiModel, err := ac.service.ApiStopServer(c)
 	if err != nil {
+		log.Print(strings.ReplaceAll(err.Error(), "\x00", ""))
 		return c.Status(400).SendString(strings.ReplaceAll(err.Error(), "\x00", ""))
 	}
 	return c.SendString(apiModel)
@@ -133,6 +135,7 @@ func (ac *ApiController) restartServer(c *fiber.Ctx) error {
 	c.Locals("serverId", model.ServerId)
 	apiModel, err := ac.service.ApiRestartServer(c)
 	if err != nil {
+		log.Print(strings.ReplaceAll(err.Error(), "\x00", ""))
 		return c.Status(400).SendString(strings.ReplaceAll(err.Error(), "\x00", ""))
 	}
 	return c.SendString(apiModel)

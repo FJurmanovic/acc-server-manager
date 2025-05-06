@@ -3,6 +3,7 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -30,7 +31,10 @@ func (as ServerService) GetAll(ctx *fiber.Ctx) *[]model.Server {
 	servers := as.repository.GetAll(ctx.UserContext())
 
 	for i, server := range *servers {
-		status, _ := as.apiService.StatusServer(server.ServiceName)
+		status, err := as.apiService.StatusServer(server.ServiceName)
+		if err != nil {
+			log.Print(err.Error())
+		}
 		(*servers)[i].Status = model.ServiceStatus(status)
 	}
 
@@ -46,7 +50,10 @@ func (as ServerService) GetAll(ctx *fiber.Ctx) *[]model.Server {
 //			string: Application version
 func (as ServerService) GetById(ctx *fiber.Ctx, serverID int) *model.Server {
 	server := as.repository.GetFirst(ctx.UserContext(), serverID)
-	status, _ := as.apiService.StatusServer(server.ServiceName)
+	status, err := as.apiService.StatusServer(server.ServiceName)
+	if err != nil {
+		log.Print(err.Error())
+	}
 	server.Status = model.ServiceStatus(status)
 
 	return server

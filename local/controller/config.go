@@ -3,6 +3,7 @@ package controller
 import (
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -50,6 +51,7 @@ func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
 
 	var config map[string]interface{}
 	if err := c.BodyParser(&config); err != nil {
+		log.Print("Invalid config format")
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid config format"})
 	}
 
@@ -76,6 +78,7 @@ func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
 func (ac *ConfigController) getConfig(c *fiber.Ctx) error {
 	Model, err := ac.service.GetConfig(c)
 	if err != nil {
+		log.Print(err.Error())
 		return c.Status(400).SendString(err.Error())
 	}
 	return c.JSON(Model)
@@ -92,6 +95,7 @@ func (ac *ConfigController) getConfig(c *fiber.Ctx) error {
 func (ac *ConfigController) getConfigs(c *fiber.Ctx) error {
 	Model, err := ac.service.GetConfigs(c)
 	if err != nil {
+		log.Print(err.Error())
 		return c.Status(400).SendString(err.Error())
 	}
 	return c.JSON(Model)

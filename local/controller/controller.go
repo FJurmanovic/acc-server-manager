@@ -5,6 +5,7 @@ import (
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -22,22 +23,22 @@ func InitializeControllers(c *dig.Container) {
 
 	err := c.Invoke(NewApiController)
 	if err != nil {
-		panic("unable to initialize api controller")
+		log.Panic("unable to initialize api controller")
 	}
 
 	err = c.Invoke(NewConfigController)
 	if err != nil {
-		panic("unable to initialize config controller")
+		log.Panic("unable to initialize config controller")
 	}
 
 	err = c.Invoke(NewServerController)
 	if err != nil {
-		panic("unable to initialize server controller")
+		log.Panic("unable to initialize server controller")
 	}
 
 	err = c.Invoke(NewLookupController)
 	if err != nil {
-		panic("unable to initialize lookup controller")
+		log.Panic("unable to initialize lookup controller")
 	}
 }
 

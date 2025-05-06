@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -166,6 +167,7 @@ func (as ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
 	server := as.serverRepository.GetFirst(ctx.UserContext(), serverID)
 
 	if server == nil {
+		log.Print("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
 	}
 
@@ -190,6 +192,7 @@ func (as ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, error
 	server := as.serverRepository.GetFirst(ctx.UserContext(), serverID)
 
 	if server == nil {
+		log.Print("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
 	}
 
