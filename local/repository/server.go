@@ -62,3 +62,22 @@ func (as ServerRepository) GetAll(ctx context.Context) *[]model.Server {
 	db.Find(&ServerModel)
 	return ServerModel
 }
+
+// UpdateServer
+// Updates Server row from Server table.
+//
+//	   	Args:
+//	   		context.Context: Application context
+//		Returns:
+//			model.Server: Server object from database.
+func (as ServerRepository) UpdateServer(ctx context.Context, body *model.Server) *model.Server {
+	db := as.db.WithContext(ctx)
+
+	existingServer := new(model.Server)
+	result := db.Where("id=?", body.ID).First(existingServer)
+	if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		body.ID = existingServer.ID
+	}
+	db.Save(body)
+	return body
+}

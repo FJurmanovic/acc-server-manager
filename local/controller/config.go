@@ -58,11 +58,7 @@ func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
 		return c.Status(400).SendString(err.Error())
 	}
 	if restart {
-		serviceName, err := ac.apiService.GetServiceName(c)
-		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Unable to restart service"})
-		}
-		ac.apiService.RestartServer(serviceName)
+		ac.apiService.ApiRestartServer(c)
 	}
 
 	return c.JSON(ConfigModel)

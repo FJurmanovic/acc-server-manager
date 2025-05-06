@@ -69,7 +69,7 @@ func (ac *ApiController) getStatus(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).SendString(strings.ReplaceAll(err.Error(), "\x00", ""))
 	}
-	return c.SendString(apiModel)
+	return c.SendString(string(apiModel))
 }
 
 // startServer starts service

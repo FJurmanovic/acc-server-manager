@@ -13,11 +13,11 @@ type Config struct {
 }
 
 type Configurations struct {
-	Configuration map[string]interface{} `json:"configuration"`
-	Entrylist     map[string]interface{} `json:"entrylist"`
-	Event         map[string]interface{} `json:"event"`
-	EventRules    map[string]interface{} `json:"eventRules"`
-	Settings      map[string]interface{} `json:"settings"`
+	Configuration Configuration `json:"configuration"`
+	AssistRules     AssistRules `json:"assistRules"`
+	Event         EventConfig `json:"event"`
+	EventRules    EventRules `json:"eventRules"`
+	Settings      ServerSettings `json:"settings"`
 }
 
 type ServerSettings struct {
@@ -64,6 +64,18 @@ type Session struct {
 	SessionDurationMinutes int    `json:"sessionDurationMinutes"`
 }
 
+type AssistRules struct {
+	StabilityControlLevelMax                  int  `json:"stabilityControlLevelMax"`
+	DisableAutosteer                   int  `json:"disableAutosteer"`
+	DisableAutoLights                   int  `json:"disableAutoLights"`
+	DisableAutoWiper                int  `json:"disableAutoWiper"`
+	DisableAutoEngineStart                  int  `json:"disableAutoEngineStart"`
+	DisableAutoPitLimiter                         int  `json:"disableAutoPitLimiter"`
+	DisableAutoGear                         int  `json:"disableAutoGear"`
+	DisableAutoClutch                         int  `json:"disableAutoClutch"`
+	DisableIdealLine                         int  `json:"disableIdealLine"`
+}
+
 type EventRules struct {
 	QualifyStandingType                  int  `json:"qualifyStandingType"`
 	PitWindowLengthSec                   int  `json:"pitWindowLengthSec"`
@@ -76,4 +88,13 @@ type EventRules struct {
 	IsMandatoryPitstopTyreChangeRequired bool `json:"isMandatoryPitstopTyreChangeRequired"`
 	IsMandatoryPitstopSwapDriverRequired bool `json:"isMandatoryPitstopSwapDriverRequired"`
 	TyreSetCount                         int  `json:"tyreSetCount"`
+}
+
+type Configuration struct {
+	UdpPort              int    `json:"udpPort"`
+	TcpPort           int    `json:"tcpPort"`
+	MaxConnections         int    `json:"maxConnections"`
+	LanDiscovery            int `json:"lanDiscovery"`
+	RegisterToLobby int    `json:"registerToLobby"`
+	ConfigVersion int    `json:"configVersion"`
 }

@@ -31,7 +31,7 @@ func (as ServerService) GetAll(ctx *fiber.Ctx) *[]model.Server {
 
 	for i, server := range *servers {
 		status, _ := as.apiService.StatusServer(server.ServiceName)
-		(*servers)[i].Status = status
+		(*servers)[i].Status = model.ServiceStatus(status)
 	}
 
 	return servers
@@ -46,7 +46,8 @@ func (as ServerService) GetAll(ctx *fiber.Ctx) *[]model.Server {
 //			string: Application version
 func (as ServerService) GetById(ctx *fiber.Ctx, serverID int) *model.Server {
 	server := as.repository.GetFirst(ctx.UserContext(), serverID)
-	server.Status, _ = as.apiService.StatusServer(server.ServiceName);
+	status, _ := as.apiService.StatusServer(server.ServiceName)
+	server.Status = model.ServiceStatus(status)
 
 	return server
 }
