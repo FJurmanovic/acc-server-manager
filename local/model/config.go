@@ -10,7 +10,7 @@ import (
 type IntString int
 
 // Config tracks configuration modifications
-type Config struct {
+type Config  struct {
 	ID         uint      `json:"id" gorm:"primaryKey"`
 	ServerID   uint      `json:"serverId" gorm:"not null"`
 	ConfigFile string    `json:"configFile" gorm:"not null"` // e.g. "settings.json"
@@ -128,4 +128,12 @@ func (i *IntString) UnmarshalJSON(b []byte) error {
 	}
 
 	return fmt.Errorf("invalid postQualySeconds value")
+}
+
+func (i IntString) ToString() string {
+	return strconv.Itoa(int(i))
+}
+
+func (i IntString) ToInt() (int) {
+	return int(i)
 }

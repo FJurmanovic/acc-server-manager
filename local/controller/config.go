@@ -59,6 +59,7 @@ func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).SendString(err.Error())
 	}
+	log.Print("restart", restart)
 	if restart {
 		_, err := ac.apiService.ApiRestartServer(c)
 		if err != nil {

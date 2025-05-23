@@ -40,6 +40,13 @@ func Init(di *dig.Container, app *fiber.App) {
 	if err != nil {
 		panic("unable to bind routes")
 	}
+	err = di.Provide(func() *dig.Container {
+		return di
+	})
+	if err != nil {
+		panic("unable to bind dig")
+	}
 
 	controller.InitializeControllers(di)
 }
+

@@ -2,6 +2,7 @@ package service
 
 import (
 	"acc-server-manager/local/repository"
+	"log"
 
 	"go.uber.org/dig"
 )
@@ -18,4 +19,12 @@ func InitializeServices(c *dig.Container) {
 	c.Provide(NewApiService)
 	c.Provide(NewConfigService)
 	c.Provide(NewLookupService)
+
+	err := c.Invoke(func(server *ServerService, api *ApiService, config *ConfigService) {
+		api.SetServerService(server)
+		config.SetServerService(server)
+	})
+	if err != nil {
+		log.Panic("unable to initialize server service in api service")
+	}
 }

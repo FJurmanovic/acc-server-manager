@@ -4,23 +4,30 @@ import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
 	"acc-server-manager/local/utl/common"
+	"context"
 	"errors"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
 
+
 type ApiService struct {
 	repository       *repository.ApiRepository
 	serverRepository *repository.ServerRepository
+	serverService *ServerService
 }
 
 func NewApiService(repository *repository.ApiRepository,
-	serverRepository *repository.ServerRepository) *ApiService {
+	serverRepository *repository.ServerRepository,) *ApiService {
 	return &ApiService{
 		repository:       repository,
 		serverRepository: serverRepository,
 	}
+}
+
+func (as ApiService) SetServerService(serverService *ServerService) {
+	as.serverService = serverService
 }
 
 // GetFirst
@@ -73,15 +80,28 @@ func (as ApiService) StatusServer(serviceName string) (string, error) {
 }
 
 func (as ApiService) StartServer(serviceName string) (string, error) {
-	return ManageService(serviceName, "start")
+	status, err := ManageService(serviceName, "start")
+
+	server := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	as.serverService.StartAccServerRuntime(server)
+	return status, err
 }
 
 func (as ApiService) StopServer(serviceName string) (string, error) {
-	return ManageService(serviceName, "stop")
+	status, err := ManageService(serviceName, "stop")
+
+	server := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	as.serverService.instances.Delete(server.ID)
+
+	return status, err
 }
 
 func (as ApiService) RestartServer(serviceName string) (string, error) {
-	return ManageService(serviceName, "restart")
+	status, err := ManageService(serviceName, "restart")
+
+	server := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	as.serverService.StartAccServerRuntime(server)
+	return status, err
 }
 
 func ManageService(serviceName string, action string) (string, error) {

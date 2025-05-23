@@ -63,6 +63,7 @@ func mustDecode[T any](fileName, path string) (T, error) {
 type ConfigService struct {
 	repository       *repository.ConfigRepository
 	serverRepository *repository.ServerRepository
+	serverService *ServerService
 }
 
 func NewConfigService(repository *repository.ConfigRepository, serverRepository *repository.ServerRepository) *ConfigService {
@@ -70,6 +71,10 @@ func NewConfigService(repository *repository.ConfigRepository, serverRepository 
 		repository:       repository,
 		serverRepository: serverRepository,
 	}
+}
+
+func (as ConfigService) SetServerService(serverService *ServerService) {
+	as.serverService = serverService
 }
 
 // UpdateConfig
@@ -130,6 +135,8 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 	if err := os.WriteFile(configPath, newDataUTF16, 0644); err != nil {
 		return nil, err
 	}
+
+	as.serverService.StartAccServerRuntime(server)
 
 	// Log change
 	return as.repository.UpdateConfig(context, &model.Config{

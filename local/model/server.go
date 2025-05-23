@@ -14,6 +14,7 @@ type Server struct {
 	Port        int    `gorm:"not null" json:"-"`
 	ConfigPath  string `gorm:"not null" json:"-"` // e.g. "/acc/servers/server1/"
 	ServiceName string `gorm:"not null" json:"-"` // Windows service name
+    State       ServerState `gorm:"-" json:"state"`
 }
 
 type PlayerState struct {
@@ -30,10 +31,26 @@ type PlayerState struct {
     IsConnected bool
 }
 
+type AccServerInstance struct {
+    Model     *Server
+    State     *ServerState
+}
+
+type State struct {
+    Session     string `json:"session"`
+    SessionStart time.Time  `json:"sessionStart"`
+    PlayerCount int `json:"playerCount"`
+    // Players     map[int]*PlayerState
+    // etc.
+}
+
 type ServerState struct {
     sync.RWMutex
-    Session     string
-    PlayerCount int
-    Players     map[int]*PlayerState
+    Session     string `json:"session"`
+    SessionStart time.Time  `json:"sessionStart"`
+    PlayerCount int `json:"playerCount"`
+    Track       string `json:"track"`
+    MaxConnections int `json:"maxConnections"`
+    // Players     map[int]*PlayerState
     // etc.
 }
