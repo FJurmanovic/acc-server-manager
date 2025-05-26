@@ -26,7 +26,7 @@ func NewApiService(repository *repository.ApiRepository,
 	}
 }
 
-func (as ApiService) SetServerService(serverService *ServerService) {
+func (as *ApiService) SetServerService(serverService *ServerService) {
 	as.serverService = serverService
 }
 

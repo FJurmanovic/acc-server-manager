@@ -73,7 +73,7 @@ func NewConfigService(repository *repository.ConfigRepository, serverRepository 
 	}
 }
 
-func (as ConfigService) SetServerService(serverService *ServerService) {
+func (as *ConfigService) SetServerService(serverService *ServerService) {
 	as.serverService = serverService
 }
 

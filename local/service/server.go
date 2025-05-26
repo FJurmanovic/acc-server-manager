@@ -7,11 +7,7 @@ import (
 	"context"
 	"log"
 	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
 	"sync"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -42,57 +38,13 @@ func NewServerService(repository *repository.ServerRepository, apiService *ApiSe
 	return service
 }
 
-var leaderboardUpdateRegex = regexp.MustCompile(`Updated leaderboard for (\d+) clients`)
-var sessionChangeRegex = regexp.MustCompile(`Session changed: (\w+) -> (\w+)`)
-
-func handleLogLine(instance *model.AccServerInstance) func(string) {
-	return func (line string) {
-		state := (*instance).State
-		now := time.Now()
-	
-		if strings.Contains(line, "client(s) online") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				countStr := parts[1]
-				if count, err := strconv.Atoi(countStr); err == nil {
-					state.Lock()
-					state.PlayerCount = count
-					state.Unlock()
-				}
-			}
-		}
-	
-		if strings.Contains(line, "Session changed") {
-			match := sessionChangeRegex.FindStringSubmatch(line)
-			if len(match) == 3 {
-				newSession := match[2]
-	
-				state.Lock()
-				state.Session = newSession
-				state.SessionStart = now
-				state.Unlock()
-			}
-		}
-	
-		if strings.Contains(line, "Updated leaderboard for") {
-			match := leaderboardUpdateRegex.FindStringSubmatch(line)
-			if len(match) == 2 {
-				if count, err := strconv.Atoi(match[1]); err == nil {
-					state.Lock()
-					state.PlayerCount = count
-					state.Unlock()
-				}
-			}
-		}
-	}
-}
-
 func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 	s.instances.Delete(server.ID)
-    instance := &model.AccServerInstance{
-        Model: server,
-		State: &model.ServerState{PlayerCount: 0},
-    }
+    instance := tracking.NewAccServerInstance(server, func(states ...tracking.StateChange) {
+		for _, state := range states {
+			log.Println(tracking.StateChanges[state])
+		}
+	})
 	config, _  := DecodeFileName(ConfigurationJson)(server.ConfigPath)
 	cfg := config.(model.Configuration)
 	event, _  := DecodeFileName(EventJson)(server.ConfigPath)
@@ -101,7 +53,7 @@ func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 	instance.State.MaxConnections = cfg.MaxConnections.ToInt()
 	instance.State.Track = evt.Track
 
-	go tracking.TailLogFile(filepath.Join(server.ConfigPath, "\\server\\log\\server.log"), handleLogLine(instance))
+	go tracking.TailLogFile(filepath.Join(server.ConfigPath, "\\server\\log\\server.log"), instance.HandleLogLine)
     s.instances.Store(server.ID, instance)
 }
 
@@ -125,7 +77,7 @@ func (as ServerService) GetAll(ctx *fiber.Ctx) *[]model.Server {
 		if !ok {
 			log.Print("Unable to retrieve instance for server of ID: ", server.ID)
 		} else {
-			serverInstance := instance.(*model.AccServerInstance)
+			serverInstance := instance.(*tracking.AccServerInstance)
 			if (serverInstance.State != nil) {
 				(*servers)[i].State = *serverInstance.State
 			}
@@ -153,7 +105,7 @@ func (as ServerService) GetById(ctx *fiber.Ctx, serverID int) *model.Server {
 	if !ok {
 		log.Print("Unable to retrieve instance for server of ID: ", server.ID)
 	} else {
-		serverInstance := instance.(*model.AccServerInstance)
+		serverInstance := instance.(*tracking.AccServerInstance)
 		if (serverInstance.State != nil) {
 			server.State = *serverInstance.State
 		}
