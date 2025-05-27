@@ -11,6 +11,7 @@ import (
 //		*dig.Container: Dig Container
 func InitializeRepositories(c *dig.Container) {
 	c.Provide(NewApiRepository)
+	c.Provide(NewStateHistoryRepository)
 	c.Provide(NewServerRepository)
 	c.Provide(NewConfigRepository)
 	c.Provide(NewLookupRepository)

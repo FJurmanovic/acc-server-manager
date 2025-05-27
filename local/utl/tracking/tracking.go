@@ -24,10 +24,10 @@ var StateChanges = map[StateChange]string {
 type AccServerInstance struct {
     Model     *model.Server
     State     *model.ServerState
-    OnStateChange func(...StateChange)
+    OnStateChange func(*model.ServerState, ...StateChange)
 }
 
-func NewAccServerInstance(server *model.Server, onStateChange func(...StateChange)) *AccServerInstance {
+func NewAccServerInstance(server *model.Server, onStateChange func(*model.ServerState, ...StateChange)) *AccServerInstance {
     return &AccServerInstance{
         Model: server,
 		State: &model.ServerState{PlayerCount: 0},
@@ -109,8 +109,8 @@ var logStateContain = map[LogStateType]string {
 
 var sessionChangeRegex = NewRegexHandler(`Session changed: (\w+) -> (\w+)`, logStateContain[SessionChange])
 var leaderboardUpdateRegex = NewRegexHandler(`Updated leaderboard for (\d+) clients`, logStateContain[LeaderboardUpdate])
-var udpCountRegex = NewRegexHandler(`Udp message count ((\d+) client`, logStateContain[UDPCount])
-var clientsOnlineRegex = NewRegexHandler(`(\d+) client(s) online`, logStateContain[ClientsOnline])
+var udpCountRegex = NewRegexHandler(`Udp message count (\d+) client`, logStateContain[UDPCount])
+var clientsOnlineRegex = NewRegexHandler(`(\d+) client\(s\) online`, logStateContain[ClientsOnline])
 
 var logStateRegex = map[LogStateType]*StateRegexHandler {
     SessionChange: sessionChangeRegex,
@@ -136,39 +136,45 @@ func (instance *AccServerInstance) HandleLogLine(line string) {
     } 
 }
 
-func (instance *AccServerInstance) UpdateState(callback func(state *model.ServerState)) {
+func (instance *AccServerInstance) UpdateState(callback func(state *model.ServerState, changes *[]StateChange)) {
     state := instance.State
+    changes := []StateChange{}
     state.Lock()
     defer state.Unlock()
-    callback(state)
+    callback(state, &changes)
+    if (len(changes) > 0) {
+        instance.OnStateChange(state, changes...)
+    }
 }
 
 func (instance *AccServerInstance) UpdatePlayerCount(count int) {
-    changes := []StateChange{}
-    instance.UpdateState(func (state *model.ServerState) {
+    instance.UpdateState(func (state *model.ServerState, changes *[]StateChange) {
+        if (count == state.PlayerCount) {
+            return
+        }
         if (count > 0 && state.PlayerCount == 0) {
             state.SessionStart = time.Now()
-            changes = append(changes, Session)
+            *changes = append(*changes, Session)
         } else if (count == 0) {
             state.SessionStart = time.Time{}
-            changes = append(changes, Session)
+            *changes = append(*changes, Session)
         }
         state.PlayerCount = count
-            changes = append(changes, PlayerCount)
+            *changes = append(*changes, PlayerCount)
     })
-    instance.OnStateChange(changes...)
 }
 
 func (instance *AccServerInstance) UpdateSessionChange(session string) {
-    changes := []StateChange{}
-    instance.UpdateState(func (state *model.ServerState) {
+    instance.UpdateState(func (state *model.ServerState, changes *[]StateChange) {
+        if (session == state.Session) {
+            return
+        }
         if (state.PlayerCount > 0) {
             state.SessionStart = time.Now()
         } else {
             state.SessionStart = time.Time{}
         }
         state.Session = session
-        changes = append(changes, Session)
+        *changes = append(*changes, Session)
     })
-    instance.OnStateChange(changes...)
 }

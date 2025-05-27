@@ -55,6 +55,10 @@ func Migrate(db *gorm.DB) {
 	if err != nil {
 		panic("failed to migrate model.SessionType")
 	}
+	err = db.AutoMigrate(&model.StateHistory{})
+	if err != nil {
+		panic("failed to migrate model.StateHistory")
+	}
 	db.FirstOrCreate(&model.ApiModel{Api: "Works"})
 
 	Seed(db)

@@ -16,6 +16,7 @@ func InitializeServices(c *dig.Container) {
 	repository.InitializeRepositories(c)
 
 	c.Provide(NewServerService)
+	c.Provide(NewStateHistoryService)
 	c.Provide(NewApiService)
 	c.Provide(NewConfigService)
 	c.Provide(NewLookupService)

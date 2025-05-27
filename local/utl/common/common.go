@@ -19,6 +19,7 @@ type RouteGroups struct {
 	Server fiber.Router
 	Config fiber.Router
 	Lookup fiber.Router
+	StateHistory fiber.Router
 }
 
 func CheckError(err error) {

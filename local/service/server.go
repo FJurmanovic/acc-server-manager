@@ -8,22 +8,25 @@ import (
 	"log"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type ServerService struct {
 	repository *repository.ServerRepository
+	stateHistoryRepo *repository.StateHistoryRepository
 	apiService *ApiService
 	instances sync.Map
 	configService *ConfigService
 }
 
-func NewServerService(repository *repository.ServerRepository, apiService *ApiService, configService *ConfigService) *ServerService {
+func NewServerService(repository *repository.ServerRepository, stateHistoryRepo *repository.StateHistoryRepository, apiService *ApiService, configService *ConfigService) *ServerService {
 	service := &ServerService{
 		repository: repository,
 		apiService: apiService,
 		configService: configService,
+		stateHistoryRepo: stateHistoryRepo,
 	}
 	servers := repository.GetAll(context.Background())
 	for _, server := range *servers {
@@ -40,10 +43,13 @@ func NewServerService(repository *repository.ServerRepository, apiService *ApiSe
 
 func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 	s.instances.Delete(server.ID)
-    instance := tracking.NewAccServerInstance(server, func(states ...tracking.StateChange) {
-		for _, state := range states {
-			log.Println(tracking.StateChanges[state])
-		}
+    instance := tracking.NewAccServerInstance(server, func(state *model.ServerState, states ...tracking.StateChange) {
+		s.stateHistoryRepo.Insert(context.Background(), &model.StateHistory{
+			ServerID: server.ID,
+			Session: state.Session,
+			PlayerCount: state.PlayerCount,
+			DateCreated: time.Now().UTC(),
+		})
 	})
 	config, _  := DecodeFileName(ConfigurationJson)(server.ConfigPath)
 	cfg := config.(model.Configuration)

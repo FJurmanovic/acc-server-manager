@@ -40,6 +40,11 @@ func InitializeControllers(c *dig.Container) {
 	if err != nil {
 		log.Panic("unable to initialize lookup controller")
 	}
+
+	err = c.Invoke(NewStateHistoryController)
+	if err != nil {
+		log.Panic("unable to initialize stateHistory controller")
+	}
 }
 
 // FilteredResponse
