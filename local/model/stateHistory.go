@@ -56,4 +56,5 @@ type StateHistory struct {
 	Session     string    `json:"session"`
 	PlayerCount int       `json:"playerCount"`
 	DateCreated time.Time `json:"dateCreated"`
+	SessionDurationMinutes int `json:"sessionDurationMinutes"`
 }

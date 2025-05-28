@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql/driver"
 	"fmt"
+	"strconv"
 )
 
 type ServiceStatus int
@@ -54,14 +55,24 @@ func ParseServiceStatus(s string) ServiceStatus {
 
 // MarshalJSON implements json.Marshaler interface
 func (s ServiceStatus) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + s.String() + `"`), nil
+	// Return the numeric value instead of string
+	return []byte(strconv.Itoa(int(s))), nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface
 func (s *ServiceStatus) UnmarshalJSON(data []byte) error {
+	// Try to parse as number first
+	if i, err := strconv.Atoi(string(data)); err == nil {
+		*s = ServiceStatus(i)
+		return nil
+	}
+
+	// Fallback to string parsing for backward compatibility
 	str := string(data)
-	// Remove quotes
-	str = str[1 : len(str)-1]
+	if len(str) >= 2 {
+		// Remove quotes if present
+		str = str[1 : len(str)-1]
+	}
 	*s = ParseServiceStatus(str)
 	return nil
 }

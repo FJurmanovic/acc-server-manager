@@ -87,19 +87,32 @@ func (as *ConfigService) SetServerService(serverService *ServerService) {
 func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{}) (*model.Config, error) {
 	serverID := ctx.Locals("serverId").(int)
 	configFile := ctx.Params("file")
-	override := ctx.QueryBool("override")
+	override := ctx.QueryBool("override", false)
 
 	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
-
 	if err != nil {
-		return nil, err
+		log.Print("Server not found")
+		return nil, fiber.NewError(404, "Server not found")
 	}
 
 	// Read existing config
 	configPath := filepath.Join(server.ConfigPath, "\\server\\cfg", configFile)
 	oldData, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, err
+		if os.IsNotExist(err) {
+			// Create directory if it doesn't exist
+			dir := filepath.Dir(configPath)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return nil, err
+			}
+			// Create empty JSON file
+			if err := os.WriteFile(configPath, []byte("{}"), 0644); err != nil {
+				return nil, err
+			}
+			oldData = []byte("{}")
+		} else {
+			return nil, err
+		}
 	}
 
 	oldDataUTF8, err := DecodeUTF16LEBOM(oldData)
@@ -124,12 +137,11 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 		return nil, err
 	}
 
-	
 	newDataUTF16, err := EncodeUTF16LEBOM(newData)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	context := ctx.UserContext()
 
 	if err := os.WriteFile(configPath, newDataUTF16, 0644); err != nil {

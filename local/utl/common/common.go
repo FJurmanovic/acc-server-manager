@@ -101,40 +101,53 @@ func ParseQueryFilter(c *fiber.Ctx, filter interface{}) error {
 	elem := val.Elem()
 	typ := elem.Type()
 
-	for i := 0; i < elem.NumField(); i++ {
-		field := elem.Field(i)
-		fieldType := typ.Field(i)
+	// Process all fields including embedded structs
+	var processFields func(reflect.Value, reflect.Type) error
+	processFields = func(val reflect.Value, typ reflect.Type) error {
+		for i := 0; i < val.NumField(); i++ {
+			field := val.Field(i)
+			fieldType := typ.Field(i)
 
-		// Skip if field cannot be set
-		if !field.CanSet() {
-			continue
-		}
-
-		// Check for param tag first (path parameters)
-		if paramName := fieldType.Tag.Get("param"); paramName != "" {
-			if err := parsePathParam(c, field, paramName); err != nil {
-				return fmt.Errorf("error parsing path parameter %s: %v", paramName, err)
+			// Handle embedded structs recursively
+			if fieldType.Anonymous {
+				if err := processFields(field, fieldType.Type); err != nil {
+					return err
+				}
+				continue
 			}
-			continue
-		}
 
-		// Then check for query tag
-		queryName := fieldType.Tag.Get("query")
-		if queryName == "" {
-			queryName = ToSnakeCase(fieldType.Name) // Default to snake_case of field name
-		}
+			// Skip if field cannot be set
+			if !field.CanSet() {
+				continue
+			}
 
-		queryVal := c.Query(queryName)
-		if queryVal == "" {
-			continue // Skip empty values
-		}
+			// Check for param tag first (path parameters)
+			if paramName := fieldType.Tag.Get("param"); paramName != "" {
+				if err := parsePathParam(c, field, paramName); err != nil {
+					return fmt.Errorf("error parsing path parameter %s: %v", paramName, err)
+				}
+				continue
+			}
 
-		if err := parseValue(field, queryVal, fieldType.Tag); err != nil {
-			return fmt.Errorf("error parsing query parameter %s: %v", queryName, err)
+			// Then check for query tag
+			queryName := fieldType.Tag.Get("query")
+			if queryName == "" {
+				queryName = ToSnakeCase(fieldType.Name) // Default to snake_case of field name
+			}
+
+			queryVal := c.Query(queryName)
+			if queryVal == "" {
+				continue // Skip empty values
+			}
+
+			if err := parseValue(field, queryVal, fieldType.Tag); err != nil {
+				return fmt.Errorf("error parsing query parameter %s: %v", queryName, err)
+			}
 		}
+		return nil
 	}
 
-	return nil
+	return processFields(elem, typ)
 }
 
 func parsePathParam(c *fiber.Ctx, field reflect.Value, paramName string) error {
