@@ -1,12 +1,97 @@
 package model
 
-type ServiceStatus string
+import (
+	"database/sql/driver"
+	"fmt"
+)
+
+type ServiceStatus int
 
 const (
-	StatusRunning    ServiceStatus = "SERVICE_RUNNING\r\n"
-	StatusStopped    ServiceStatus = "SERVICE_STOPPED\r\n"
-	StatusRestarting ServiceStatus = "SERVICE_RESTARTING\r\n"
+	StatusUnknown ServiceStatus = iota
+	StatusStopped
+	StatusStopping
+	StatusRestarting
+	StatusStarting
+	StatusRunning
 )
+
+// String converts the ServiceStatus to its string representation
+func (s ServiceStatus) String() string {
+	switch s {
+	case StatusRunning:
+		return "SERVICE_RUNNING"
+	case StatusStopped:
+		return "SERVICE_STOPPED"
+	case StatusStarting:
+		return "SERVICE_STARTING"
+	case StatusStopping:
+		return "SERVICE_STOPPING"
+	case StatusRestarting:
+		return "SERVICE_RESTARTING"
+	default:
+		return "SERVICE_UNKNOWN"
+	}
+}
+
+// ParseServiceStatus converts a string to ServiceStatus
+func ParseServiceStatus(s string) ServiceStatus {
+	switch s {
+	case "SERVICE_RUNNING":
+		return StatusRunning
+	case "SERVICE_STOPPED":
+		return StatusStopped
+	case "SERVICE_STARTING":
+		return StatusStarting
+	case "SERVICE_STOPPING":
+		return StatusStopping
+	case "SERVICE_RESTARTING":
+		return StatusRestarting
+	default:
+		return StatusUnknown
+	}
+}
+
+// MarshalJSON implements json.Marshaler interface
+func (s ServiceStatus) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface
+func (s *ServiceStatus) UnmarshalJSON(data []byte) error {
+	str := string(data)
+	// Remove quotes
+	str = str[1 : len(str)-1]
+	*s = ParseServiceStatus(str)
+	return nil
+}
+
+// Scan implements the sql.Scanner interface
+func (s *ServiceStatus) Scan(value interface{}) error {
+	if value == nil {
+		*s = StatusUnknown
+		return nil
+	}
+
+	switch v := value.(type) {
+	case string:
+		*s = ParseServiceStatus(v)
+		return nil
+	case []byte:
+		*s = ParseServiceStatus(string(v))
+		return nil
+	case int64:
+		*s = ServiceStatus(v)
+		return nil
+	default:
+		return fmt.Errorf("unsupported type for ServiceStatus: %T", value)
+	}
+}
+
+// Value implements the driver.Valuer interface
+func (s ServiceStatus) Value() (driver.Value, error) {
+	return s.String(), nil
+}
 
 type ApiModel struct {
 	Api string `json:"api"`

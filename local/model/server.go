@@ -9,7 +9,7 @@ import (
 type Server struct {
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	Name        string `gorm:"not null" json:"name"`
-	Status      ServiceStatus `json:"status"`
+	Status      ServiceStatus `json:"status" gorm:"-"`
 	IP          string `gorm:"not null" json:"-"`
 	Port        int    `gorm:"not null" json:"-"`
 	ConfigPath  string `gorm:"not null" json:"-"` // e.g. "/acc/servers/server1/"

@@ -145,7 +145,7 @@ func (as ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 		if err != nil {
 			log.Print(err.Error())
 		}
-		(*servers)[i].Status = model.ServiceStatus(status)
+		(*servers)[i].Status = model.ParseServiceStatus(status)
 		instance, ok := as.instances.Load(server.ID)
 		if !ok {
 			log.Print("Unable to retrieve instance for server of ID: ", server.ID)
@@ -176,7 +176,7 @@ func (as ServerService) GetById(ctx *fiber.Ctx, serverID int) (*model.Server, er
 	if err != nil {
 		log.Print(err.Error())
 	}
-	server.Status = model.ServiceStatus(status)
+	server.Status = model.ParseServiceStatus(status)
 	instance, ok := as.instances.Load(server.ID)
 	if !ok {
 		log.Print("Unable to retrieve instance for server of ID: ", server.ID)

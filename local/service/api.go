@@ -7,22 +7,28 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-
 type ApiService struct {
 	repository       *repository.ApiRepository
 	serverRepository *repository.ServerRepository
-	serverService *ServerService
+	serverService    *ServerService
+	statusCache      *model.ServerStatusCache
 }
 
 func NewApiService(repository *repository.ApiRepository,
-	serverRepository *repository.ServerRepository,) *ApiService {
+	serverRepository *repository.ServerRepository) *ApiService {
 	return &ApiService{
 		repository:       repository,
 		serverRepository: serverRepository,
+		statusCache: model.NewServerStatusCache(model.CacheConfig{
+			ExpirationTime:  30 * time.Second,  // Cache expires after 30 seconds
+			ThrottleTime:    5 * time.Second,   // Minimum 5 seconds between checks
+			DefaultStatus:   model.StatusRunning, // Default to running if throttled
+		}),
 	}
 }
 
@@ -35,9 +41,22 @@ func (as ApiService) GetStatus(ctx *fiber.Ctx) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	status, err := as.StatusServer(serviceName)
 
-	return status, err
+	// Try to get status from cache
+	if status, shouldCheck := as.statusCache.GetStatus(serviceName); !shouldCheck {
+		return status.String(), nil
+	}
+
+	// If cache miss or expired, check actual status
+	statusStr, err := as.StatusServer(serviceName)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse and update cache with new status
+	status := model.ParseServiceStatus(statusStr)
+	as.statusCache.UpdateStatus(serviceName, status)
+	return status.String(), nil
 }
 
 func (as ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
@@ -45,7 +64,19 @@ func (as ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return as.StartServer(serviceName)
+	
+	// Update status cache for this service before starting
+	as.statusCache.UpdateStatus(serviceName, model.StatusStarting)
+	
+	statusStr, err := as.StartServer(serviceName)
+	if err != nil {
+		return "", err
+	}
+	
+	// Parse and update cache with new status
+	status := model.ParseServiceStatus(statusStr)
+	as.statusCache.UpdateStatus(serviceName, status)
+	return status.String(), nil
 }
 
 func (as ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
@@ -53,7 +84,19 @@ func (as ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return as.StopServer(serviceName)
+	
+	// Update status cache for this service before stopping
+	as.statusCache.UpdateStatus(serviceName, model.StatusStopping)
+	
+	statusStr, err := as.StopServer(serviceName)
+	if err != nil {
+		return "", err
+	}
+	
+	// Parse and update cache with new status
+	status := model.ParseServiceStatus(statusStr)
+	as.statusCache.UpdateStatus(serviceName, status)
+	return status.String(), nil
 }
 
 func (as ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
@@ -61,7 +104,19 @@ func (as ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return as.RestartServer(serviceName)
+	
+	// Update status cache for this service before restarting
+	as.statusCache.UpdateStatus(serviceName, model.StatusRestarting)
+	
+	statusStr, err := as.RestartServer(serviceName)
+	if err != nil {
+		return "", err
+	}
+	
+	// Parse and update cache with new status
+	status := model.ParseServiceStatus(statusStr)
+	as.statusCache.UpdateStatus(serviceName, status)
+	return status.String(), nil
 }
 
 func (as ApiService) StatusServer(serviceName string) (string, error) {
@@ -99,7 +154,12 @@ func ManageService(serviceName string, action string) (string, error) {
 		return "", err
 	}
 
-	return strings.ReplaceAll(output, "\x00", ""), nil
+	// Clean up NSSM output by removing null bytes and trimming whitespace
+	cleaned := strings.TrimSpace(strings.ReplaceAll(output, "\x00", ""))
+	// Remove \r\n from status strings
+	cleaned = strings.TrimSuffix(cleaned, "\r\n")
+	
+	return cleaned, nil
 }
 
 func (as ApiService) GetServiceName(ctx *fiber.Ctx) (string, error) {
