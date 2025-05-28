@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 // BaseFilter contains common filter fields that can be embedded in other filters
 type BaseFilter struct {
@@ -19,15 +21,6 @@ type DateRangeFilter struct {
 // ServerBasedFilter adds server ID filtering capability
 type ServerBasedFilter struct {
 	ServerID int `param:"id"`
-}
-
-// ServerFilter defines filtering options for Server queries
-type ServerFilter struct {
-	BaseFilter
-	ServerBasedFilter
-	Name        string `query:"name"`
-	ServiceName string `query:"service_name"`
-	Status      string `query:"status"`
 }
 
 // ConfigFilter defines filtering options for Config queries

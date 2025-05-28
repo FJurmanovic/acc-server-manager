@@ -8,7 +8,6 @@ import (
 
 // StateHistoryFilter combines common filter capabilities
 type StateHistoryFilter struct {
-	BaseFilter      // Adds pagination and sorting
 	ServerBasedFilter // Adds server ID from path parameter
 	DateRangeFilter   // Adds date range filtering
 	

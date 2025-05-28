@@ -2,6 +2,7 @@ package db
 
 import (
 	"acc-server-manager/local/model"
+	"acc-server-manager/local/utl/logging"
 
 	"go.uber.org/dig"
 	"gorm.io/driver/sqlite"
@@ -11,13 +12,13 @@ import (
 func Start(di *dig.Container) {
 	db, err := gorm.Open(sqlite.Open("acc.db"), &gorm.Config{})
 	if err != nil {
-		panic("failed to connect database")
+		logging.Panic("failed to connect database")
 	}
 	err = di.Provide(func() *gorm.DB {
 		return db
 	})
 	if err != nil {
-		panic("failed to bind database")
+		logging.Panic("failed to bind database")
 	}
 	Migrate(db)
 }
@@ -25,39 +26,39 @@ func Start(di *dig.Container) {
 func Migrate(db *gorm.DB) {
 	err := db.AutoMigrate(&model.ApiModel{})
 	if err != nil {
-		panic("failed to migrate model.ApiModel")
+		logging.Panic("failed to migrate model.ApiModel")
 	}
 	err = db.AutoMigrate(&model.Server{})
 	if err != nil {
-		panic("failed to migrate model.Server")
+		logging.Panic("failed to migrate model.Server")
 	}
 	err = db.AutoMigrate(&model.Config{})
 	if err != nil {
-		panic("failed to migrate model.Config")
+		logging.Panic("failed to migrate model.Config")
 	}
 	err = db.AutoMigrate(&model.Track{})
 	if err != nil {
-		panic("failed to migrate model.Track")
+		logging.Panic("failed to migrate model.Track")
 	}
 	err = db.AutoMigrate(&model.CarModel{})
 	if err != nil {
-		panic("failed to migrate model.CarModel")
+		logging.Panic("failed to migrate model.CarModel")
 	}
 	err = db.AutoMigrate(&model.CupCategory{})
 	if err != nil {
-		panic("failed to migrate model.CupCategory")
+		logging.Panic("failed to migrate model.CupCategory")
 	}
 	err = db.AutoMigrate(&model.DriverCategory{})
 	if err != nil {
-		panic("failed to migrate model.DriverCategory")
+		logging.Panic("failed to migrate model.DriverCategory")
 	}
 	err = db.AutoMigrate(&model.SessionType{})
 	if err != nil {
-		panic("failed to migrate model.SessionType")
+		logging.Panic("failed to migrate model.SessionType")
 	}
 	err = db.AutoMigrate(&model.StateHistory{})
 	if err != nil {
-		panic("failed to migrate model.StateHistory")
+		logging.Panic("failed to migrate model.StateHistory")
 	}
 	db.FirstOrCreate(&model.ApiModel{Api: "Works"})
 

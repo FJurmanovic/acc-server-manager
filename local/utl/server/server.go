@@ -2,9 +2,8 @@ package server
 
 import (
 	"acc-server-manager/local/api"
-	"acc-server-manager/local/utl/common"
+	"acc-server-manager/local/utl/logging"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -14,6 +13,17 @@ import (
 )
 
 func Start(di *dig.Container) *fiber.App {
+	// Initialize logger
+	logger, err := logging.Initialize()
+	if err != nil {
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer logger.Close()
+
+	// Set up panic recovery
+	defer logging.RecoverAndLog()
+
 	app := fiber.New(fiber.Config{
 		EnablePrintRoutes: true,
 	})
@@ -22,22 +32,22 @@ func Start(di *dig.Container) *fiber.App {
 
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
-	file, err := os.OpenFile("logs.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		log.Print("Cannot open file logs.log")
-	}
-	log.SetOutput(file)
-
 	api.Init(di, app)
 
 	app.Get("/ping", func(c *fiber.Ctx) error {
 		return c.SendString("pong")
 	})
+
 	port := os.Getenv("PORT")
-	err = app.Listen(":" + port)
-	if err != nil {
-		msg := fmt.Sprintf("Running on %s:%s", common.GetIP(), port)
-		println(msg)
+	if port == "" {
+		port = "3000" // Default port
 	}
+
+	logging.Info("Starting server on port %s", port)
+	if err := app.Listen(":" + port); err != nil {
+		logging.Error("Failed to start server: %v", err)
+		os.Exit(1)
+	}
+
 	return app
 }

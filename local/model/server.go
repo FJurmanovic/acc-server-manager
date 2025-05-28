@@ -3,6 +3,8 @@ package model
 import (
 	"sync"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // Server represents an ACC server instance
@@ -49,4 +51,23 @@ type ServerState struct {
     SessionDurationMinutes int    `json:"sessionDurationMinutes"`
     // Players     map[int]*PlayerState
     // etc.
+}
+
+// ServerFilter defines filtering options for Server queries
+type ServerFilter struct {
+	BaseFilter
+	ServerBasedFilter
+	Name        string `query:"name"`
+	ServiceName string `query:"service_name"`
+	Status      string `query:"status"`
+}
+
+// ApplyFilter implements the Filterable interface
+func (f *ServerFilter) ApplyFilter(query *gorm.DB) *gorm.DB {
+	// Apply server filter
+	if f.ServerID != 0 {
+		query = query.Where("id = ?", f.ServerID)
+	}
+
+	return query
 }

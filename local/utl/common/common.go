@@ -155,12 +155,18 @@ func parsePathParam(c *fiber.Ctx, field reflect.Value, paramName string) error {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		val, err := c.ParamsInt(paramName)
 		if err != nil {
+			if strings.Contains(err.Error(), "strconv.Atoi: parsing \"\": invalid syntax") {
+				return nil
+			}
 			return err
 		}
 		field.SetInt(int64(val))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		val, err := c.ParamsInt(paramName)
 		if err != nil {
+			if strings.Contains(err.Error(), "strconv.Atoi: parsing \"\": invalid syntax") {
+				return nil
+			}
 			return err
 		}
 		field.SetUint(uint64(val))

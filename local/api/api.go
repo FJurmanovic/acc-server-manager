@@ -4,6 +4,7 @@ import (
 	"acc-server-manager/local/controller"
 	"acc-server-manager/local/utl/common"
 	"acc-server-manager/local/utl/configs"
+	"acc-server-manager/local/utl/logging"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -40,13 +41,13 @@ func Init(di *dig.Container, app *fiber.App) {
 		return routeGroups
 	})
 	if err != nil {
-		panic("unable to bind routes")
+		logging.Panic("unable to bind routes")
 	}
 	err = di.Provide(func() *dig.Container {
 		return di
 	})
 	if err != nil {
-		panic("unable to bind dig")
+		logging.Panic("unable to bind dig")
 	}
 
 	controller.InitializeControllers(di)

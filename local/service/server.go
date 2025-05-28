@@ -3,6 +3,7 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
+	"acc-server-manager/local/utl/logging"
 	"acc-server-manager/local/utl/tracking"
 	"context"
 	"log"
@@ -58,7 +59,7 @@ func NewServerService(repository *repository.ServerRepository, stateHistoryRepo 
 	// Initialize instances for all servers
 	servers, err := repository.GetAll(context.Background(), &model.ServerFilter{})
 	if err != nil {
-		log.Print(err.Error())
+		logging.Error("Failed to get servers: %v", err)
 		return service
 	}
 
@@ -106,7 +107,7 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 		// Try to load sessions from config
 		event, err := DecodeFileName(EventJson)(server.ConfigPath)
 		if err != nil {
-			log.Printf("Failed to load event config for server %d: %v", server.ID, err)
+			logging.Error("Failed to load event config for server %d: %v", server.ID, err)
 			return
 		}
 		evt := event.(model.EventConfig)
@@ -115,7 +116,7 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 	}
 
 	sessions := sessionsInterface.([]model.Session)
-	if (sessionType == "" && len(sessions) > 0) {
+	if sessionType == "" && len(sessions) > 0 {
 		sessionType = sessions[0].SessionType
 	}
 	for _, session := range sessions {
@@ -200,24 +201,25 @@ func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
-func (as ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]model.Server, error) {
-	servers, err := as.repository.GetAll(ctx.UserContext(), filter)
+func (s ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]model.Server, error) {
+	servers, err := s.repository.GetAll(ctx.UserContext(), filter)
 	if err != nil {
+		logging.Error("Failed to get servers: %v", err)
 		return nil, err
 	}
 
 	for i, server := range *servers {
-		status, err := as.apiService.StatusServer(server.ServiceName)
+		status, err := s.apiService.StatusServer(server.ServiceName)
 		if err != nil {
-			log.Print(err.Error())
+			logging.Error("Failed to get status for server %s: %v", server.ServiceName, err)
 		}
 		(*servers)[i].Status = model.ParseServiceStatus(status)
-		instance, ok := as.instances.Load(server.ID)
+		instance, ok := s.instances.Load(server.ID)
 		if !ok {
-			log.Print("Unable to retrieve instance for server of ID: ", server.ID)
+			logging.Warn("No instance found for server ID: %d", server.ID)
 		} else {
 			serverInstance := instance.(*tracking.AccServerInstance)
-			if (serverInstance.State != nil) {
+			if serverInstance.State != nil {
 				(*servers)[i].State = *serverInstance.State
 			}
 		}
