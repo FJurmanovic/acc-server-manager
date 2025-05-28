@@ -14,11 +14,18 @@ import (
 )
 
 type ServerService struct {
-	repository *repository.ServerRepository
+	repository       *repository.ServerRepository
 	stateHistoryRepo *repository.StateHistoryRepository
-	apiService *ApiService
-	instances sync.Map
-	configService *ConfigService
+	apiService       *ApiService
+	instances        sync.Map
+	configService    *ConfigService
+	lastInsertTimes  sync.Map // Track last insert time per server
+	debouncers       sync.Map // Track debounce timers per server
+}
+
+type pendingState struct {
+	timer *time.Timer
+	state *model.ServerState
 }
 
 func NewServerService(repository *repository.ServerRepository, stateHistoryRepo *repository.StateHistoryRepository, apiService *ApiService, configService *ConfigService) *ServerService {
@@ -28,7 +35,10 @@ func NewServerService(repository *repository.ServerRepository, stateHistoryRepo 
 		configService: configService,
 		stateHistoryRepo: stateHistoryRepo,
 	}
-	servers := repository.GetAll(context.Background())
+	servers, err := repository.GetAll(context.Background(), &model.ServerFilter{})
+	if err != nil {
+		log.Print(err.Error())
+	}
 	for _, server := range *servers {
 		status, err := service.apiService.StatusServer(server.ServiceName)
 		if err != nil {
@@ -41,15 +51,69 @@ func NewServerService(repository *repository.ServerRepository, stateHistoryRepo 
 	return service
 }
 
+func (s *ServerService) shouldInsertStateHistory(serverID uint) bool {
+	insertInterval := 5 * time.Minute // Configure this as needed
+	
+	lastInsertInterface, exists := s.lastInsertTimes.Load(serverID)
+	if !exists {
+		s.lastInsertTimes.Store(serverID, time.Now().UTC())
+		return true
+	}
+	
+	lastInsert := lastInsertInterface.(time.Time)
+	now := time.Now().UTC()
+	
+	if now.Sub(lastInsert) >= insertInterval {
+		s.lastInsertTimes.Store(serverID, now)
+		return true
+	}
+	
+	return false
+}
+
+func (s *ServerService) insertStateHistory(serverID uint, state *model.ServerState) {
+	s.stateHistoryRepo.Insert(context.Background(), &model.StateHistory{
+		ServerID:    serverID,
+		Session:     state.Session,
+		PlayerCount: state.PlayerCount,
+		DateCreated: time.Now().UTC(),
+	})
+}
+
+func (s *ServerService) handleStateChange(server *model.Server, state *model.ServerState) {
+	// Cancel existing timer if any
+	if debouncer, exists := s.debouncers.Load(server.ID); exists {
+		pending := debouncer.(*pendingState)
+		pending.timer.Stop()
+	}
+
+	// Create new timer
+	timer := time.NewTimer(5 * time.Minute)
+	s.debouncers.Store(server.ID, &pendingState{
+		timer: timer,
+		state: state,
+	})
+
+	// Start goroutine to handle the delayed insert
+	go func() {
+		<-timer.C
+		if debouncer, exists := s.debouncers.Load(server.ID); exists {
+			pending := debouncer.(*pendingState)
+			s.insertStateHistory(server.ID, pending.state)
+			s.debouncers.Delete(server.ID)
+		}
+	}()
+
+	// If enough time has passed since last insert, insert immediately
+	if s.shouldInsertStateHistory(server.ID) {
+		s.insertStateHistory(server.ID, state)
+	}
+}
+
 func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 	s.instances.Delete(server.ID)
     instance := tracking.NewAccServerInstance(server, func(state *model.ServerState, states ...tracking.StateChange) {
-		s.stateHistoryRepo.Insert(context.Background(), &model.StateHistory{
-			ServerID: server.ID,
-			Session: state.Session,
-			PlayerCount: state.PlayerCount,
-			DateCreated: time.Now().UTC(),
-		})
+		s.handleStateChange(server, state)
 	})
 	config, _  := DecodeFileName(ConfigurationJson)(server.ConfigPath)
 	cfg := config.(model.Configuration)
@@ -70,8 +134,11 @@ func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
-func (as ServerService) GetAll(ctx *fiber.Ctx) *[]model.Server {
-	servers := as.repository.GetAll(ctx.UserContext())
+func (as ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]model.Server, error) {
+	servers, err := as.repository.GetAll(ctx.UserContext(), filter)
+	if err != nil {
+		return nil, err
+	}
 
 	for i, server := range *servers {
 		status, err := as.apiService.StatusServer(server.ServiceName)
@@ -90,7 +157,7 @@ func (as ServerService) GetAll(ctx *fiber.Ctx) *[]model.Server {
 		}
 	}
 
-	return servers
+	return servers, nil
 }
 
 // GetById
@@ -100,8 +167,11 @@ func (as ServerService) GetAll(ctx *fiber.Ctx) *[]model.Server {
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
-func (as ServerService) GetById(ctx *fiber.Ctx, serverID int) *model.Server {
-	server := as.repository.GetFirst(ctx.UserContext(), serverID)
+func (as ServerService) GetById(ctx *fiber.Ctx, serverID int) (*model.Server, error) {
+	server, err := as.repository.GetByID(ctx.UserContext(), serverID)
+	if err != nil {
+		return nil, err
+	}
 	status, err := as.apiService.StatusServer(server.ServiceName)
 	if err != nil {
 		log.Print(err.Error())
@@ -117,5 +187,5 @@ func (as ServerService) GetById(ctx *fiber.Ctx, serverID int) *model.Server {
 		}
 	}
 
-	return server
+	return server, nil
 }

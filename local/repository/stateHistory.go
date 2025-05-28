@@ -8,38 +8,21 @@ import (
 )
 
 type StateHistoryRepository struct {
-	db *gorm.DB
+	*BaseRepository[model.StateHistory, model.StateHistoryFilter]
 }
 
 func NewStateHistoryRepository(db *gorm.DB) *StateHistoryRepository {
 	return &StateHistoryRepository{
-		db: db,
+		BaseRepository: NewBaseRepository[model.StateHistory, model.StateHistoryFilter](db, model.StateHistory{}),
 	}
 }
 
-// GetAll
-// Gets All rows from Server table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.ServerModel: Server object from database.
-func (as StateHistoryRepository) GetAll(ctx context.Context, id int) *[]model.StateHistory {
-	db := as.db.WithContext(ctx)
-	ServerModel := new([]model.StateHistory)
-	db.Find(&ServerModel).Where("ID = ?", id)
-	return ServerModel
+// GetAll retrieves all state history records with the given filter
+func (r *StateHistoryRepository) GetAll(ctx context.Context, filter *model.StateHistoryFilter) (*[]model.StateHistory, error) {
+	return r.BaseRepository.GetAll(ctx, filter)
 }
 
-// UpdateServer
-// Updates Server row from Server table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.Server: Server object from database.
-func (as StateHistoryRepository) Insert(ctx context.Context, body *model.StateHistory) *model.StateHistory {
-	db := as.db.WithContext(ctx)
-	db.Save(body)
-	return body
+// Insert creates a new state history record
+func (r *StateHistoryRepository) Insert(ctx context.Context, model *model.StateHistory) error {
+	return r.BaseRepository.Insert(ctx, model)
 }

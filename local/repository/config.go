@@ -3,64 +3,27 @@ package repository
 import (
 	"acc-server-manager/local/model"
 	"context"
-	"errors"
 
 	"gorm.io/gorm"
 )
 
 type ConfigRepository struct {
-	db *gorm.DB
+	*BaseRepository[model.Config, model.ConfigFilter]
 }
 
 func NewConfigRepository(db *gorm.DB) *ConfigRepository {
 	return &ConfigRepository{
-		db: db,
+		BaseRepository: NewBaseRepository[model.Config, model.ConfigFilter](db, model.Config{}),
 	}
 }
 
-// UpdateConfig
-// Updates first row from Config table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.ConfigModel: Config object from database.
-func (as ConfigRepository) UpdateFirst(ctx context.Context) *model.Config {
-	db := as.db.WithContext(ctx)
-	ConfigModel := new(model.Config)
-	db.First(&ConfigModel)
-	return ConfigModel
-}
-
-// UpdateAll
-// Updates All rows from Config table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.ConfigModel: Config object from database.
-func (as ConfigRepository) UpdateAll(ctx context.Context) *[]model.Config {
-	db := as.db.WithContext(ctx)
-	ConfigModel := new([]model.Config)
-	db.Find(&ConfigModel)
-	return ConfigModel
-}
-
-// UpdateConfig
-// Updates Config row from Config table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.ConfigModel: Config object from database.
-func (as ConfigRepository) UpdateConfig(ctx context.Context, body *model.Config) *model.Config {
-	db := as.db.WithContext(ctx)
-
-	existingConfig := new(model.Config)
-	result := db.Where("server_id=?", body.ServerID).Where("config_file=?", body.ConfigFile).First(existingConfig)
-	if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		body.ID = existingConfig.ID
+// UpdateConfig updates or creates a Config record
+func (r *ConfigRepository) UpdateConfig(ctx context.Context, config *model.Config) *model.Config {
+	if err := r.Update(ctx, config); err != nil {
+		// If update fails, try to insert
+		if err := r.Insert(ctx, config); err != nil {
+			return nil
+		}
 	}
-	db.Save(body)
-	return body
+	return config
 }

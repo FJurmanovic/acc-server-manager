@@ -49,11 +49,3 @@ type ServerState struct {
     // Players     map[int]*PlayerState
     // etc.
 }
-
-type StateHistory struct {
-	ID          uint   `gorm:"primaryKey" json:"id"`
-	ServerID   uint      `json:"serverId" gorm:"not null"`
-    Session     string `json:"session"`
-    PlayerCount int `json:"playerCount"`
-    DateCreated time.Time `json:"dateCreated"`
-}

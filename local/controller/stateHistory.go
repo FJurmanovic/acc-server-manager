@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"acc-server-manager/local/model"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
 
@@ -37,7 +38,19 @@ func NewStateHistoryController(as *service.StateHistoryService, routeGroups *com
 //	@Success		200	{array}	string
 //	@Router			/v1/StateHistory [get]
 func (ac *StateHistoryController) getAll(c *fiber.Ctx) error {
-	StateHistoryID, _ := c.ParamsInt("id")
-	StateHistoryModel := ac.service.GetAll(c, StateHistoryID)
-	return c.JSON(StateHistoryModel)
+	var filter model.StateHistoryFilter
+	if err := common.ParseQueryFilter(c, &filter); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	result, err := ac.service.GetAll(c, &filter)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error retrieving state history",
+		})
+	}
+
+	return c.JSON(result)
 }

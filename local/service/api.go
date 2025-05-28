@@ -30,17 +30,6 @@ func (as *ApiService) SetServerService(serverService *ServerService) {
 	as.serverService = serverService
 }
 
-// GetFirst
-// Gets first row from API table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			string: Application version
-func (as ApiService) GetFirst(ctx *fiber.Ctx) *model.ApiModel {
-	return as.repository.GetFirst(ctx.UserContext())
-}
-
 func (as ApiService) GetStatus(ctx *fiber.Ctx) (string, error) {
 	serviceName, err := as.GetServiceName(ctx)
 	if err != nil {
@@ -82,7 +71,7 @@ func (as ApiService) StatusServer(serviceName string) (string, error) {
 func (as ApiService) StartServer(serviceName string) (string, error) {
 	status, err := ManageService(serviceName, "start")
 
-	server := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
 	as.serverService.StartAccServerRuntime(server)
 	return status, err
 }
@@ -90,7 +79,7 @@ func (as ApiService) StartServer(serviceName string) (string, error) {
 func (as ApiService) StopServer(serviceName string) (string, error) {
 	status, err := ManageService(serviceName, "stop")
 
-	server := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
 	as.serverService.instances.Delete(server.ID)
 
 	return status, err
@@ -99,7 +88,7 @@ func (as ApiService) StopServer(serviceName string) (string, error) {
 func (as ApiService) RestartServer(serviceName string) (string, error) {
 	status, err := ManageService(serviceName, "restart")
 
-	server := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
 	as.serverService.StartAccServerRuntime(server)
 	return status, err
 }
@@ -115,18 +104,19 @@ func ManageService(serviceName string, action string) (string, error) {
 
 func (as ApiService) GetServiceName(ctx *fiber.Ctx) (string, error) {
 	var server *model.Server
+	var err error
 	serviceName, ok := ctx.Locals("service").(string)
 	if !ok || serviceName == "" {
 		serverId, ok2 := ctx.Locals("serverId").(int)
 		if !ok2 || serverId == 0 {
 			return "", errors.New("service name missing")
 		}
-		server = as.serverRepository.GetFirst(ctx.UserContext(), serverId)
+		server, err = as.serverRepository.GetByID(ctx.UserContext(), serverId)
 	} else {
-		server = as.serverRepository.GetFirstByServiceName(ctx.UserContext(), serviceName)
+		server, err = as.serverRepository.GetFirstByServiceName(ctx.UserContext(), serviceName)
 	}
-	if server == nil {
-		return "", fiber.NewError(404, "Server not found")
+	if err != nil {
+		return "", err
 	}
 	return server.ServiceName, nil
 }

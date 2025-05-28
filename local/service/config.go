@@ -89,10 +89,10 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 	configFile := ctx.Params("file")
 	override := ctx.QueryBool("override")
 
-	server := as.serverRepository.GetFirst(ctx.UserContext(), serverID)
+	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
 
-	if server == nil {
-		return nil, fiber.NewError(404, "Server not found")
+	if err != nil {
+		return nil, err
 	}
 
 	// Read existing config
@@ -159,9 +159,9 @@ func (as ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
 	serverID, _ := ctx.ParamsInt("id")
 	configFile := ctx.Params("file")
 
-	server := as.serverRepository.GetFirst(ctx.UserContext(), serverID)
+	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
 
-	if server == nil {
+	if err != nil {
 		log.Print("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
 	}
@@ -184,9 +184,9 @@ func (as ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
 func (as ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, error) {
 	serverID, _ := ctx.ParamsInt("id")
 
-	server := as.serverRepository.GetFirst(ctx.UserContext(), serverID)
+	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
 
-	if server == nil {
+	if err != nil {
 		log.Print("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
 	}

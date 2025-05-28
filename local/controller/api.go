@@ -43,8 +43,7 @@ func NewApiController(as *service.ApiService, routeGroups *common.RouteGroups) *
 //	@Success		200	{array}	string
 //	@Router			/v1/api [get]
 func (ac *ApiController) getFirst(c *fiber.Ctx) error {
-	apiModel := ac.service.GetFirst(c)
-	return c.SendString(apiModel.Api)
+	return c.SendStatus(fiber.StatusOK)
 }
 
 // getStatus returns service status

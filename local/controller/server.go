@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"acc-server-manager/local/model"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
 
@@ -38,7 +39,16 @@ func NewServerController(as *service.ServerService, routeGroups *common.RouteGro
 //	@Success		200	{array}	string
 //	@Router			/v1/server [get]
 func (ac *ServerController) getAll(c *fiber.Ctx) error {
-	ServerModel := ac.service.GetAll(c)
+	var filter model.ServerFilter	
+	if err := common.ParseQueryFilter(c, &filter); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	ServerModel, err := ac.service.GetAll(c, &filter)
+	if err != nil {
+		return c.Status(400).SendString(err.Error())
+	}
 	return c.JSON(ServerModel)
 }
 
@@ -51,6 +61,9 @@ func (ac *ServerController) getAll(c *fiber.Ctx) error {
 //	@Router			/v1/server [get]
 func (ac *ServerController) getById(c *fiber.Ctx) error {
 	serverID, _ := c.ParamsInt("id")
-	ServerModel := ac.service.GetById(c, serverID)
+	ServerModel, err := ac.service.GetById(c, serverID)
+	if err != nil {
+		return c.Status(400).SendString(err.Error())
+	}
 	return c.JSON(ServerModel)
 }
