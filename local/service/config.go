@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -63,13 +64,19 @@ func mustDecode[T any](fileName, path string) (T, error) {
 type ConfigService struct {
 	repository       *repository.ConfigRepository
 	serverRepository *repository.ServerRepository
-	serverService *ServerService
+	serverService    *ServerService
+	configCache      *model.ServerConfigCache
 }
 
 func NewConfigService(repository *repository.ConfigRepository, serverRepository *repository.ServerRepository) *ConfigService {
 	return &ConfigService{
 		repository:       repository,
 		serverRepository: serverRepository,
+		configCache:     model.NewServerConfigCache(model.CacheConfig{
+			ExpirationTime: 5 * time.Minute,  // Cache configs for 5 minutes
+			ThrottleTime:   1 * time.Second,  // Prevent rapid re-reads
+			DefaultStatus:  model.StatusUnknown,
+		}),
 	}
 }
 
@@ -148,6 +155,9 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 		return nil, err
 	}
 
+	// Invalidate all configs for this server since configs can be interdependent
+	as.configCache.InvalidateServerCache(strconv.Itoa(serverID))
+
 	as.serverService.StartAccServerRuntime(server)
 
 	// Log change
@@ -170,12 +180,36 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 func (as ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
 	serverID, _ := ctx.ParamsInt("id")
 	configFile := ctx.Params("file")
+	serverIDStr := strconv.Itoa(serverID)
 
 	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
-
 	if err != nil {
 		log.Print("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
+	}
+
+	// Try to get from cache based on config file type
+	switch configFile {
+	case ConfigurationJson:
+		if cached, ok := as.configCache.GetConfiguration(serverIDStr); ok {
+			return cached, nil
+		}
+	case AssistRulesJson:
+		if cached, ok := as.configCache.GetAssistRules(serverIDStr); ok {
+			return cached, nil
+		}
+	case EventJson:
+		if cached, ok := as.configCache.GetEvent(serverIDStr); ok {
+			return cached, nil
+		}
+	case EventRulesJson:
+		if cached, ok := as.configCache.GetEventRules(serverIDStr); ok {
+			return cached, nil
+		}
+	case SettingsJson:
+		if cached, ok := as.configCache.GetSettings(serverIDStr); ok {
+			return cached, nil
+		}
 	}
 
 	decoded, err := DecodeFileName(configFile)(server.ConfigPath)
@@ -183,58 +217,108 @@ func (as ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
 		return nil, err
 	}
 
+	// Cache the result based on config file type
+	switch configFile {
+	case ConfigurationJson:
+		if config, ok := decoded.(model.Configuration); ok {
+			as.configCache.UpdateConfiguration(serverIDStr, config)
+		}
+	case AssistRulesJson:
+		if rules, ok := decoded.(model.AssistRules); ok {
+			as.configCache.UpdateAssistRules(serverIDStr, rules)
+		}
+	case EventJson:
+		if event, ok := decoded.(model.EventConfig); ok {
+			as.configCache.UpdateEvent(serverIDStr, event)
+		}
+	case EventRulesJson:
+		if rules, ok := decoded.(model.EventRules); ok {
+			as.configCache.UpdateEventRules(serverIDStr, rules)
+		}
+	case SettingsJson:
+		if settings, ok := decoded.(model.ServerSettings); ok {
+			as.configCache.UpdateSettings(serverIDStr, settings)
+		}
+	}
+
 	return decoded, nil
 }
 
 // GetConfigs
-// Gets physical config file and caches it in database.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			string: Application version
+// Gets all configurations for a server, using cache when possible.
 func (as ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, error) {
 	serverID, _ := ctx.ParamsInt("id")
+	serverIDStr := strconv.Itoa(serverID)
 
 	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
-
 	if err != nil {
 		log.Print("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
 	}
 
-	decodedconfiguration, err := mustDecode[model.Configuration](ConfigurationJson, server.ConfigPath)
-	if err != nil {
-		return nil, err
+	configs := &model.Configurations{}
+
+	// Load configuration
+	if cached, ok := as.configCache.GetConfiguration(serverIDStr); ok {
+		configs.Configuration = *cached
+	} else {
+		config, err := mustDecode[model.Configuration](ConfigurationJson, server.ConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		configs.Configuration = config
+		as.configCache.UpdateConfiguration(serverIDStr, config)
 	}
 
-	decodedAssistRules, err := mustDecode[model.AssistRules](AssistRulesJson, server.ConfigPath)
-	if err != nil {
-		return nil, err
+	// Load assist rules
+	if cached, ok := as.configCache.GetAssistRules(serverIDStr); ok {
+		configs.AssistRules = *cached
+	} else {
+		rules, err := mustDecode[model.AssistRules](AssistRulesJson, server.ConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		configs.AssistRules = rules
+		as.configCache.UpdateAssistRules(serverIDStr, rules)
 	}
 
-	decodedevent, err := mustDecode[model.EventConfig](EventJson, server.ConfigPath)
-	if err != nil {
-		return nil, err
+	// Load event config
+	if cached, ok := as.configCache.GetEvent(serverIDStr); ok {
+		configs.Event = *cached
+	} else {
+		event, err := mustDecode[model.EventConfig](EventJson, server.ConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		configs.Event = event
+		as.configCache.UpdateEvent(serverIDStr, event)
 	}
 
-	decodedeventRules, err := mustDecode[model.EventRules](EventRulesJson, server.ConfigPath)
-	if err != nil {
-		return nil, err
+	// Load event rules
+	if cached, ok := as.configCache.GetEventRules(serverIDStr); ok {
+		configs.EventRules = *cached
+	} else {
+		rules, err := mustDecode[model.EventRules](EventRulesJson, server.ConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		configs.EventRules = rules
+		as.configCache.UpdateEventRules(serverIDStr, rules)
 	}
 
-	decodedsettings, err := mustDecode[model.ServerSettings](SettingsJson, server.ConfigPath)
-	if err != nil {
-		return nil, err
+	// Load settings
+	if cached, ok := as.configCache.GetSettings(serverIDStr); ok {
+		configs.Settings = *cached
+	} else {
+		settings, err := mustDecode[model.ServerSettings](SettingsJson, server.ConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		configs.Settings = settings
+		as.configCache.UpdateSettings(serverIDStr, settings)
 	}
 
-	return &model.Configurations{
-		Configuration: decodedconfiguration,
-		Event:         decodedevent,
-		EventRules:    decodedeventRules,
-		Settings:      decodedsettings,
-		AssistRules:     decodedAssistRules,
-	}, nil
+	return configs, nil
 }
 
 func readAndDecode[T interface{}](path string, configFile string) (T, error) {

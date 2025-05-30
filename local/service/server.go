@@ -8,6 +8,7 @@ import (
 	"context"
 	"log"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -23,7 +24,7 @@ type ServerService struct {
 	lastInsertTimes  sync.Map // Track last insert time per server
 	debouncers       sync.Map // Track debounce timers per server
 	logTailers       sync.Map // Track log tailers per server
-	sessionCache     sync.Map // Cache of server event sessions
+	sessionIDs       sync.Map // Track current session ID per server
 }
 
 type pendingState struct {
@@ -91,42 +92,94 @@ func (s *ServerService) shouldInsertStateHistory(serverID uint) bool {
 	return false
 }
 
+func (s *ServerService) getNextSessionID(serverID uint) uint {
+	currentID, _ := s.sessionIDs.LoadOrStore(serverID, uint(0))
+	nextID := currentID.(uint) + 1
+	s.sessionIDs.Store(serverID, nextID)
+	return nextID
+}
+
 func (s *ServerService) insertStateHistory(serverID uint, state *model.ServerState) {
+	// Get or create session ID when session changes
+	currentSessionInterface, exists := s.instances.Load(serverID)
+	var sessionID uint
+	if !exists {
+		sessionID = s.getNextSessionID(serverID)
+	} else {
+		serverInstance := currentSessionInterface.(*tracking.AccServerInstance)
+		if serverInstance.State == nil || serverInstance.State.Session != state.Session {
+			sessionID = s.getNextSessionID(serverID)
+		} else {
+			sessionIDInterface, exists := s.sessionIDs.Load(serverID)
+			if !exists {
+				sessionID = s.getNextSessionID(serverID)
+			} else {
+				sessionID = sessionIDInterface.(uint)
+			}
+		}
+	}
+
 	s.stateHistoryRepo.Insert(context.Background(), &model.StateHistory{
 		ServerID:    serverID,
 		Session:     state.Session,
+		Track:       state.Track,
 		PlayerCount: state.PlayerCount,
 		DateCreated: time.Now().UTC(),
+		SessionStart: state.SessionStart,
 		SessionDurationMinutes: state.SessionDurationMinutes,
+		SessionID:   sessionID,
 	})
 }
 
 func (s *ServerService) updateSessionDuration(server *model.Server, sessionType string) {
-	sessionsInterface, exists := s.sessionCache.Load(server.ID)
-	if !exists {
-		// Try to load sessions from config
-		event, err := DecodeFileName(EventJson)(server.ConfigPath)
+	serverIDStr := strconv.FormatUint(uint64(server.ID), 10)
+	
+	// Get event config from cache or load it
+	var event model.EventConfig
+	if cached, ok := s.configService.configCache.GetEvent(serverIDStr); ok {
+		event = *cached
+	} else {
+		event, err := mustDecode[model.EventConfig](EventJson, server.ConfigPath)
 		if err != nil {
 			logging.Error("Failed to load event config for server %d: %v", server.ID, err)
 			return
 		}
-		evt := event.(model.EventConfig)
-		s.sessionCache.Store(server.ID, evt.Sessions)
-		sessionsInterface = evt.Sessions
+		s.configService.configCache.UpdateEvent(serverIDStr, event)
 	}
 
-	sessions := sessionsInterface.([]model.Session)
-	if sessionType == "" && len(sessions) > 0 {
-		sessionType = sessions[0].SessionType
+	var configuration model.Configuration
+	if cached, ok := s.configService.configCache.GetConfiguration(serverIDStr); ok {
+		configuration = *cached
+	} else {
+		configuration, err := mustDecode[model.Configuration](ConfigurationJson, server.ConfigPath)
+		if err != nil {
+			logging.Error("Failed to load configuration config for server %d: %v", server.ID, err)
+			return
+		}
+		s.configService.configCache.UpdateConfiguration(serverIDStr, configuration)
 	}
-	for _, session := range sessions {
-		if session.SessionType == sessionType {
-			if instance, ok := s.instances.Load(server.ID); ok {
-				serverInstance := instance.(*tracking.AccServerInstance)
+
+	if instance, ok := s.instances.Load(server.ID); ok {
+		serverInstance := instance.(*tracking.AccServerInstance)
+		serverInstance.State.Track = event.Track
+		serverInstance.State.MaxConnections = configuration.MaxConnections.ToInt()
+
+		// Check if session type has changed
+		if serverInstance.State.Session != sessionType {
+			// Get new session ID for the new session
+			sessionID := s.getNextSessionID(server.ID)
+			s.sessionIDs.Store(server.ID, sessionID)
+		}
+
+		if sessionType == "" && len(event.Sessions) > 0 {
+			sessionType = event.Sessions[0].SessionType
+		}
+		for _, session := range event.Sessions {
+			if session.SessionType == sessionType {
 				serverInstance.State.SessionDurationMinutes = session.SessionDurationMinutes.ToInt()
 				serverInstance.State.Session = sessionType
+				break
 			}
-			break
 		}
 	}
 }
@@ -177,17 +230,10 @@ func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 		instance = instanceInterface.(*tracking.AccServerInstance)
 	}
 
-	config, _  := DecodeFileName(ConfigurationJson)(server.ConfigPath)
-	cfg := config.(model.Configuration)
-	event, _  := DecodeFileName(EventJson)(server.ConfigPath)
-	evt := event.(model.EventConfig)
+	// Invalidate config cache for this server before loading new configs
+	serverIDStr := strconv.FormatUint(uint64(server.ID), 10)
+	s.configService.configCache.InvalidateServerCache(serverIDStr)
 
-	instance.State.MaxConnections = cfg.MaxConnections.ToInt()
-	instance.State.Track = evt.Track
-
-	// Cache sessions for duration lookup
-	s.sessionCache.Store(server.ID, evt.Sessions)
-	
 	s.updateSessionDuration(server, instance.State.Session)
 
 	// Ensure log tailing is running (regardless of server status)

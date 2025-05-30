@@ -53,7 +53,19 @@ type StateHistory struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	ServerID    uint      `json:"serverId" gorm:"not null"`
 	Session     string    `json:"session"`
+	Track       string    `json:"track"`
 	PlayerCount int       `json:"playerCount"`
 	DateCreated time.Time `json:"dateCreated"`
+	SessionStart time.Time `json:"sessionStart"`
 	SessionDurationMinutes int `json:"sessionDurationMinutes"`
+	SessionID   uint      `json:"sessionId" gorm:"not null"` // Unique identifier for each session/event
+}
+
+type RecentSession struct {
+	ID       uint      `json:"id"`
+	Date     time.Time `json:"date"`
+	Type     string    `json:"type"`
+	Track    string    `json:"track"`
+	Duration int       `json:"duration"`
+	Players  int       `json:"players"`
 }

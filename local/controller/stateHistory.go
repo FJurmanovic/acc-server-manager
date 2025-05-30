@@ -26,6 +26,7 @@ func NewStateHistoryController(as *service.StateHistoryService, routeGroups *com
 	}
 
 	routeGroups.StateHistory.Get("/", ac.getAll)
+	routeGroups.StateHistory.Get("/statistics", ac.getStatistics)
 
 	return ac
 }
@@ -36,7 +37,7 @@ func NewStateHistoryController(as *service.StateHistoryService, routeGroups *com
 //	@Description	Return StateHistorys
 //	@Tags			StateHistory
 //	@Success		200	{array}	string
-//	@Router			/v1/StateHistory [get]
+//	@Router			/v1/state-history [get]
 func (ac *StateHistoryController) getAll(c *fiber.Ctx) error {
 	var filter model.StateHistoryFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {
@@ -49,6 +50,31 @@ func (ac *StateHistoryController) getAll(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Error retrieving state history",
+		})
+	}
+
+	return c.JSON(result)
+}
+
+// getStatistics returns StateHistorys
+//
+//	@Summary		Return StateHistorys
+//	@Description	Return StateHistorys
+//	@Tags			StateHistory
+//	@Success		200	{array}	string
+//	@Router			/v1/state-history/statistics [get]
+func (ac *StateHistoryController) getStatistics(c *fiber.Ctx) error {
+	var filter model.StateHistoryFilter
+	if err := common.ParseQueryFilter(c, &filter); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	result, err := ac.service.GetStatistics(c, &filter)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error retrieving state history statistics",
 		})
 	}
 

@@ -117,4 +117,145 @@ func (c *LookupCache) Clear() {
 	defer c.Unlock()
 	
 	c.data = make(map[string]interface{})
+}
+
+// ConfigEntry represents a cached configuration entry with its update time
+type ConfigEntry[T any] struct {
+	Data      T
+	UpdatedAt time.Time
+}
+
+// getConfigFromCache is a generic helper function to retrieve cached configs
+func getConfigFromCache[T any](cache map[string]*ConfigEntry[T], serverID string, expirationTime time.Duration) (*T, bool) {
+	if entry, ok := cache[serverID]; ok {
+		if time.Since(entry.UpdatedAt) < expirationTime {
+			return &entry.Data, true
+		}
+	}
+	return nil, false
+}
+
+// updateConfigInCache is a generic helper function to update cached configs
+func updateConfigInCache[T any](cache map[string]*ConfigEntry[T], serverID string, data T) {
+	cache[serverID] = &ConfigEntry[T]{
+		Data:      data,
+		UpdatedAt: time.Now(),
+	}
+}
+
+// ServerConfigCache manages cached server configurations
+type ServerConfigCache struct {
+	sync.RWMutex
+	configuration map[string]*ConfigEntry[Configuration]
+	assistRules   map[string]*ConfigEntry[AssistRules]
+	event         map[string]*ConfigEntry[EventConfig]
+	eventRules    map[string]*ConfigEntry[EventRules]
+	settings      map[string]*ConfigEntry[ServerSettings]
+	config        CacheConfig
+}
+
+// NewServerConfigCache creates a new server configuration cache
+func NewServerConfigCache(config CacheConfig) *ServerConfigCache {
+	return &ServerConfigCache{
+		configuration: make(map[string]*ConfigEntry[Configuration]),
+		assistRules:   make(map[string]*ConfigEntry[AssistRules]),
+		event:         make(map[string]*ConfigEntry[EventConfig]),
+		eventRules:    make(map[string]*ConfigEntry[EventRules]),
+		settings:      make(map[string]*ConfigEntry[ServerSettings]),
+		config:        config,
+	}
+}
+
+// GetConfiguration retrieves a cached configuration
+func (c *ServerConfigCache) GetConfiguration(serverID string) (*Configuration, bool) {
+	c.RLock()
+	defer c.RUnlock()
+	return getConfigFromCache(c.configuration, serverID, c.config.ExpirationTime)
+}
+
+// GetAssistRules retrieves cached assist rules
+func (c *ServerConfigCache) GetAssistRules(serverID string) (*AssistRules, bool) {
+	c.RLock()
+	defer c.RUnlock()
+	return getConfigFromCache(c.assistRules, serverID, c.config.ExpirationTime)
+}
+
+// GetEvent retrieves cached event configuration
+func (c *ServerConfigCache) GetEvent(serverID string) (*EventConfig, bool) {
+	c.RLock()
+	defer c.RUnlock()
+	return getConfigFromCache(c.event, serverID, c.config.ExpirationTime)
+}
+
+// GetEventRules retrieves cached event rules
+func (c *ServerConfigCache) GetEventRules(serverID string) (*EventRules, bool) {
+	c.RLock()
+	defer c.RUnlock()
+	return getConfigFromCache(c.eventRules, serverID, c.config.ExpirationTime)
+}
+
+// GetSettings retrieves cached server settings
+func (c *ServerConfigCache) GetSettings(serverID string) (*ServerSettings, bool) {
+	c.RLock()
+	defer c.RUnlock()
+	return getConfigFromCache(c.settings, serverID, c.config.ExpirationTime)
+}
+
+// UpdateConfiguration updates the configuration cache
+func (c *ServerConfigCache) UpdateConfiguration(serverID string, config Configuration) {
+	c.Lock()
+	defer c.Unlock()
+	updateConfigInCache(c.configuration, serverID, config)
+}
+
+// UpdateAssistRules updates the assist rules cache
+func (c *ServerConfigCache) UpdateAssistRules(serverID string, rules AssistRules) {
+	c.Lock()
+	defer c.Unlock()
+	updateConfigInCache(c.assistRules, serverID, rules)
+}
+
+// UpdateEvent updates the event configuration cache
+func (c *ServerConfigCache) UpdateEvent(serverID string, event EventConfig) {
+	c.Lock()
+	defer c.Unlock()
+	updateConfigInCache(c.event, serverID, event)
+}
+
+// UpdateEventRules updates the event rules cache
+func (c *ServerConfigCache) UpdateEventRules(serverID string, rules EventRules) {
+	c.Lock()
+	defer c.Unlock()
+	updateConfigInCache(c.eventRules, serverID, rules)
+}
+
+// UpdateSettings updates the server settings cache
+func (c *ServerConfigCache) UpdateSettings(serverID string, settings ServerSettings) {
+	c.Lock()
+	defer c.Unlock()
+	updateConfigInCache(c.settings, serverID, settings)
+}
+
+// InvalidateServerCache removes all cached configurations for a specific server
+func (c *ServerConfigCache) InvalidateServerCache(serverID string) {
+	c.Lock()
+	defer c.Unlock()
+
+	delete(c.configuration, serverID)
+	delete(c.assistRules, serverID)
+	delete(c.event, serverID)
+	delete(c.eventRules, serverID)
+	delete(c.settings, serverID)
+}
+
+// Clear removes all entries from the cache
+func (c *ServerConfigCache) Clear() {
+	c.Lock()
+	defer c.Unlock()
+
+	c.configuration = make(map[string]*ConfigEntry[Configuration])
+	c.assistRules = make(map[string]*ConfigEntry[AssistRules])
+	c.event = make(map[string]*ConfigEntry[EventConfig])
+	c.eventRules = make(map[string]*ConfigEntry[EventRules])
+	c.settings = make(map[string]*ConfigEntry[ServerSettings])
 } 
