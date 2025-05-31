@@ -6,7 +6,6 @@ import (
 	"acc-server-manager/local/utl/logging"
 	"acc-server-manager/local/utl/tracking"
 	"context"
-	"log"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -64,9 +63,10 @@ func NewServerService(repository *repository.ServerRepository, stateHistoryRepo 
 		return service
 	}
 
-	for _, server := range *servers {
+	for i := range *servers {
 		// Initialize instance regardless of status
-		service.StartAccServerRuntime(&server)
+		logging.Info("Starting server runtime for server ID: %d", (*servers)[i].ID)
+		service.StartAccServerRuntime(&(*servers)[i])
 	}
 
 	return service
@@ -132,31 +132,17 @@ func (s *ServerService) insertStateHistory(serverID uint, state *model.ServerSta
 }
 
 func (s *ServerService) updateSessionDuration(server *model.Server, sessionType string) {
-	serverIDStr := strconv.FormatUint(uint64(server.ID), 10)
-	
-	// Get event config from cache or load it
-	var event model.EventConfig
-	if cached, ok := s.configService.configCache.GetEvent(serverIDStr); ok {
-		event = *cached
-	} else {
-		event, err := mustDecode[model.EventConfig](EventJson, server.ConfigPath)
-		if err != nil {
-			logging.Error("Failed to load event config for server %d: %v", server.ID, err)
-			return
-		}
-		s.configService.configCache.UpdateEvent(serverIDStr, event)
+	// Get configs using helper methods
+	event, err := s.configService.GetEventConfig(server)
+	if err != nil {
+		logging.Error("Failed to get event config for server %d: %v", server.ID, err)
+		return
 	}
 
-	var configuration model.Configuration
-	if cached, ok := s.configService.configCache.GetConfiguration(serverIDStr); ok {
-		configuration = *cached
-	} else {
-		configuration, err := mustDecode[model.Configuration](ConfigurationJson, server.ConfigPath)
-		if err != nil {
-			logging.Error("Failed to load configuration config for server %d: %v", server.ID, err)
-			return
-		}
-		s.configService.configCache.UpdateConfiguration(serverIDStr, configuration)
+	configuration, err := s.configService.GetConfiguration(server)
+	if err != nil {
+		logging.Error("Failed to get configuration for server %d: %v", server.ID, err)
+		return
 	}
 
 	if instance, ok := s.instances.Load(server.ID); ok {
@@ -181,6 +167,8 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 				break
 			}
 		}
+	} else {
+		logging.Error("No instance found for server ID: %d", server.ID)
 	}
 }
 
@@ -247,14 +235,15 @@ func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
-func (s ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]model.Server, error) {
+func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]model.Server, error) {
 	servers, err := s.repository.GetAll(ctx.UserContext(), filter)
 	if err != nil {
 		logging.Error("Failed to get servers: %v", err)
 		return nil, err
 	}
 
-	for i, server := range *servers {
+	for i := range *servers {
+		server := &(*servers)[i]
 		status, err := s.apiService.StatusServer(server.ServiceName)
 		if err != nil {
 			logging.Error("Failed to get status for server %s: %v", server.ServiceName, err)
@@ -266,7 +255,7 @@ func (s ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]mo
 		} else {
 			serverInstance := instance.(*tracking.AccServerInstance)
 			if serverInstance.State != nil {
-				(*servers)[i].State = *serverInstance.State
+				(*server).State = *serverInstance.State
 			}
 		}
 	}
@@ -281,23 +270,23 @@ func (s ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]mo
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
-func (as ServerService) GetById(ctx *fiber.Ctx, serverID int) (*model.Server, error) {
+func (as *ServerService) GetById(ctx *fiber.Ctx, serverID int) (*model.Server, error) {
 	server, err := as.repository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
 		return nil, err
 	}
 	status, err := as.apiService.StatusServer(server.ServiceName)
 	if err != nil {
-		log.Print(err.Error())
+		logging.Error(err.Error())
 	}
 	server.Status = model.ParseServiceStatus(status)
 	instance, ok := as.instances.Load(server.ID)
 	if !ok {
-		log.Print("Unable to retrieve instance for server of ID: ", server.ID)
+		logging.Error("Unable to retrieve instance for server of ID: %d", server.ID)
 	} else {
 		serverInstance := instance.(*tracking.AccServerInstance)
 		if (serverInstance.State != nil) {
-			server.State = *serverInstance.State
+			(*server).State = *serverInstance.State
 		}
 	}
 

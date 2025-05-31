@@ -1,10 +1,10 @@
 package common
 
 import (
+	"acc-server-manager/local/utl/logging"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -27,7 +27,7 @@ type RouteGroups struct {
 
 func CheckError(err error) {
 	if err != nil {
-		log.Printf("Error occured. %v", err)
+		logging.Error("Error occured. %v", err)
 	}
 }
 

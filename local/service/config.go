@@ -4,11 +4,12 @@ import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
 	"acc-server-manager/local/utl/common"
+	"acc-server-manager/local/utl/logging"
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -72,7 +73,7 @@ func NewConfigService(repository *repository.ConfigRepository, serverRepository 
 	return &ConfigService{
 		repository:       repository,
 		serverRepository: serverRepository,
-		configCache:     model.NewServerConfigCache(model.CacheConfig{
+		configCache:      model.NewServerConfigCache(model.CacheConfig{
 			ExpirationTime: 5 * time.Minute,  // Cache configs for 5 minutes
 			ThrottleTime:   1 * time.Second,  // Prevent rapid re-reads
 			DefaultStatus:  model.StatusUnknown,
@@ -91,14 +92,14 @@ func (as *ConfigService) SetServerService(serverService *ServerService) {
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
-func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{}) (*model.Config, error) {
+func (as *ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{}) (*model.Config, error) {
 	serverID := ctx.Locals("serverId").(int)
 	configFile := ctx.Params("file")
 	override := ctx.QueryBool("override", false)
 
 	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
-		log.Print("Server not found")
+		logging.Error("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
 	}
 
@@ -177,14 +178,14 @@ func (as ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
-func (as ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
+func (as *ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
 	serverID, _ := ctx.ParamsInt("id")
 	configFile := ctx.Params("file")
 	serverIDStr := strconv.Itoa(serverID)
 
 	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
-		log.Print("Server not found")
+		logging.Error("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
 	}
 
@@ -246,25 +247,33 @@ func (as ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
 
 // GetConfigs
 // Gets all configurations for a server, using cache when possible.
-func (as ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, error) {
+func (as *ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, error) {
 	serverID, _ := ctx.ParamsInt("id")
-	serverIDStr := strconv.Itoa(serverID)
 
 	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
-		log.Print("Server not found")
+		logging.Error("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
 	}
 
+	return as.LoadConfigs(server)
+}
+
+func (as *ConfigService) LoadConfigs(server *model.Server) (*model.Configurations, error) {
+	serverIDStr := strconv.Itoa(int(server.ID))
+	logging.Info("Loading configs for server ID: %s at path: %s", serverIDStr, server.ConfigPath)
 	configs := &model.Configurations{}
 
 	// Load configuration
 	if cached, ok := as.configCache.GetConfiguration(serverIDStr); ok {
+		logging.Debug("Using cached configuration for server %s", serverIDStr)
 		configs.Configuration = *cached
 	} else {
+		logging.Debug("Loading configuration from disk for server %s", serverIDStr)
 		config, err := mustDecode[model.Configuration](ConfigurationJson, server.ConfigPath)
 		if err != nil {
-			return nil, err
+			logging.Error("Failed to load configuration for server %s: %v", serverIDStr, err)
+			return nil, fmt.Errorf("failed to load configuration: %v", err)
 		}
 		configs.Configuration = config
 		as.configCache.UpdateConfiguration(serverIDStr, config)
@@ -272,11 +281,14 @@ func (as ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, error
 
 	// Load assist rules
 	if cached, ok := as.configCache.GetAssistRules(serverIDStr); ok {
+		logging.Debug("Using cached assist rules for server %s", serverIDStr)
 		configs.AssistRules = *cached
 	} else {
+		logging.Debug("Loading assist rules from disk for server %s", serverIDStr)
 		rules, err := mustDecode[model.AssistRules](AssistRulesJson, server.ConfigPath)
 		if err != nil {
-			return nil, err
+			logging.Error("Failed to load assist rules for server %s: %v", serverIDStr, err)
+			return nil, fmt.Errorf("failed to load assist rules: %v", err)
 		}
 		configs.AssistRules = rules
 		as.configCache.UpdateAssistRules(serverIDStr, rules)
@@ -284,23 +296,30 @@ func (as ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, error
 
 	// Load event config
 	if cached, ok := as.configCache.GetEvent(serverIDStr); ok {
+		logging.Debug("Using cached event config for server %s", serverIDStr)
 		configs.Event = *cached
 	} else {
+		logging.Debug("Loading event config from disk for server %s", serverIDStr)
 		event, err := mustDecode[model.EventConfig](EventJson, server.ConfigPath)
 		if err != nil {
-			return nil, err
+			logging.Error("Failed to load event config for server %s: %v", serverIDStr, err)
+			return nil, fmt.Errorf("failed to load event config: %v", err)
 		}
 		configs.Event = event
+		logging.Debug("Updating event config for server %s with track: %s", serverIDStr, event.Track)
 		as.configCache.UpdateEvent(serverIDStr, event)
 	}
 
 	// Load event rules
 	if cached, ok := as.configCache.GetEventRules(serverIDStr); ok {
+		logging.Debug("Using cached event rules for server %s", serverIDStr)
 		configs.EventRules = *cached
 	} else {
+		logging.Debug("Loading event rules from disk for server %s", serverIDStr)
 		rules, err := mustDecode[model.EventRules](EventRulesJson, server.ConfigPath)
 		if err != nil {
-			return nil, err
+			logging.Error("Failed to load event rules for server %s: %v", serverIDStr, err)
+			return nil, fmt.Errorf("failed to load event rules: %v", err)
 		}
 		configs.EventRules = rules
 		as.configCache.UpdateEventRules(serverIDStr, rules)
@@ -308,16 +327,20 @@ func (as ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, error
 
 	// Load settings
 	if cached, ok := as.configCache.GetSettings(serverIDStr); ok {
+		logging.Debug("Using cached settings for server %s", serverIDStr)
 		configs.Settings = *cached
 	} else {
+		logging.Debug("Loading settings from disk for server %s", serverIDStr)
 		settings, err := mustDecode[model.ServerSettings](SettingsJson, server.ConfigPath)
 		if err != nil {
-			return nil, err
+			logging.Error("Failed to load settings for server %s: %v", serverIDStr, err)
+			return nil, fmt.Errorf("failed to load settings: %v", err)
 		}
 		configs.Settings = settings
 		as.configCache.UpdateSettings(serverIDStr, settings)
 	}
 
+	logging.Info("Successfully loaded all configs for server %s", serverIDStr)
 	return configs, nil
 }
 
@@ -336,14 +359,14 @@ func readAndDecode[T interface{}](path string, configFile string) (T, error) {
 }
 
 func readFile(path string, configFile string) ([]byte, error) {
-	configPath := filepath.Join(path, "\\server\\cfg", configFile)
+	configPath := filepath.Join(path, "server", "cfg", configFile)
 	oldData, err := os.ReadFile(configPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("config file %s does not exist at %s", configFile, configPath)
+		}
 		return nil, err
-	} else if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
 	}
-
 	return oldData, nil
 }
 
@@ -360,17 +383,17 @@ func DecodeUTF16LEBOM(input []byte) ([]byte, error) {
 func DecodeToMap[T interface{}](input []byte) (T, error) {
 	var zero T
 	if input == nil {
-		return zero, nil
+		return zero, fmt.Errorf("cannot decode nil input")
 	}
 	configUTF8 := new(T)
 	decoded, err := DecodeUTF16LEBOM(input)
 	if err != nil {
-		return zero, err
+		return zero, fmt.Errorf("failed to decode UTF16: %v", err)
 	}
 
 	err = json.Unmarshal(decoded, configUTF8)
 	if err != nil {
-		return zero, err
+		return zero, fmt.Errorf("failed to unmarshal JSON: %v", err)
 	}
 	return *configUTF8, nil
 }
@@ -388,4 +411,32 @@ func transformBytes(t transform.Transformer, input []byte) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (as *ConfigService) GetEventConfig(server *model.Server) (*model.EventConfig, error) {
+	serverIDStr := strconv.Itoa(int(server.ID))
+	if cached, ok := as.configCache.GetEvent(serverIDStr); ok {
+		return cached, nil
+	}
+	
+	event, err := mustDecode[model.EventConfig](EventJson, server.ConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	as.configCache.UpdateEvent(serverIDStr, event)
+	return &event, nil
+}
+
+func (as *ConfigService) GetConfiguration(server *model.Server) (*model.Configuration, error) {
+	serverIDStr := strconv.Itoa(int(server.ID))
+	if cached, ok := as.configCache.GetConfiguration(serverIDStr); ok {
+		return cached, nil
+	}
+	
+	config, err := mustDecode[model.Configuration](ConfigurationJson, server.ConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	as.configCache.UpdateConfiguration(serverIDStr, config)
+	return &config, nil
 }

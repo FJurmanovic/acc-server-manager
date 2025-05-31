@@ -3,7 +3,7 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
-	"log"
+	"acc-server-manager/local/utl/logging"
 	"sort"
 	"time"
 
@@ -30,7 +30,7 @@ func NewStateHistoryService(repository *repository.StateHistoryRepository) *Stat
 func (s *StateHistoryService) GetAll(ctx *fiber.Ctx, filter *model.StateHistoryFilter) (*[]model.StateHistory, error) {
 	result, err := s.repository.GetAll(ctx.UserContext(), filter)
 	if err != nil {
-		log.Printf("Error getting state history: %v", err)
+		logging.Error("Error getting state history: %v", err)
 		return nil, err
 	}
 	return result, nil
@@ -38,7 +38,7 @@ func (s *StateHistoryService) GetAll(ctx *fiber.Ctx, filter *model.StateHistoryF
 
 func (s *StateHistoryService) Insert(ctx *fiber.Ctx, model *model.StateHistory) error {
 	if err := s.repository.Insert(ctx.UserContext(), model); err != nil {
-		log.Printf("Error inserting state history: %v", err)
+		logging.Error("Error inserting state history: %v", err)
 		return err
 	}
 	return nil
@@ -48,7 +48,7 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 	// Get all state history entries based on filter
 	entries, err := s.repository.GetAll(ctx.UserContext(), filter)
 	if err != nil {
-		log.Printf("Error getting state history for statistics: %v", err)
+		logging.Error("Error getting state history for statistics: %v", err)
 		return nil, err
 	}
 

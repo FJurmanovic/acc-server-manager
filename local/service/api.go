@@ -36,7 +36,7 @@ func (as *ApiService) SetServerService(serverService *ServerService) {
 	as.serverService = serverService
 }
 
-func (as ApiService) GetStatus(ctx *fiber.Ctx) (string, error) {
+func (as *ApiService) GetStatus(ctx *fiber.Ctx) (string, error) {
 	serviceName, err := as.GetServiceName(ctx)
 	if err != nil {
 		return "", err
@@ -59,7 +59,7 @@ func (as ApiService) GetStatus(ctx *fiber.Ctx) (string, error) {
 	return status.String(), nil
 }
 
-func (as ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
+func (as *ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
 	serviceName, err := as.GetServiceName(ctx)
 	if err != nil {
 		return "", err
@@ -79,7 +79,7 @@ func (as ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
 	return status.String(), nil
 }
 
-func (as ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
+func (as *ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
 	serviceName, err := as.GetServiceName(ctx)
 	if err != nil {
 		return "", err
@@ -99,7 +99,7 @@ func (as ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
 	return status.String(), nil
 }
 
-func (as ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
+func (as *ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
 	serviceName, err := as.GetServiceName(ctx)
 	if err != nil {
 		return "", err
@@ -119,31 +119,49 @@ func (as ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
 	return status.String(), nil
 }
 
-func (as ApiService) StatusServer(serviceName string) (string, error) {
+func (as *ApiService) StatusServer(serviceName string) (string, error) {
 	return ManageService(serviceName, "status")
 }
 
-func (as ApiService) StartServer(serviceName string) (string, error) {
+func (as *ApiService) StartServer(serviceName string) (string, error) {
 	status, err := ManageService(serviceName, "start")
+	if err != nil {
+		return "", err
+	}
 
 	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	if err != nil {
+		return "", err
+	}
 	as.serverService.StartAccServerRuntime(server)
 	return status, err
 }
 
-func (as ApiService) StopServer(serviceName string) (string, error) {
+func (as *ApiService) StopServer(serviceName string) (string, error) {
 	status, err := ManageService(serviceName, "stop")
+	if err != nil {
+		return "", err
+	}
 
 	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	if err != nil {
+		return "", err
+	}
 	as.serverService.instances.Delete(server.ID)
 
 	return status, err
 }
 
-func (as ApiService) RestartServer(serviceName string) (string, error) {
+func (as *ApiService) RestartServer(serviceName string) (string, error) {
 	status, err := ManageService(serviceName, "restart")
+	if err != nil {
+		return "", err
+	}
 
 	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	if err != nil {
+		return "", err
+	}
 	as.serverService.StartAccServerRuntime(server)
 	return status, err
 }
@@ -162,7 +180,7 @@ func ManageService(serviceName string, action string) (string, error) {
 	return cleaned, nil
 }
 
-func (as ApiService) GetServiceName(ctx *fiber.Ctx) (string, error) {
+func (as *ApiService) GetServiceName(ctx *fiber.Ctx) (string, error) {
 	var server *model.Server
 	var err error
 	serviceName, ok := ctx.Locals("service").(string)

@@ -2,8 +2,8 @@ package service
 
 import (
 	"acc-server-manager/local/repository"
+	"acc-server-manager/local/utl/logging"
 	"context"
-	"log"
 
 	"go.uber.org/dig"
 )
@@ -34,6 +34,6 @@ func InitializeServices(c *dig.Container) {
 		lookup.cache.Set("sessions", lookup.repository.GetSessionTypes(context.Background()))
 	})
 	if err != nil {
-		log.Panic("unable to initialize services:", err)
+		logging.Panic("unable to initialize services: " + err.Error())
 	}
 }
