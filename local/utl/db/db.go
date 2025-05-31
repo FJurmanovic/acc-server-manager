@@ -130,6 +130,7 @@ func seedTracks(db *gorm.DB) error {
 		{Name: "watkins_glen", UniquePitBoxes: 30, PrivateServerSlots: 60},
 		{Name: "valencia", UniquePitBoxes: 29, PrivateServerSlots: 50},
 		{Name: "nurburgring_24h", UniquePitBoxes: 50, PrivateServerSlots: 110},
+		{Name: "red_bull_ring", UniquePitBoxes: 50, PrivateServerSlots: 50},
 	}
 
 	for _, track := range tracks {
