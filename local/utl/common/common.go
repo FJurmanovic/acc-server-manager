@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -64,16 +63,6 @@ func Find[T any](lst *[]T, callback func(item *T) bool) *T {
 		}
 	}
 	return nil
-}
-
-func RunElevatedCommand(command string, service string) (string, error) {
-	cmd := exec.Command("powershell", "-nologo", "-noprofile", ".\\nssm", command, service)
-	// cmd := exec.Command("powershell", "-nologo", "-noprofile", "-File", "run_sc.ps1", command, service)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("error: %v, output: %s", err, string(output))
-	}
-	return string(output), nil
 }
 
 func IndentJson(body []byte) ([]byte, error) {

@@ -21,7 +21,6 @@ func InitializeServices(c *dig.Container) {
 	c.Provide(NewApiService)
 	c.Provide(NewConfigService)
 	c.Provide(NewLookupService)
-
 	err := c.Invoke(func(server *ServerService, api *ApiService, config *ConfigService, lookup *LookupService) {
 		api.SetServerService(server)
 		config.SetServerService(server)

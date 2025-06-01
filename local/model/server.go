@@ -1,10 +1,18 @@
 package model
 
 import (
+	"errors"
+	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"gorm.io/gorm"
+)
+
+const (
+	BaseServerPath = "servers"
+	ServiceNamePrefix = "ACC-Server"
 )
 
 // Server represents an ACC server instance
@@ -14,9 +22,10 @@ type Server struct {
 	Status      ServiceStatus `json:"status" gorm:"-"`
 	IP          string `gorm:"not null" json:"-"`
 	Port        int    `gorm:"not null" json:"-"`
-	ConfigPath  string `gorm:"not null" json:"-"` // e.g. "/acc/servers/server1/"
-	ServiceName string `gorm:"not null" json:"-"` // Windows service name
-    State       ServerState `gorm:"-" json:"state"`
+	ConfigPath  string `gorm:"not null" json:"configPath"` // e.g. "/acc/servers/server1/"
+	ServiceName string `gorm:"not null" json:"serviceName"` // Windows service name
+	State       ServerState `gorm:"-" json:"state"`
+	DateCreated time.Time `json:"dateCreated"`
 }
 
 type PlayerState struct {
@@ -70,4 +79,52 @@ func (f *ServerFilter) ApplyFilter(query *gorm.DB) *gorm.DB {
 	}
 
 	return query
+}
+
+// BeforeCreate is a GORM hook that runs before creating a new server
+func (s *Server) BeforeCreate(tx *gorm.DB) error {
+	if s.Name == "" {
+		return errors.New("server name is required")
+	}
+
+	// Generate service name and config path if not set
+	if s.ServiceName == "" {
+		s.ServiceName = s.GenerateServiceName()
+	}
+	if s.ConfigPath == "" {
+		s.ConfigPath = s.GenerateConfigPath()
+	}
+
+	// Set creation date if not set
+	if s.DateCreated.IsZero() {
+		s.DateCreated = time.Now().UTC()
+	}
+
+	return nil
+}
+
+// GenerateServiceName creates a unique service name based on the server name
+func (s *Server) GenerateServiceName() string {
+	// If ID is set, use it
+	if s.ID > 0 {
+		return fmt.Sprintf("%s-%d", ServiceNamePrefix, s.ID)
+	}
+	// Otherwise use a timestamp-based unique identifier
+	return fmt.Sprintf("%s-%d", ServiceNamePrefix, time.Now().UnixNano())
+}
+
+// GenerateConfigPath creates the config path based on the service name
+func (s *Server) GenerateConfigPath() string {
+	// Ensure service name is set
+	if s.ServiceName == "" {
+		s.ServiceName = s.GenerateServiceName()
+	}
+	return filepath.Join(BaseServerPath, s.ServiceName)
+}
+
+func (s *Server) Validate() error {
+	if s.Name == "" {
+		return errors.New("server name is required")
+	}
+	return nil
 }

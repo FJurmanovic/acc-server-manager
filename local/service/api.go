@@ -3,10 +3,8 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
-	"acc-server-manager/local/utl/common"
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,6 +15,7 @@ type ApiService struct {
 	serverRepository *repository.ServerRepository
 	serverService    *ServerService
 	statusCache      *model.ServerStatusCache
+	windowsService   *WindowsService
 }
 
 func NewApiService(repository *repository.ApiRepository,
@@ -29,6 +28,7 @@ func NewApiService(repository *repository.ApiRepository,
 			ThrottleTime:    5 * time.Second,   // Minimum 5 seconds between checks
 			DefaultStatus:   model.StatusRunning, // Default to running if throttled
 		}),
+		windowsService: NewWindowsService(),
 	}
 }
 
@@ -120,11 +120,11 @@ func (as *ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
 }
 
 func (as *ApiService) StatusServer(serviceName string) (string, error) {
-	return ManageService(serviceName, "status")
+	return as.windowsService.Status(serviceName)
 }
 
 func (as *ApiService) StartServer(serviceName string) (string, error) {
-	status, err := ManageService(serviceName, "start")
+	status, err := as.windowsService.Start(serviceName)
 	if err != nil {
 		return "", err
 	}
@@ -138,7 +138,7 @@ func (as *ApiService) StartServer(serviceName string) (string, error) {
 }
 
 func (as *ApiService) StopServer(serviceName string) (string, error) {
-	status, err := ManageService(serviceName, "stop")
+	status, err := as.windowsService.Stop(serviceName)
 	if err != nil {
 		return "", err
 	}
@@ -153,7 +153,7 @@ func (as *ApiService) StopServer(serviceName string) (string, error) {
 }
 
 func (as *ApiService) RestartServer(serviceName string) (string, error) {
-	status, err := ManageService(serviceName, "restart")
+	status, err := as.windowsService.Restart(serviceName)
 	if err != nil {
 		return "", err
 	}
@@ -164,20 +164,6 @@ func (as *ApiService) RestartServer(serviceName string) (string, error) {
 	}
 	as.serverService.StartAccServerRuntime(server)
 	return status, err
-}
-
-func ManageService(serviceName string, action string) (string, error) {
-	output, err := common.RunElevatedCommand(action, serviceName)
-	if err != nil {
-		return "", err
-	}
-
-	// Clean up NSSM output by removing null bytes and trimming whitespace
-	cleaned := strings.TrimSpace(strings.ReplaceAll(output, "\x00", ""))
-	// Remove \r\n from status strings
-	cleaned = strings.TrimSuffix(cleaned, "\r\n")
-	
-	return cleaned, nil
 }
 
 func (as *ApiService) GetServiceName(ctx *fiber.Ctx) (string, error) {

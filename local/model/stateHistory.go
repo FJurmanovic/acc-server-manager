@@ -58,5 +58,5 @@ type StateHistory struct {
 	DateCreated time.Time `json:"dateCreated"`
 	SessionStart time.Time `json:"sessionStart"`
 	SessionDurationMinutes int `json:"sessionDurationMinutes"`
-	SessionID   uint      `json:"sessionId" gorm:"not null"` // Unique identifier for each session/event
+	SessionID   uint      `json:"sessionId" gorm:"not null;default:0"` // Unique identifier for each session/event
 }
