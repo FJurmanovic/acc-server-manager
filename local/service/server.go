@@ -12,22 +12,30 @@ import (
 	"sync"
 	"time"
 
+	"acc-server-manager/local/utl/network"
+
 	"github.com/gofiber/fiber/v2"
+)
+
+const (
+	DefaultStartPort = 9600
+	RequiredPortCount = 1 // Update this if ACC needs more ports
 )
 
 type ServerService struct {
 	repository       *repository.ServerRepository
 	stateHistoryRepo *repository.StateHistoryRepository
 	apiService       *ApiService
-	instances        sync.Map // Track instances per server
 	configService    *ConfigService
+	steamService     *SteamService
+	windowsService   *WindowsService
+	firewallService  *FirewallService
+	systemConfigService *SystemConfigService
+	instances        sync.Map // Track instances per server
 	lastInsertTimes  sync.Map // Track last insert time per server
 	debouncers       sync.Map // Track debounce timers per server
 	logTailers       sync.Map // Track log tailers per server
 	sessionIDs       sync.Map // Track current session ID per server
-	steamService     *SteamService
-	windowsService   *WindowsService
-	firewallService  *FirewallService
 }
 
 type pendingState struct {
@@ -43,7 +51,7 @@ func (s *ServerService) ensureLogTailing(server *model.Server, instance *trackin
 
 	// Start tailing in a goroutine that handles file creation/deletion
 	go func() {
-		logPath := filepath.Join(server.ConfigPath, "\\server\\log\\server.log")
+		logPath := filepath.Join(server.GetLogPath(), "server.log")
 		tailer := tracking.NewLogTailer(logPath, instance.HandleLogLine)
 		s.logTailers.Store(server.ID, tailer)
 		
@@ -52,20 +60,28 @@ func (s *ServerService) ensureLogTailing(server *model.Server, instance *trackin
 	}()
 }
 
-func NewServerService(repository *repository.ServerRepository, stateHistoryRepo *repository.StateHistoryRepository, apiService *ApiService, configService *ConfigService, steamCredentialsRepo *repository.SteamCredentialsRepository) *ServerService {
-	steamService := NewSteamService(steamCredentialsRepo)
-
+func NewServerService(
+	repository *repository.ServerRepository,
+	stateHistoryRepo *repository.StateHistoryRepository,
+	apiService *ApiService,
+	configService *ConfigService,
+	steamService *SteamService,
+	windowsService *WindowsService,
+	firewallService *FirewallService,
+	systemConfigService *SystemConfigService,
+) *ServerService {
 	service := &ServerService{
 		repository:       repository,
+		stateHistoryRepo: stateHistoryRepo,
 		apiService:       apiService,
 		configService:    configService,
-		stateHistoryRepo: stateHistoryRepo,
 		steamService:     steamService,
-		windowsService:   NewWindowsService(),
-		firewallService:  NewFirewallService(),
+		windowsService:   windowsService,
+		firewallService:  firewallService,
+		systemConfigService: systemConfigService,
 	}
 
-	// Initialize instances for all servers
+	// Initialize server instances
 	servers, err := repository.GetAll(context.Background(), &model.ServerFilter{})
 	if err != nil {
 		logging.Error("Failed to get servers: %v", err)
@@ -144,14 +160,14 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 	// Get configs using helper methods
 	event, err := s.configService.GetEventConfig(server)
 	if err != nil {
+		event = &model.EventConfig{}
 		logging.Error("Failed to get event config for server %d: %v", server.ID, err)
-		return
 	}
 
 	configuration, err := s.configService.GetConfiguration(server)
 	if err != nil {
+		configuration = &model.Configuration{}
 		logging.Error("Failed to get configuration for server %d: %v", server.ID, err)
-		return
 	}
 
 	if instance, ok := s.instances.Load(server.ID); ok {
@@ -180,6 +196,18 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 		logging.Error("No instance found for server ID: %d", server.ID)
 	}
 }
+
+func (s *ServerService) GenerateServerPath(server *model.Server) {
+	// Get the base steamcmd path
+	steamCMDPath, err := s.systemConfigService.GetSteamCMDDirPath(context.Background())
+	if err != nil {
+		logging.Error("Failed to get steamcmd path: %v", err)
+		return
+	}
+
+	server.Path = server.GenerateServerPath(steamCMDPath)
+}
+
 
 func (s *ServerService) handleStateChange(server *model.Server, state *model.ServerState) {
 	// Update session duration when session changes
@@ -309,34 +337,47 @@ func (s *ServerService) CreateServer(ctx *fiber.Ctx, server *model.Server) error
 	}
 
 	// Install server using SteamCMD
-	if err := s.steamService.InstallServer(ctx.UserContext(), server.ConfigPath); err != nil {
+	if err := s.steamService.InstallServer(ctx.UserContext(), server.GetServerPath()); err != nil {
 		return fmt.Errorf("failed to install server: %v", err)
 	}
 
-	// Create Windows service
-	execPath := filepath.Join(server.ConfigPath, "accServer.exe")
-	if err := s.windowsService.CreateService(server.ServiceName, execPath, server.ConfigPath, nil); err != nil {
+	// Create Windows service with correct paths
+	execPath := filepath.Join(server.GetServerPath(), "accServer.exe")
+	serverWorkingDir := filepath.Join(server.GetServerPath(), "server")
+	if err := s.windowsService.CreateService(ctx.UserContext(), server.ServiceName, execPath, serverWorkingDir, nil); err != nil {
 		// Cleanup on failure
-		s.steamService.UninstallServer(server.ConfigPath)
+		s.steamService.UninstallServer(server.Path)
 		return fmt.Errorf("failed to create Windows service: %v", err)
 	}
 
-	// Create firewall rules
-	tcpPorts := []int{9600} // Add all required TCP ports
-	udpPorts := []int{9600} // Add all required UDP ports
+	s.configureFirewall(server)
+	ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
+	if err != nil {
+		return fmt.Errorf("failed to find available ports: %v", err)
+	}
+
+	// Use the first port for both TCP and UDP
+	serverPort := ports[0]
+	tcpPorts := []int{serverPort}
+	udpPorts := []int{serverPort}
 	if err := s.firewallService.CreateServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
 		// Cleanup on failure
-		s.windowsService.DeleteService(server.ServiceName)
-		s.steamService.UninstallServer(server.ConfigPath)
+		s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName)
+		s.steamService.UninstallServer(server.Path)
 		return fmt.Errorf("failed to create firewall rules: %v", err)
+	}
+
+	// Update server configuration with the allocated port
+	if err := s.updateServerPort(server, serverPort); err != nil {
+		return fmt.Errorf("failed to update server configuration: %v", err)
 	}
 
 	// Insert server into database
 	if err := s.repository.Insert(ctx.UserContext(), server); err != nil {
 		// Cleanup on failure
 		s.firewallService.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts)
-		s.windowsService.DeleteService(server.ServiceName)
-		s.steamService.UninstallServer(server.ConfigPath)
+		s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName)
+		s.steamService.UninstallServer(server.Path)
 		return fmt.Errorf("failed to insert server into database: %v", err)
 	}
 
@@ -354,19 +395,24 @@ func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID int) error {
 	}
 
 	// Stop and remove Windows service
-	if err := s.windowsService.DeleteService(server.ServiceName); err != nil {
+	if err := s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName); err != nil {
 		logging.Error("Failed to delete Windows service: %v", err)
 	}
 
+
 	// Remove firewall rules
-	tcpPorts := []int{9600} // Add all required TCP ports
-	udpPorts := []int{9600} // Add all required UDP ports
+	configuration, err := s.configService.GetConfiguration(server)
+	if err != nil {
+		logging.Error("Failed to get configuration for server %d: %v", server.ID, err)
+	}
+	tcpPorts := []int{configuration.TcpPort.ToInt()}
+	udpPorts := []int{configuration.UdpPort.ToInt()}
 	if err := s.firewallService.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
 		logging.Error("Failed to delete firewall rules: %v", err)
 	}
 
 	// Uninstall server files
-	if err := s.steamService.UninstallServer(server.ConfigPath); err != nil {
+	if err := s.steamService.UninstallServer(server.Path); err != nil {
 		logging.Error("Failed to uninstall server: %v", err)
 	}
 
@@ -401,29 +447,28 @@ func (s *ServerService) UpdateServer(ctx *fiber.Ctx, server *model.Server) error
 	}
 
 	// Update server files if path changed
-	if existingServer.ConfigPath != server.ConfigPath {
-		if err := s.steamService.InstallServer(ctx.UserContext(), server.ConfigPath); err != nil {
+	if existingServer.Path != server.Path {
+		if err := s.steamService.InstallServer(ctx.UserContext(), server.Path); err != nil {
 			return fmt.Errorf("failed to install server to new location: %v", err)
 		}
 		// Clean up old installation
-		if err := s.steamService.UninstallServer(existingServer.ConfigPath); err != nil {
+		if err := s.steamService.UninstallServer(existingServer.Path); err != nil {
 			logging.Error("Failed to remove old server installation: %v", err)
 		}
 	}
 
 	// Update Windows service if necessary
-	if existingServer.ServiceName != server.ServiceName || existingServer.ConfigPath != server.ConfigPath {
-		execPath := filepath.Join(server.ConfigPath, "accServer.exe")
-		if err := s.windowsService.UpdateService(server.ServiceName, execPath, server.ConfigPath, nil); err != nil {
+	if existingServer.ServiceName != server.ServiceName || existingServer.Path != server.Path {
+		execPath := filepath.Join(server.GetServerPath(), "accServer.exe")
+		serverWorkingDir := server.GetServerPath()
+		if err := s.windowsService.UpdateService(ctx.UserContext(), server.ServiceName, execPath, serverWorkingDir, nil); err != nil {
 			return fmt.Errorf("failed to update Windows service: %v", err)
 		}
 	}
 
 	// Update firewall rules if service name changed
 	if existingServer.ServiceName != server.ServiceName {
-		tcpPorts := []int{9600} // Add all required TCP ports
-		udpPorts := []int{9600} // Add all required UDP ports
-		if err := s.firewallService.UpdateServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
+		if err := s.configureFirewall(server); err != nil {
 			return fmt.Errorf("failed to update firewall rules: %v", err)
 		}
 	}
@@ -435,6 +480,51 @@ func (s *ServerService) UpdateServer(ctx *fiber.Ctx, server *model.Server) error
 
 	// Restart server runtime
 	s.StartAccServerRuntime(server)
+
+	return nil
+}
+
+func (s *ServerService) configureFirewall(server *model.Server) error {
+	// Find available ports for the server
+	ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
+	if err != nil {
+		return fmt.Errorf("failed to find available ports: %v", err)
+	}
+
+	// Use the first port for both TCP and UDP
+	serverPort := ports[0]
+	tcpPorts := []int{serverPort}
+	udpPorts := []int{serverPort}
+
+	logging.Info("Configuring firewall for server %d with port %d", server.ID, serverPort)
+
+	// Configure firewall rules
+	if err := s.firewallService.UpdateServerRules(server.Name, tcpPorts, udpPorts); err != nil {
+		return fmt.Errorf("failed to configure firewall: %v", err)
+	}
+
+	// Update server configuration with the allocated port
+	if err := s.updateServerPort(server, serverPort); err != nil {
+		return fmt.Errorf("failed to update server configuration: %v", err)
+	}
+
+	return nil
+}
+
+func (s *ServerService) updateServerPort(server *model.Server, port int) error {
+	// Load current configuration
+	config, err := s.configService.GetConfiguration(server)
+	if err != nil {
+		return fmt.Errorf("failed to load server configuration: %v", err)
+	}
+
+	config.TcpPort = model.IntString(port)
+	config.UdpPort = model.IntString(port)
+
+	// Save the updated configuration
+	if err := s.configService.SaveConfiguration(server, config); err != nil {
+		return fmt.Errorf("failed to save server configuration: %v", err)
+	}
 
 	return nil
 }

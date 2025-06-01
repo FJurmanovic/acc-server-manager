@@ -20,14 +20,14 @@ type ServerController struct {
 //		*Fiber.RouterGroup: Fiber Router Group
 //	Returns:
 //		*ServerController: Controller for "Server" interactions
-func NewServerController(as *service.ServerService, routeGroups *common.RouteGroups) *ServerController {
+func NewServerController(as *service.ServerService, routeGroups *common.RouteGroups,) *ServerController {
 	ac := &ServerController{
 		service: as,
 	}
 
 	routeGroups.Server.Get("/", ac.getAll)
 	routeGroups.Server.Get("/:id", ac.getById)
-
+	routeGroups.Server.Post("/", ac.createServer)
 	return ac
 }
 
@@ -66,4 +66,27 @@ func (ac *ServerController) getById(c *fiber.Ctx) error {
 		return c.Status(400).SendString(err.Error())
 	}
 	return c.JSON(ServerModel)
+}
+
+// createServer creates a new server
+//
+//	@Summary		Create a new server
+//	@Description	Create a new server
+//	@Tags			Server
+//	@Success		200	{array}	string
+//	@Router			/v1/server [post]
+func (ac *ServerController) createServer(c *fiber.Ctx) error {
+	server := new(model.Server)
+	if err := c.BodyParser(server); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	ac.service.GenerateServerPath(server)
+	if err := ac.service.CreateServer(c, server); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(server)
 }

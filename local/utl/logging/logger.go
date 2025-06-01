@@ -136,8 +136,9 @@ func Panic(format string) {
 
 // RecoverAndLog recovers from panics and logs them
 func RecoverAndLog() {
-	if r := recover(); r != nil {
-		if logger != nil {
+	if logger != nil {
+		logger.Info("Recovering from panic")
+		if r := recover(); r != nil {
 			// Get stack trace
 			buf := make([]byte, 4096)
 			n := runtime.Stack(buf, false)

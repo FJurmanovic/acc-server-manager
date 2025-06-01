@@ -19,7 +19,8 @@ type ApiService struct {
 }
 
 func NewApiService(repository *repository.ApiRepository,
-	serverRepository *repository.ServerRepository) *ApiService {
+	serverRepository *repository.ServerRepository,
+	systemConfigService *SystemConfigService) *ApiService {
 	return &ApiService{
 		repository:       repository,
 		serverRepository: serverRepository,
@@ -28,7 +29,7 @@ func NewApiService(repository *repository.ApiRepository,
 			ThrottleTime:    5 * time.Second,   // Minimum 5 seconds between checks
 			DefaultStatus:   model.StatusRunning, // Default to running if throttled
 		}),
-		windowsService: NewWindowsService(),
+		windowsService: NewWindowsService(systemConfigService),
 	}
 }
 
@@ -120,11 +121,11 @@ func (as *ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
 }
 
 func (as *ApiService) StatusServer(serviceName string) (string, error) {
-	return as.windowsService.Status(serviceName)
+	return as.windowsService.Status(context.Background(), serviceName)
 }
 
 func (as *ApiService) StartServer(serviceName string) (string, error) {
-	status, err := as.windowsService.Start(serviceName)
+	status, err := as.windowsService.Start(context.Background(), serviceName)
 	if err != nil {
 		return "", err
 	}
@@ -138,7 +139,7 @@ func (as *ApiService) StartServer(serviceName string) (string, error) {
 }
 
 func (as *ApiService) StopServer(serviceName string) (string, error) {
-	status, err := as.windowsService.Stop(serviceName)
+	status, err := as.windowsService.Stop(context.Background(), serviceName)
 	if err != nil {
 		return "", err
 	}
@@ -153,7 +154,7 @@ func (as *ApiService) StopServer(serviceName string) (string, error) {
 }
 
 func (as *ApiService) RestartServer(serviceName string) (string, error) {
-	status, err := as.windowsService.Restart(serviceName)
+	status, err := as.windowsService.Restart(context.Background(), serviceName)
 	if err != nil {
 		return "", err
 	}

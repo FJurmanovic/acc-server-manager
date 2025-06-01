@@ -3,6 +3,7 @@ package db
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/utl/logging"
+	"time"
 
 	"go.uber.org/dig"
 	"gorm.io/driver/sqlite"
@@ -60,10 +61,17 @@ func Migrate(db *gorm.DB) {
 	if err != nil {
 		logging.Panic("failed to migrate model.StateHistory")
 	}
+	err = db.AutoMigrate(&model.SteamCredentials{})
+	if err != nil {
+		logging.Panic("failed to migrate model.SteamCredentials")
+	}
+	err = db.AutoMigrate(&model.SystemConfig{})
+	if err != nil {
+		logging.Panic("failed to migrate model.SystemConfig")
+	}
 	db.FirstOrCreate(&model.ApiModel{Api: "Works"})
 
 	Seed(db)
-
 }
 
 func Seed(db *gorm.DB) error {
@@ -85,15 +93,38 @@ func Seed(db *gorm.DB) error {
 	if err := seedServers(db); err != nil {
 		return err
 	}
+	if err := seedSteamCredentials(db); err != nil {
+		return err
+	}
+	if err := seedSystemConfigs(db); err != nil {
+		return err
+	}
+	return nil
+}
+
+func seedSteamCredentials(db *gorm.DB) error {
+	credentials := []model.SteamCredentials{
+		{
+			ID: 1,
+			Username: "test",
+			Password: "test",
+			DateCreated: time.Now().UTC(),
+		},
+	}
+	for _, credential := range credentials {
+		if err := db.FirstOrCreate(&credential).Error; err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func seedServers(db *gorm.DB) error {
 	servers := []model.Server{
-		{ID: 1, Name: "ACC Server - Barcelona", ServiceName: "ACC-Barcelona", ConfigPath: "C:\\steamcmd\\acc"},
-		{ID: 2, Name: "ACC Server - Monza", ServiceName: "ACC-Monza", ConfigPath: "C:\\steamcmd\\acc2"},
-		{ID: 3, Name: "ACC Server - Spa", ServiceName: "ACC-Spa", ConfigPath: "C:\\steamcmd\\acc3"},
-		{ID: 4, Name: "ACC Server - League", ServiceName: "ACC-League", ConfigPath: "C:\\steamcmd\\acc-league"},
+		{ID: 1, Name: "ACC Server - Barcelona", ServiceName: "ACC-Barcelona", Path: "C:\\steamcmd\\acc", FromSteamCMD: true},
+		{ID: 2, Name: "ACC Server - Monza", ServiceName: "ACC-Monza", Path: "C:\\steamcmd\\acc2", FromSteamCMD: true},
+		{ID: 3, Name: "ACC Server - Spa", ServiceName: "ACC-Spa", Path: "C:\\steamcmd\\acc3", FromSteamCMD: true},
+		{ID: 4, Name: "ACC Server - League", ServiceName: "ACC-League", Path: "C:\\steamcmd\\acc-league", FromSteamCMD: true},
 	}
 
 	for _, track := range servers {
@@ -201,5 +232,43 @@ func seedSessionTypes(db *gorm.DB) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func seedSystemConfigs(db *gorm.DB) error {
+	configs := []model.SystemConfig{
+		{
+			Key:          model.ConfigKeySteamCMDPath,
+			DefaultValue: "c:\\steamcmd\\steamcmd.exe",
+			Description:  "Path to SteamCMD executable",
+			DateModified: time.Now().UTC().Format(time.RFC3339),
+		},
+		{
+			Key:          model.ConfigKeyNSSMPath,
+			DefaultValue: ".\\nssm.exe",
+			Description:  "Path to NSSM executable",
+			DateModified: time.Now().UTC().Format(time.RFC3339),
+		},
+	}
+
+	for _, config := range configs {
+		var exists bool
+		err := db.Model(&model.SystemConfig{}).
+			Select("count(*) > 0").
+			Where("key = ?", config.Key).
+			Find(&exists).
+			Error
+		if err != nil {
+			return err
+		}
+
+		if !exists {
+			if err := db.Create(&config).Error; err != nil {
+				return err
+			}
+			logging.Info("Seeded system config: %s", config.Key)
+		}
+	}
+
 	return nil
 }

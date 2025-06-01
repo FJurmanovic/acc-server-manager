@@ -22,10 +22,11 @@ type Server struct {
 	Status      ServiceStatus `json:"status" gorm:"-"`
 	IP          string `gorm:"not null" json:"-"`
 	Port        int    `gorm:"not null" json:"-"`
-	ConfigPath  string `gorm:"not null" json:"configPath"` // e.g. "/acc/servers/server1/"
+	Path  string `gorm:"not null" json:"path"` // e.g. "/acc/servers/server1/"
 	ServiceName string `gorm:"not null" json:"serviceName"` // Windows service name
 	State       ServerState `gorm:"-" json:"state"`
 	DateCreated time.Time `json:"dateCreated"`
+	FromSteamCMD bool `gorm:"not null; default:true" json:"-"`
 }
 
 type PlayerState struct {
@@ -91,8 +92,8 @@ func (s *Server) BeforeCreate(tx *gorm.DB) error {
 	if s.ServiceName == "" {
 		s.ServiceName = s.GenerateServiceName()
 	}
-	if s.ConfigPath == "" {
-		s.ConfigPath = s.GenerateConfigPath()
+	if s.Path == "" {
+		s.Path = s.GenerateServerPath(BaseServerPath)
 	}
 
 	// Set creation date if not set
@@ -113,13 +114,34 @@ func (s *Server) GenerateServiceName() string {
 	return fmt.Sprintf("%s-%d", ServiceNamePrefix, time.Now().UnixNano())
 }
 
-// GenerateConfigPath creates the config path based on the service name
-func (s *Server) GenerateConfigPath() string {
+// GenerateServerPath creates the config path based on the service name
+func (s *Server) GenerateServerPath(steamCMDPath string) string {
 	// Ensure service name is set
 	if s.ServiceName == "" {
 		s.ServiceName = s.GenerateServiceName()
 	}
-	return filepath.Join(BaseServerPath, s.ServiceName)
+	if (steamCMDPath == "") {
+		steamCMDPath = BaseServerPath
+	}
+	return filepath.Join(steamCMDPath, "servers", s.ServiceName)
+}
+
+func (s *Server) GetServerPath() string {
+	if (!s.FromSteamCMD) {
+		return s.Path
+	}
+	return filepath.Join(s.Path, "server")
+}
+
+func (s *Server) GetConfigPath() string {
+	return filepath.Join(s.GetServerPath(), "cfg")
+}
+
+func (s *Server) GetLogPath() string {
+	if (!s.FromSteamCMD) {
+		return s.Path
+	}
+	return filepath.Join(s.GetServerPath(), "log")
 }
 
 func (s *Server) Validate() error {

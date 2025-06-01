@@ -2,7 +2,7 @@ package tracking
 
 import (
 	"acc-server-manager/local/model"
-	"acc-server-manager/local/utl/regexHandler"
+	"acc-server-manager/local/utl/regex_handler"
 	"bufio"
 	"os"
 	"strconv"
@@ -36,13 +36,13 @@ func NewAccServerInstance(server *model.Server, onStateChange func(*model.Server
 }
 
 type StateRegexHandler struct {
-    *regexHandler.RegexHandler
+    *regex_handler.RegexHandler
     test string
 }
 
 func NewRegexHandler(str string, test string) *StateRegexHandler {
 	return &StateRegexHandler{
-        RegexHandler: regexHandler.New(str),
+        RegexHandler: regex_handler.New(str),
         test: test,
 	}
 }

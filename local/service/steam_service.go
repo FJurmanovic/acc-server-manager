@@ -12,22 +12,23 @@ import (
 )
 
 const (
-	SteamCMDPath    = "steamcmd"
 	ACCServerAppID  = "1430110"
 )
 
 type SteamService struct {
-	executor   *command.CommandExecutor
-	repository *repository.SteamCredentialsRepository
+	executor         *command.CommandExecutor
+	repository      *repository.SteamCredentialsRepository
+	configService   *SystemConfigService
 }
 
-func NewSteamService(repository *repository.SteamCredentialsRepository) *SteamService {
+func NewSteamService(repository *repository.SteamCredentialsRepository, configService *SystemConfigService) *SteamService {
 	return &SteamService{
 		executor: &command.CommandExecutor{
 			ExePath:   "powershell",
 			LogOutput: true,
 		},
-		repository: repository,
+		repository:    repository,
+		configService: configService,
 	}
 }
 
@@ -42,10 +43,23 @@ func (s *SteamService) SaveCredentials(ctx context.Context, creds *model.SteamCr
 	return s.repository.Save(ctx, creds)
 }
 
-func (s *SteamService) ensureSteamCMD() error {
+func (s *SteamService) ensureSteamCMD(ctx context.Context) error {
+	// Get SteamCMD path from config
+	steamCMDPath, err := s.configService.GetSteamCMDDirPath(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get SteamCMD path from config: %v", err)
+	}
+
+	steamCMDDir := filepath.Dir(steamCMDPath)
+
 	// Check if SteamCMD exists
-	if _, err := os.Stat(SteamCMDPath); !os.IsNotExist(err) {
+	if _, err := os.Stat(steamCMDPath); !os.IsNotExist(err) {
 		return nil
+	}
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(steamCMDDir, 0755); err != nil {
+		return fmt.Errorf("failed to create SteamCMD directory: %v", err)
 	}
 
 	// Download and install SteamCMD
@@ -58,7 +72,7 @@ func (s *SteamService) ensureSteamCMD() error {
 	// Extract SteamCMD
 	logging.Info("Extracting SteamCMD...")
 	if err := s.executor.Execute("-Command",
-		"Expand-Archive -Path 'steamcmd.zip' -DestinationPath 'steamcmd'"); err != nil {
+		fmt.Sprintf("Expand-Archive -Path 'steamcmd.zip' -DestinationPath '%s'", steamCMDDir)); err != nil {
 		return fmt.Errorf("failed to extract SteamCMD: %v", err)
 	}
 
@@ -68,12 +82,19 @@ func (s *SteamService) ensureSteamCMD() error {
 }
 
 func (s *SteamService) InstallServer(ctx context.Context, installPath string) error {
-	if err := s.ensureSteamCMD(); err != nil {
+	if err := s.ensureSteamCMD(ctx); err != nil {
 		return err
 	}
 
+	// Convert to absolute path and ensure proper Windows path format
+	absPath, err := filepath.Abs(installPath)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %v", err)
+	}
+	absPath = filepath.Clean(absPath)
+
 	// Ensure install path exists
-	if err := os.MkdirAll(installPath, 0755); err != nil {
+	if err := os.MkdirAll(absPath, 0755); err != nil {
 		return fmt.Errorf("failed to create install directory: %v", err)
 	}
 
@@ -83,12 +104,18 @@ func (s *SteamService) InstallServer(ctx context.Context, installPath string) er
 		return fmt.Errorf("failed to get Steam credentials: %v", err)
 	}
 
+	// Get SteamCMD path from config
+	steamCMDPath, err := s.configService.GetSteamCMDPath(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get SteamCMD path from config: %v", err)
+	}
+
 	// Build SteamCMD command
 	args := []string{
 		"-nologo",
 		"-noprofile",
-		filepath.Join(SteamCMDPath, "steamcmd.exe"),
-		"+force_install_dir", installPath,
+		steamCMDPath,
+		"+force_install_dir", absPath,
 		"+login",
 	}
 
@@ -108,11 +135,24 @@ func (s *SteamService) InstallServer(ctx context.Context, installPath string) er
 	)
 
 	// Run SteamCMD
-	logging.Info("Installing ACC server to %s...", installPath)
+	logging.Info("Installing ACC server to %s...", absPath)
 	if err := s.executor.Execute(args...); err != nil {
-		return fmt.Errorf("failed to install server: %v", err)
+		return fmt.Errorf("failed to run SteamCMD: %v", err)
 	}
 
+	// Add a delay to allow Steam to properly cleanup
+	logging.Info("Waiting for Steam operations to complete...")
+	if err := s.executor.Execute("-Command", "Start-Sleep -Seconds 5"); err != nil {
+		logging.Warn("Failed to wait after Steam operations: %v", err)
+	}
+
+	// Verify installation
+	exePath := filepath.Join(absPath, "server", "accServer.exe")
+	if _, err := os.Stat(exePath); os.IsNotExist(err) {
+		return fmt.Errorf("server installation failed: accServer.exe not found in %s", absPath)
+	}
+
+	logging.Info("Server installation completed successfully")
 	return nil
 }
 

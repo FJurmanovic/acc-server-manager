@@ -1,4 +1,4 @@
-package regexHandler
+package regex_handler
 
 import (
 	"acc-server-manager/local/model"

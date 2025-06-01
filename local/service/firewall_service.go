@@ -21,16 +21,16 @@ func NewFirewallService() *FirewallService {
 
 func (s *FirewallService) CreateServerRules(serverName string, tcpPorts, udpPorts []int) error {
 	for _, port := range tcpPorts {
-		ruleName := fmt.Sprintf("%s-TCP-%d", serverName, port)
+		ruleName := fmt.Sprintf("\"%s-TCP-%d\"", serverName, port)
 		builder := command.NewCommandBuilder().
 			Add("advfirewall").
 			Add("firewall").
 			Add("add").
 			Add("rule").
-			AddPair("name", ruleName).
-			AddPair("dir", "in").
-			AddPair("action", "allow").
-			AddPair("protocol", "TCP").
+			AddFlag("name", ruleName).
+			AddFlag("dir", "in").
+			AddFlag("action", "allow").
+			AddFlag("protocol", "TCP").
 			AddFlag("localport", port)
 
 		if err := s.executor.ExecuteWithBuilder(builder); err != nil {
@@ -46,10 +46,10 @@ func (s *FirewallService) CreateServerRules(serverName string, tcpPorts, udpPort
 			Add("firewall").
 			Add("add").
 			Add("rule").
-			AddPair("name", ruleName).
-			AddPair("dir", "in").
-			AddPair("action", "allow").
-			AddPair("protocol", "UDP").
+			AddFlag("name", ruleName).
+			AddFlag("dir", "in").
+			AddFlag("action", "allow").
+			AddFlag("protocol", "UDP").
 			AddFlag("localport", port)
 
 		if err := s.executor.ExecuteWithBuilder(builder); err != nil {
@@ -63,13 +63,13 @@ func (s *FirewallService) CreateServerRules(serverName string, tcpPorts, udpPort
 
 func (s *FirewallService) DeleteServerRules(serverName string, tcpPorts, udpPorts []int) error {
 	for _, port := range tcpPorts {
-		ruleName := fmt.Sprintf("%s-TCP-%d", serverName, port)
+		ruleName := fmt.Sprintf("\"%s-TCP-%d\"", serverName, port)
 		builder := command.NewCommandBuilder().
 			Add("advfirewall").
 			Add("firewall").
 			Add("delete").
 			Add("rule").
-			AddPair("name", ruleName)
+			AddFlag("name", ruleName)
 
 		if err := s.executor.ExecuteWithBuilder(builder); err != nil {
 			return fmt.Errorf("failed to delete TCP firewall rule for port %d: %v", port, err)
@@ -78,13 +78,13 @@ func (s *FirewallService) DeleteServerRules(serverName string, tcpPorts, udpPort
 	}
 
 	for _, port := range udpPorts {
-		ruleName := fmt.Sprintf("%s-UDP-%d", serverName, port)
+		ruleName := fmt.Sprintf("\"%s-UDP-%d\"", serverName, port)
 		builder := command.NewCommandBuilder().
 			Add("advfirewall").
 			Add("firewall").
 			Add("delete").
 			Add("rule").
-			AddPair("name", ruleName)
+			AddFlag("name", ruleName)
 
 		if err := s.executor.ExecuteWithBuilder(builder); err != nil {
 			return fmt.Errorf("failed to delete UDP firewall rule for port %d: %v", port, err)

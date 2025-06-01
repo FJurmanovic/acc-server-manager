@@ -16,4 +16,5 @@ func InitializeRepositories(c *dig.Container) {
 	c.Provide(NewConfigRepository)
 	c.Provide(NewLookupRepository)
 	c.Provide(NewSteamCredentialsRepository)
+	c.Provide(NewSystemConfigRepository)
 }
