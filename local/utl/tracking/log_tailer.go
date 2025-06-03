@@ -11,6 +11,7 @@ type LogTailer struct {
 	handleLine  func(string)
 	stopChan    chan struct{}
 	isRunning   bool
+	tracker     *PositionTracker
 }
 
 func NewLogTailer(filePath string, handleLine func(string)) *LogTailer {
@@ -18,6 +19,7 @@ func NewLogTailer(filePath string, handleLine func(string)) *LogTailer {
 		filePath:   filePath,
 		handleLine: handleLine,
 		stopChan:   make(chan struct{}),
+		tracker:    NewPositionTracker(filePath),
 	}
 }
 
@@ -28,7 +30,13 @@ func (t *LogTailer) Start() {
 	t.isRunning = true
 
 	go func() {
-		var lastSize int64 = 0
+		// Load last position from tracker
+		pos, err := t.tracker.LoadPosition()
+		if err != nil {
+			pos = &LogPosition{} // Start from beginning if error
+		}
+		lastSize := pos.LastPosition
+
 		for {
 			select {
 			case <-t.stopChan:
@@ -56,8 +64,15 @@ func (t *LogTailer) Start() {
 
 					scanner := bufio.NewScanner(file)
 					for scanner.Scan() {
-						t.handleLine(scanner.Text())
+						line := scanner.Text()
+						t.handleLine(line)
 						lastSize, _ = file.Seek(0, 1) // Get current position
+						
+						// Save position periodically
+						t.tracker.SavePosition(&LogPosition{
+							LastPosition: lastSize,
+							LastRead:     line,
+						})
 					}
 
 					file.Close()

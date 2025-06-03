@@ -118,10 +118,12 @@ func (s *ServerService) shouldInsertStateHistory(serverID uint) bool {
 }
 
 func (s *ServerService) getNextSessionID(serverID uint) uint {
-	currentID, _ := s.sessionIDs.LoadOrStore(serverID, uint(0))
-	nextID := currentID.(uint) + 1
-	s.sessionIDs.Store(serverID, nextID)
-	return nextID
+	lastID, err := s.stateHistoryRepo.GetLastSessionID(context.Background(), serverID)
+	if err != nil {
+		logging.Error("Failed to get last session ID for server %d: %v", serverID, err)
+		return 1 // Return 1 as fallback
+	}
+	return lastID + 1
 }
 
 func (s *ServerService) insertStateHistory(serverID uint, state *model.ServerState) {
