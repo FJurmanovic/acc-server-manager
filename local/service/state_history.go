@@ -70,6 +70,7 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 		Session    string
 		Track      string
 		MaxPlayers int
+		SessionConcluded bool
 	})
 
 	// Maps for aggregating statistics
@@ -101,11 +102,13 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 				Session    string
 				Track      string
 				MaxPlayers int
+				SessionConcluded bool
 			}{
 				StartTime:  entry.DateCreated,
 				Session:    entry.Session,
 				Track:      entry.Track,
 				MaxPlayers: entry.PlayerCount,
+				SessionConcluded: false,
 			}
 
 			// Count session types
@@ -116,10 +119,25 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 			dailySessionCount[dateStr]++
 		} else {
 			session := sessionMap[entry.SessionID]
+			if session.SessionConcluded {
+				continue
+			}
+			if (entry.PlayerCount == 0) {
+				session.SessionConcluded = true
+			}
 			session.EndTime = entry.DateCreated
 			if entry.PlayerCount > session.MaxPlayers {
 				session.MaxPlayers = entry.PlayerCount
 			}
+		}
+	}
+
+	for key, session := range sessionMap {
+		if !session.SessionConcluded {
+			session.SessionConcluded = true
+		}
+		if (session.MaxPlayers == 0) {
+			delete(sessionMap, key)
 		}
 	}
 
