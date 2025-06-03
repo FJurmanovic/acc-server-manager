@@ -98,6 +98,7 @@ const (
     LeaderboardUpdate
     UDPCount
     ClientsOnline
+    RemovingDeadConnection
 )
 
 var logStateContain = map[LogStateType]string {
@@ -105,18 +106,21 @@ var logStateContain = map[LogStateType]string {
     LeaderboardUpdate: "Updated leaderboard for",
     UDPCount: "Udp message count",
     ClientsOnline: "client(s) online",
+    RemovingDeadConnection: "Removing dead connection",
 }
 
 var sessionChangeRegex = NewRegexHandler(`Session changed: (\w+) -> (\w+)`, logStateContain[SessionChange])
 var leaderboardUpdateRegex = NewRegexHandler(`Updated leaderboard for (\d+) clients`, logStateContain[LeaderboardUpdate])
 var udpCountRegex = NewRegexHandler(`Udp message count (\d+) client`, logStateContain[UDPCount])
 var clientsOnlineRegex = NewRegexHandler(`(\d+) client\(s\) online`, logStateContain[ClientsOnline])
+var removingDeadConnectionsRegex = NewRegexHandler(`Removing dead connection`, logStateContain[RemovingDeadConnection])
 
 var logStateRegex = map[LogStateType]*StateRegexHandler {
     SessionChange: sessionChangeRegex,
     LeaderboardUpdate: leaderboardUpdateRegex,
     UDPCount: udpCountRegex,
     ClientsOnline: clientsOnlineRegex,
+    RemovingDeadConnection: removingDeadConnectionsRegex,
 }
 
 func (instance *AccServerInstance) HandleLogLine(line string) {
@@ -131,6 +135,8 @@ func (instance *AccServerInstance) HandleLogLine(line string) {
             case SessionChange:
                 _, new := regexHandler.Change(line)
                 instance.UpdateSessionChange(new)
+            case RemovingDeadConnection:
+                instance.UpdatePlayerCount(instance.State.PlayerCount - 1)
             }
         }
     } 
