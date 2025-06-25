@@ -1,6 +1,7 @@
 package model
 
 import (
+	"acc-server-manager/local/utl/configs"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -84,12 +85,10 @@ func (s *SteamCredentials) Validate() error {
 	return nil
 }
 
-// GetEncryptionKey returns the encryption key, in a real application this should be stored securely
-// and potentially rotated periodically
+// GetEncryptionKey returns the encryption key from config.
+// The key is loaded from the ENCRYPTION_KEY environment variable.
 func GetEncryptionKey() []byte {
-	// This is a placeholder - in production, this should be stored securely
-	// and potentially fetched from a key management service
-	return []byte("your-32-byte-encryption-key-here")
+	return []byte(configs.EncryptionKey)
 }
 
 // EncryptPassword encrypts a password using AES-256

@@ -3,6 +3,7 @@ package db
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/utl/logging"
+	"os"
 	"time"
 
 	"go.uber.org/dig"
@@ -11,7 +12,12 @@ import (
 )
 
 func Start(di *dig.Container) {
-	db, err := gorm.Open(sqlite.Open("acc.db"), &gorm.Config{})
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "acc.db"
+	}
+
+	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
 	if err != nil {
 		logging.Panic("failed to connect database")
 	}
@@ -25,50 +31,25 @@ func Start(di *dig.Container) {
 }
 
 func Migrate(db *gorm.DB) {
-	err := db.AutoMigrate(&model.ApiModel{})
+	logging.Info("Migrating database")
+
+	err := db.AutoMigrate(
+		&model.ApiModel{},
+		&model.Config{},
+		&model.Track{},
+		&model.CarModel{},
+		&model.CupCategory{},
+		&model.DriverCategory{},
+		&model.SessionType{},
+		&model.StateHistory{},
+		&model.SteamCredentials{},
+		&model.SystemConfig{},
+	)
+
 	if err != nil {
-		logging.Panic("failed to migrate model.ApiModel")
+		logging.Panic("failed to migrate database models")
 	}
-	err = db.AutoMigrate(&model.Server{})
-	if err != nil {
-		logging.Panic("failed to migrate model.Server")
-	}
-	err = db.AutoMigrate(&model.Config{})
-	if err != nil {
-		logging.Panic("failed to migrate model.Config")
-	}
-	err = db.AutoMigrate(&model.Track{})
-	if err != nil {
-		logging.Panic("failed to migrate model.Track")
-	}
-	err = db.AutoMigrate(&model.CarModel{})
-	if err != nil {
-		logging.Panic("failed to migrate model.CarModel")
-	}
-	err = db.AutoMigrate(&model.CupCategory{})
-	if err != nil {
-		logging.Panic("failed to migrate model.CupCategory")
-	}
-	err = db.AutoMigrate(&model.DriverCategory{})
-	if err != nil {
-		logging.Panic("failed to migrate model.DriverCategory")
-	}
-	err = db.AutoMigrate(&model.SessionType{})
-	if err != nil {
-		logging.Panic("failed to migrate model.SessionType")
-	}
-	err = db.AutoMigrate(&model.StateHistory{})
-	if err != nil {
-		logging.Panic("failed to migrate model.StateHistory")
-	}
-	err = db.AutoMigrate(&model.SteamCredentials{})
-	if err != nil {
-		logging.Panic("failed to migrate model.SteamCredentials")
-	}
-	err = db.AutoMigrate(&model.SystemConfig{})
-	if err != nil {
-		logging.Panic("failed to migrate model.SystemConfig")
-	}
+
 	db.FirstOrCreate(&model.ApiModel{Api: "Works"})
 
 	Seed(db)
@@ -90,50 +71,13 @@ func Seed(db *gorm.DB) error {
 	if err := seedSessionTypes(db); err != nil {
 		return err
 	}
-	if err := seedServers(db); err != nil {
-		return err
-	}
-	if err := seedSteamCredentials(db); err != nil {
-		return err
-	}
 	if err := seedSystemConfigs(db); err != nil {
 		return err
 	}
 	return nil
 }
 
-func seedSteamCredentials(db *gorm.DB) error {
-	credentials := []model.SteamCredentials{
-		{
-			ID: 1,
-			Username: "test",
-			Password: "test",
-			DateCreated: time.Now().UTC(),
-		},
-	}
-	for _, credential := range credentials {
-		if err := db.FirstOrCreate(&credential).Error; err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
-func seedServers(db *gorm.DB) error {
-	servers := []model.Server{
-		{ID: 1, Name: "ACC Server - Barcelona", ServiceName: "ACC-Barcelona", Path: "C:\\steamcmd\\acc", FromSteamCMD: true},
-		{ID: 2, Name: "ACC Server - Monza", ServiceName: "ACC-Monza", Path: "C:\\steamcmd\\acc2", FromSteamCMD: true},
-		{ID: 3, Name: "ACC Server - Spa", ServiceName: "ACC-Spa", Path: "C:\\steamcmd\\acc3", FromSteamCMD: true},
-		{ID: 4, Name: "ACC Server - League", ServiceName: "ACC-League", Path: "C:\\steamcmd\\acc-league", FromSteamCMD: true},
-	}
-
-	for _, track := range servers {
-		if err := db.FirstOrCreate(&track).Error; err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 func seedTracks(db *gorm.DB) error {
 	tracks := []model.Track{

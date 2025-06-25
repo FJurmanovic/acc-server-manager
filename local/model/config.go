@@ -9,6 +9,7 @@ import (
 )
 
 type IntString int
+type IntBool int
 
 // Config tracks configuration modifications
 type Config  struct {
@@ -90,11 +91,11 @@ type EventRules struct {
 	DriverStIntStringTimeSec                   IntString  `json:"driverStIntStringTimeSec"`
 	MandatoryPitstopCount                IntString  `json:"mandatoryPitstopCount"`
 	MaxTotalDrivingTime                  IntString  `json:"maxTotalDrivingTime"`
-	IsRefuellingAllowedInRace            bool `json:"isRefuellingAllowedInRace"`
-	IsRefuellingTimeFixed                bool `json:"isRefuellingTimeFixed"`
-	IsMandatoryPitstopRefuellingRequired bool `json:"isMandatoryPitstopRefuellingRequired"`
-	IsMandatoryPitstopTyreChangeRequired bool `json:"isMandatoryPitstopTyreChangeRequired"`
-	IsMandatoryPitstopSwapDriverRequired bool `json:"isMandatoryPitstopSwapDriverRequired"`
+	IsRefuellingAllowedInRace            IntBool `json:"isRefuellingAllowedInRace"`
+	IsRefuellingTimeFixed                IntBool `json:"isRefuellingTimeFixed"`
+	IsMandatoryPitstopRefuellingRequired IntBool `json:"isMandatoryPitstopRefuellingRequired"`
+	IsMandatoryPitstopTyreChangeRequired IntBool `json:"isMandatoryPitstopTyreChangeRequired"`
+	IsMandatoryPitstopSwapDriverRequired IntBool `json:"isMandatoryPitstopSwapDriverRequired"`
 	TyreSetCount                         IntString  `json:"tyreSetCount"`
 }
 
@@ -127,6 +128,34 @@ const (
 	CacheKeySystemConfig = "system_config_%s"  // Format with config key
 )
 
+func (i *IntBool) UnmarshalJSON(b []byte) error {
+	var str int
+	if err := json.Unmarshal(b, &str); err == nil && str <= 1 {
+		*i = IntBool(str)
+		return nil
+	}
+
+	var num bool
+	if err := json.Unmarshal(b, &num); err == nil {
+		if num {
+			*i = IntBool(1)
+		} else {
+			*i = IntBool(0)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("invalid IntBool value")
+}
+
+func (i IntBool) ToInt() int {
+	return int(i)
+}
+
+func (i IntBool) ToBool() bool {
+	return i == 1
+}
+
 func (i *IntString) UnmarshalJSON(b []byte) error {
 	var str string
 	if err := json.Unmarshal(b, &str); err == nil {
@@ -148,7 +177,7 @@ func (i *IntString) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("invalid postQualySeconds value")
+	return fmt.Errorf("invalid IntString value")
 }
 
 func (i IntString) ToString() string {

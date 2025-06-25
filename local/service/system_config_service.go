@@ -3,79 +3,41 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
+	"acc-server-manager/local/utl/cache"
 	"acc-server-manager/local/utl/logging"
 	"context"
 	"fmt"
 	"path/filepath"
+	"time"
+)
 
-	"go.uber.org/dig"
+const (
+	configCacheDuration = 24 * time.Hour
 )
 
 type SystemConfigService struct {
 	repository *repository.SystemConfigRepository
-	cache      *model.LookupCache
-}
-
-// SystemConfigServiceParams holds the dependencies for SystemConfigService
-type SystemConfigServiceParams struct {
-	dig.In
-
-	Repository *repository.SystemConfigRepository
-	Cache      *model.LookupCache
+	cache      *cache.InMemoryCache
 }
 
 // NewSystemConfigService creates a new SystemConfigService with dependencies injected by dig
-func NewSystemConfigService(params SystemConfigServiceParams) *SystemConfigService {
+func NewSystemConfigService(repository *repository.SystemConfigRepository, cache *cache.InMemoryCache) *SystemConfigService {
 	logging.Debug("Initializing SystemConfigService")
 	return &SystemConfigService{
-		repository: params.Repository,
-		cache:      params.Cache,
+		repository: repository,
+		cache:      cache,
 	}
-}
-
-func (s *SystemConfigService) Initialize(ctx context.Context) error {
-	logging.Debug("Initializing system config cache")
-	// Cache all configs
-	configs, err := s.repository.GetAll(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get configs for caching: %v", err)
-	}
-
-	for _, config := range *configs {
-		cacheKey := fmt.Sprintf(model.CacheKeySystemConfig, config.Key)
-		s.cache.Set(cacheKey, &config)
-		logging.Debug("Cached system config: %s", config.Key)
-	}
-
-	logging.Debug("Completed initializing system config cache")
-	return nil
 }
 
 func (s *SystemConfigService) GetConfig(ctx context.Context, key string) (*model.SystemConfig, error) {
 	cacheKey := fmt.Sprintf(model.CacheKeySystemConfig, key)
-	
-	// Try to get from cache first
-	if cached, exists := s.cache.Get(cacheKey); exists {
-		if config, ok := cached.(*model.SystemConfig); ok {
-			return config, nil
-		}
-		logging.Debug("Invalid type in cache for key: %s", key)
+
+	fetcher := func() (*model.SystemConfig, error) {
+		logging.Debug("Loading system config from database: %s", key)
+		return s.repository.Get(ctx, key)
 	}
 
-	// If not in cache, get from database
-	logging.Debug("Loading system config from database: %s", key)
-	config, err := s.repository.Get(ctx, key)
-	if err != nil {
-		return nil, err
-	}
-	if config == nil {
-		logging.Error("Configuration not found for key: %s", key)
-		return nil, nil
-	}
-
-	// Cache the result
-	s.cache.Set(cacheKey, config)
-	return config, nil
+	return cache.GetOrSet(s.cache, cacheKey, configCacheDuration, fetcher)
 }
 
 func (s *SystemConfigService) GetAllConfigs(ctx context.Context) (*[]model.SystemConfig, error) {
@@ -88,10 +50,10 @@ func (s *SystemConfigService) UpdateConfig(ctx context.Context, config *model.Sy
 		return err
 	}
 
-	// Update cache
+	// Invalidate cache
 	cacheKey := fmt.Sprintf(model.CacheKeySystemConfig, config.Key)
-	s.cache.Set(cacheKey, config)
-	logging.Debug("Updated system config in cache: %s", config.Key)
+	s.cache.Delete(cacheKey)
+	logging.Debug("Invalidated system config in cache: %s", config.Key)
 	return nil
 }
 

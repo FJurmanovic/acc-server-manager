@@ -44,3 +44,116 @@ func (r *StateHistoryRepository) GetLastSessionID(ctx context.Context, serverID 
 
 	return lastSession.SessionID, nil
 }
+
+// GetSummaryStats calculates peak players, total sessions, and average players.
+func (r *StateHistoryRepository) GetSummaryStats(ctx context.Context, filter *model.StateHistoryFilter) (model.StateHistoryStats, error) {
+	var stats model.StateHistoryStats
+	query := r.db.WithContext(ctx).Model(&model.StateHistory{}).
+		Select(`
+			COALESCE(MAX(player_count), 0) as peak_players,
+			COUNT(DISTINCT session_id) as total_sessions,
+			COALESCE(AVG(player_count), 0) as average_players
+		`).
+		Where("server_id = ?", filter.ServerID)
+
+	if !filter.StartDate.IsZero() && !filter.EndDate.IsZero() {
+		query = query.Where("date_created BETWEEN ? AND ?", filter.StartDate, filter.EndDate)
+	}
+
+	if err := query.Scan(&stats).Error; err != nil {
+		return model.StateHistoryStats{}, err
+	}
+	return stats, nil
+}
+
+// GetTotalPlaytime calculates the total playtime in minutes.
+func (r *StateHistoryRepository) GetTotalPlaytime(ctx context.Context, filter *model.StateHistoryFilter) (int, error) {
+	var totalPlaytime struct {
+		TotalMinutes float64
+	}
+	rawQuery := `
+		SELECT SUM(duration_minutes) as total_minutes FROM (
+			SELECT (strftime('%s', MAX(date_created)) - strftime('%s', MIN(date_created))) / 60.0 as duration_minutes
+			FROM state_histories
+			WHERE server_id = ? AND date_created BETWEEN ? AND ?
+			GROUP BY session_id
+			HAVING COUNT(*) > 1 AND MAX(player_count) > 0
+		)
+	`
+	err := r.db.WithContext(ctx).Raw(rawQuery, filter.ServerID, filter.StartDate, filter.EndDate).Scan(&totalPlaytime).Error
+	if err != nil {
+		return 0, err
+	}
+	return int(totalPlaytime.TotalMinutes), nil
+}
+
+// GetPlayerCountOverTime gets downsampled player count data.
+func (r *StateHistoryRepository) GetPlayerCountOverTime(ctx context.Context, filter *model.StateHistoryFilter) ([]model.PlayerCountPoint, error) {
+	var points []model.PlayerCountPoint
+	rawQuery := `
+		SELECT
+			strftime('%Y-%m-%d %H:00:00', date_created) as timestamp,
+			AVG(player_count) as count
+		FROM state_histories
+		WHERE server_id = ? AND date_created BETWEEN ? AND ?
+		GROUP BY 1
+		ORDER BY 1
+	`
+	err := r.db.WithContext(ctx).Raw(rawQuery, filter.ServerID, filter.StartDate, filter.EndDate).Scan(&points).Error
+	return points, err
+}
+
+// GetSessionTypes counts sessions by type.
+func (r *StateHistoryRepository) GetSessionTypes(ctx context.Context, filter *model.StateHistoryFilter) ([]model.SessionCount, error) {
+	var sessionTypes []model.SessionCount
+	rawQuery := `
+		SELECT session as name, COUNT(*) as count FROM (
+			SELECT session
+			FROM state_histories
+			WHERE server_id = ? AND date_created BETWEEN ? AND ?
+			GROUP BY session_id
+		)
+		GROUP BY session
+		ORDER BY count DESC
+	`
+	err := r.db.WithContext(ctx).Raw(rawQuery, filter.ServerID, filter.StartDate, filter.EndDate).Scan(&sessionTypes).Error
+	return sessionTypes, err
+}
+
+// GetDailyActivity counts sessions per day.
+func (r *StateHistoryRepository) GetDailyActivity(ctx context.Context, filter *model.StateHistoryFilter) ([]model.DailyActivity, error) {
+	var dailyActivity []model.DailyActivity
+	rawQuery := `
+		SELECT
+			DATE(date_created) as date,
+			COUNT(DISTINCT session_id) as sessions_count
+		FROM state_histories
+		WHERE server_id = ? AND date_created BETWEEN ? AND ?
+		GROUP BY 1
+		ORDER BY 1
+	`
+	err := r.db.WithContext(ctx).Raw(rawQuery, filter.ServerID, filter.StartDate, filter.EndDate).Scan(&dailyActivity).Error
+	return dailyActivity, err
+}
+
+// GetRecentSessions retrieves the 10 most recent sessions.
+func (r *StateHistoryRepository) GetRecentSessions(ctx context.Context, filter *model.StateHistoryFilter) ([]model.RecentSession, error) {
+	var recentSessions []model.RecentSession
+	rawQuery := `
+		SELECT
+			session_id as id,
+			MIN(date_created) as date,
+			session as type,
+			track,
+			MAX(player_count) as players,
+			CAST((strftime('%s', MAX(date_created)) - strftime('%s', MIN(date_created))) / 60 AS INTEGER) as duration
+		FROM state_histories
+		WHERE server_id = ? AND date_created BETWEEN ? AND ?
+		GROUP BY session_id
+		HAVING COUNT(*) > 1 AND MAX(player_count) > 0
+		ORDER BY date DESC
+		LIMIT 10
+	`
+	err := r.db.WithContext(ctx).Raw(rawQuery, filter.ServerID, filter.StartDate, filter.EndDate).Scan(&recentSessions).Error
+	return recentSessions, err
+}

@@ -3,32 +3,31 @@ package server
 import (
 	"acc-server-manager/local/api"
 	"acc-server-manager/local/utl/logging"
-	"fmt"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/swagger"
 	"go.uber.org/dig"
 )
 
 func Start(di *dig.Container) *fiber.App {
-	// Initialize logger
-	logger, err := logging.Initialize()
-	if err != nil {
-		fmt.Printf("Failed to initialize logger: %v\n", err)
-		os.Exit(1)
-	}
-	defer logger.Close()
-
-	// Set up panic recovery
-	defer logging.RecoverAndLog()
-
 	app := fiber.New(fiber.Config{
 		EnablePrintRoutes: true,
 	})
 
-	app.Use(cors.New())
+	app.Use(helmet.New())
+
+	allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
+	if allowedOrigin == "" {
+		allowedOrigin = "http://localhost:5173"
+	}
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: allowedOrigin,
+		AllowHeaders: "Origin, Content-Type, Accept",
+	}))
 
 	app.Get("/swagger/*", swagger.HandlerDefault)
 

@@ -2,87 +2,90 @@ package repository
 
 import (
 	"acc-server-manager/local/model"
+	"acc-server-manager/local/utl/cache"
 	"context"
+	"time"
 
 	"gorm.io/gorm"
 )
 
+const (
+	cacheDuration            = 1 * time.Hour
+	tracksCacheKey           = "tracks"
+	carModelsCacheKey        = "carModels"
+	driverCategoriesCacheKey = "driverCategories"
+	cupCategoriesCacheKey    = "cupCategories"
+	sessionTypesCacheKey     = "sessionTypes"
+)
+
 type LookupRepository struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *cache.InMemoryCache
 }
 
-func NewLookupRepository(db *gorm.DB) *LookupRepository {
+func NewLookupRepository(db *gorm.DB, cache *cache.InMemoryCache) *LookupRepository {
 	return &LookupRepository{
-		db: db,
+		db:    db,
+		cache: cache,
 	}
 }
 
-// GetTracks
-// Gets Tracks rows from Lookup table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.LookupModel: Lookup object from database.
-func (as LookupRepository) GetTracks(ctx context.Context) *[]model.Track {
-	db := as.db.WithContext(ctx)
-	TrackModel := new([]model.Track)
-	db.Find(&TrackModel)
-	return TrackModel
+func (r *LookupRepository) GetTracks(ctx context.Context) (*[]model.Track, error) {
+	fetcher := func() (*[]model.Track, error) {
+		db := r.db.WithContext(ctx)
+		items := new([]model.Track)
+		if err := db.Find(items).Error; err != nil {
+			return nil, err
+		}
+		return items, nil
+	}
+	return cache.GetOrSet(r.cache, tracksCacheKey, cacheDuration, fetcher)
 }
 
-// GetCarModels
-// Gets CarModels rows from Lookup table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.LookupModel: Lookup object from database.
-func (as LookupRepository) GetCarModels(ctx context.Context) *[]model.CarModel {
-	db := as.db.WithContext(ctx)
-	CarModelModel := new([]model.CarModel)
-	db.Find(&CarModelModel)
-	return CarModelModel
+func (r *LookupRepository) GetCarModels(ctx context.Context) (*[]model.CarModel, error) {
+	fetcher := func() (*[]model.CarModel, error) {
+		db := r.db.WithContext(ctx)
+		items := new([]model.CarModel)
+		if err := db.Find(items).Error; err != nil {
+			return nil, err
+		}
+		return items, nil
+	}
+	return cache.GetOrSet(r.cache, carModelsCacheKey, cacheDuration, fetcher)
 }
 
-// GetDriverCategories
-// Gets DriverCategories rows from Lookup table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.LookupModel: Lookup object from database.
-func (as LookupRepository) GetDriverCategories(ctx context.Context) *[]model.DriverCategory {
-	db := as.db.WithContext(ctx)
-	DriverCategoryModel := new([]model.DriverCategory)
-	db.Find(&DriverCategoryModel)
-	return DriverCategoryModel
+func (r *LookupRepository) GetDriverCategories(ctx context.Context) (*[]model.DriverCategory, error) {
+	fetcher := func() (*[]model.DriverCategory, error) {
+		db := r.db.WithContext(ctx)
+		items := new([]model.DriverCategory)
+		if err := db.Find(items).Error; err != nil {
+			return nil, err
+		}
+		return items, nil
+	}
+	return cache.GetOrSet(r.cache, driverCategoriesCacheKey, cacheDuration, fetcher)
 }
 
-// GetCupCategories
-// Gets CupCategories rows from Lookup table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.LookupModel: Lookup object from database.
-func (as LookupRepository) GetCupCategories(ctx context.Context) *[]model.CupCategory {
-	db := as.db.WithContext(ctx)
-	CupCategoryModel := new([]model.CupCategory)
-	db.Find(&CupCategoryModel)
-	return CupCategoryModel
+func (r *LookupRepository) GetCupCategories(ctx context.Context) (*[]model.CupCategory, error) {
+	fetcher := func() (*[]model.CupCategory, error) {
+		db := r.db.WithContext(ctx)
+		items := new([]model.CupCategory)
+		if err := db.Find(items).Error; err != nil {
+			return nil, err
+		}
+		return items, nil
+	}
+	return cache.GetOrSet(r.cache, cupCategoriesCacheKey, cacheDuration, fetcher)
 }
 
-// GetSessionTypes
-// Gets SessionTypes rows from Lookup table.
-//
-//	   	Args:
-//	   		context.Context: Application context
-//		Returns:
-//			model.LookupModel: Lookup object from database.
-func (as LookupRepository) GetSessionTypes(ctx context.Context) *[]model.SessionType {
-	db := as.db.WithContext(ctx)
-	SessionTypesModel := new([]model.SessionType)
-	db.Find(&SessionTypesModel)
-	return SessionTypesModel
+func (r *LookupRepository) GetSessionTypes(ctx context.Context) (*[]model.SessionType, error) {
+	fetcher := func() (*[]model.SessionType, error) {
+		db := r.db.WithContext(ctx)
+		items := new([]model.SessionType)
+		if err := db.Find(items).Error; err != nil {
+			return nil, err
+		}
+		return items, nil
+	}
+	return cache.GetOrSet(r.cache, sessionTypesCacheKey, cacheDuration, fetcher)
 }
