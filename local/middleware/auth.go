@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 )
 
 // AuthMiddleware provides authentication and permission middleware.
@@ -45,7 +44,7 @@ func (m *AuthMiddleware) Authenticate(ctx *fiber.Ctx) error {
 // HasPermission is a middleware for checking user permissions.
 func (m *AuthMiddleware) HasPermission(requiredPermission string) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
-		userID, ok := ctx.Locals("userID").(uuid.UUID)
+		userID, ok := ctx.Locals("userID").(string)
 		if !ok {
 			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 		}

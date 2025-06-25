@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // MembershipService provides business logic for membership-related operations.
@@ -29,7 +28,7 @@ func (s *MembershipService) Login(ctx context.Context, username, password string
 		return "", errors.New("invalid credentials")
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if user.Password != password {
 		return "", errors.New("invalid credentials")
 	}
 
@@ -68,7 +67,7 @@ func (s *MembershipService) GetUser(ctx context.Context, userID uuid.UUID) (*mod
 }
 
 // GetUserWithPermissions retrieves a single user by ID with their role and permissions.
-func (s *MembershipService) GetUserWithPermissions(ctx context.Context, userID uuid.UUID) (*model.User, error) {
+func (s *MembershipService) GetUserWithPermissions(ctx context.Context, userID string) (*model.User, error) {
 	return s.repo.FindUserByIDWithPermissions(ctx, userID)
 }
 
@@ -111,7 +110,7 @@ func (s *MembershipService) UpdateUser(ctx context.Context, userID uuid.UUID, re
 }
 
 // HasPermission checks if a user has a specific permission.
-func (s *MembershipService) HasPermission(ctx context.Context, userID uuid.UUID, permissionName string) (bool, error) {
+func (s *MembershipService) HasPermission(ctx context.Context, userID string, permissionName string) (bool, error) {
 	user, err := s.repo.FindUserByIDWithPermissions(ctx, userID)
 	if err != nil {
 		return false, err

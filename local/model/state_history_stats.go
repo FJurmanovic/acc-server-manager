@@ -1,36 +1,34 @@
 package model
 
-import "time"
-
 type SessionCount struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
 }
 
 type DailyActivity struct {
-	Date          time.Time `json:"date"`
+	Date          string `json:"date"`
 	SessionsCount int       `json:"sessionsCount"`
 }
 
 type PlayerCountPoint struct {
-	Timestamp time.Time `json:"timestamp"`
-	Count     int       `json:"count"`
+	Timestamp string    `json:"timestamp"`
+	Count     float64   `json:"count"`
 }
 
 type StateHistoryStats struct {
 	AveragePlayers      float64           `json:"averagePlayers"`
 	PeakPlayers         int               `json:"peakPlayers"`
 	TotalSessions       int               `json:"totalSessions"`
-	TotalPlaytime       int               `json:"totalPlaytime"` // in minutes
-	PlayerCountOverTime []PlayerCountPoint `json:"playerCountOverTime"`
-	SessionTypes        []SessionCount     `json:"sessionTypes"`
-	DailyActivity       []DailyActivity    `json:"dailyActivity"`
-	RecentSessions      []RecentSession    `json:"recentSessions"`
+	TotalPlaytime       int               `json:"totalPlaytime" gorm:"-"` // in minutes
+	PlayerCountOverTime []PlayerCountPoint `json:"playerCountOverTime" gorm:"-"`
+	SessionTypes        []SessionCount     `json:"sessionTypes" gorm:"-"`
+	DailyActivity       []DailyActivity    `json:"dailyActivity" gorm:"-"`
+	RecentSessions      []RecentSession    `json:"recentSessions" gorm:"-"`
 } 
 
 type RecentSession struct {
 	ID       uint      `json:"id"`
-	Date     time.Time `json:"date"`
+	Date     string    `json:"date"`
 	Type     string    `json:"type"`
 	Track    string    `json:"track"`
 	Duration int       `json:"duration"`

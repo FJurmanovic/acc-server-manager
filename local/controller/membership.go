@@ -5,7 +5,9 @@ import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
-	"acc-server-manager/local/utl/jwt"
+	"acc-server-manager/local/utl/logging"
+	"context"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -23,6 +25,10 @@ func NewMembershipController(service *service.MembershipService, auth *middlewar
 		service: service,
 		auth:    auth,
 	}
+	// Setup initial data for membership
+	if err := service.SetupInitialData(context.Background()); err != nil {
+		logging.Panic(fmt.Sprintf("failed to setup initial data: %v", err))
+	}
 
 	routeGroups.Auth.Post("/login", mc.Login)
 
@@ -32,7 +38,7 @@ func NewMembershipController(service *service.MembershipService, auth *middlewar
 	usersGroup.Get("/:id", mc.auth.HasPermission(model.MembershipView), mc.GetUser)
 	usersGroup.Put("/:id", mc.auth.HasPermission(model.MembershipEdit), mc.UpdateUser)
 
-	routeGroups.Api.Get("/me", mc.auth.Authenticate, mc.GetMe)
+	routeGroups.Auth.Get("/me", mc.auth.Authenticate, mc.GetMe)
 
 	return mc
 }
@@ -105,12 +111,12 @@ func (mc *MembershipController) GetUser(c *fiber.Ctx) error {
 
 // GetMe returns the currently authenticated user's details.
 func (mc *MembershipController) GetMe(c *fiber.Ctx) error {
-	claims, ok := c.Locals("user").(*jwt.Claims)
-	if !ok || claims == nil {
+	userID, ok := c.Locals("userID").(string)
+	if !ok || userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	user, err := mc.service.GetUserWithPermissions(c.UserContext(), claims.UserID)
+	user, err := mc.service.GetUserWithPermissions(c.UserContext(), userID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}

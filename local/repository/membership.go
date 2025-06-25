@@ -31,7 +31,7 @@ func (r *MembershipRepository) FindUserByUsername(ctx context.Context, username 
 }
 
 // FindUserByIDWithPermissions finds a user by their ID and preloads Role and Permissions.
-func (r *MembershipRepository) FindUserByIDWithPermissions(ctx context.Context, userID uuid.UUID) (*model.User, error) {
+func (r *MembershipRepository) FindUserByIDWithPermissions(ctx context.Context, userID string) (*model.User, error) {
 	var user model.User
 	db := r.db.WithContext(ctx)
 	err := db.Preload("Role.Permissions").First(&user, "id = ?", userID).Error

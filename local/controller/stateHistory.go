@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
@@ -20,11 +21,12 @@ type StateHistoryController struct {
 //		*Fiber.RouterGroup: Fiber Router Group
 //	Returns:
 //		*StateHistoryController: Controller for "StateHistory" interactions
-func NewStateHistoryController(as *service.StateHistoryService, routeGroups *common.RouteGroups) *StateHistoryController {
+func NewStateHistoryController(as *service.StateHistoryService, routeGroups *common.RouteGroups, auth *middleware.AuthMiddleware) *StateHistoryController {
 	ac := &StateHistoryController{
 		service: as,
 	}
 
+	routeGroups.StateHistory.Use(auth.Authenticate)
 	routeGroups.StateHistory.Get("/", ac.GetAll)
 	routeGroups.StateHistory.Get("/statistics", ac.GetStatistics)
 

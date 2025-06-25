@@ -92,12 +92,12 @@ func (r *StateHistoryRepository) GetPlayerCountOverTime(ctx context.Context, fil
 	var points []model.PlayerCountPoint
 	rawQuery := `
 		SELECT
-			strftime('%Y-%m-%d %H:00:00', date_created) as timestamp,
+			DATETIME(MIN(date_created)) as timestamp,
 			AVG(player_count) as count
 		FROM state_histories
 		WHERE server_id = ? AND date_created BETWEEN ? AND ?
-		GROUP BY 1
-		ORDER BY 1
+		GROUP BY strftime('%Y-%m-%d %H', date_created)
+		ORDER BY timestamp
 	`
 	err := r.db.WithContext(ctx).Raw(rawQuery, filter.ServerID, filter.StartDate, filter.EndDate).Scan(&points).Error
 	return points, err
@@ -125,7 +125,7 @@ func (r *StateHistoryRepository) GetDailyActivity(ctx context.Context, filter *m
 	var dailyActivity []model.DailyActivity
 	rawQuery := `
 		SELECT
-			DATE(date_created) as date,
+			strftime('%Y-%m-%d', date_created) as date,
 			COUNT(DISTINCT session_id) as sessions_count
 		FROM state_histories
 		WHERE server_id = ? AND date_created BETWEEN ? AND ?
@@ -142,7 +142,7 @@ func (r *StateHistoryRepository) GetRecentSessions(ctx context.Context, filter *
 	rawQuery := `
 		SELECT
 			session_id as id,
-			MIN(date_created) as date,
+			DATETIME(MIN(date_created)) as date,
 			session as type,
 			track,
 			MAX(player_count) as players,
