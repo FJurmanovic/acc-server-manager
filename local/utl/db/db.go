@@ -44,6 +44,9 @@ func Migrate(db *gorm.DB) {
 		&model.StateHistory{},
 		&model.SteamCredentials{},
 		&model.SystemConfig{},
+		&model.User{},
+		&model.Role{},
+		&model.Permission{},
 	)
 
 	if err != nil {

@@ -27,6 +27,7 @@ func InitializeServices(c *dig.Container) {
 	c.Provide(NewSteamService)
 	c.Provide(NewWindowsService)
 	c.Provide(NewFirewallService)
+	c.Provide(NewMembershipService)
 
 	logging.Debug("Initializing service dependencies")
 	err := c.Invoke(func(server *ServerService, api *ApiService, config *ConfigService, systemConfig *SystemConfigService) {

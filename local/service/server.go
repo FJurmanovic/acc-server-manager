@@ -294,7 +294,7 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 		} else {
 			serverInstance := instance.(*tracking.AccServerInstance)
 			if serverInstance.State != nil {
-				(*server).State = *serverInstance.State
+				server.State = serverInstance.State
 			}
 		}
 	}
@@ -325,7 +325,7 @@ func (as *ServerService) GetById(ctx *fiber.Ctx, serverID int) (*model.Server, e
 	} else {
 		serverInstance := instance.(*tracking.AccServerInstance)
 		if (serverInstance.State != nil) {
-			(*server).State = *serverInstance.State
+			server.State = serverInstance.State
 		}
 	}
 

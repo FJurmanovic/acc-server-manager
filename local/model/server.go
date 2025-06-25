@@ -24,7 +24,7 @@ type Server struct {
 	Port        int    `gorm:"not null" json:"-"`
 	Path  string `gorm:"not null" json:"path"` // e.g. "/acc/servers/server1/"
 	ServiceName string `gorm:"not null" json:"serviceName"` // Windows service name
-	State       ServerState `gorm:"-" json:"state"`
+	State       *ServerState `gorm:"-" json:"state"`
 	DateCreated time.Time `json:"dateCreated"`
 	FromSteamCMD bool `gorm:"not null; default:true" json:"-"`
 }

@@ -27,9 +27,9 @@ func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGro
 		apiService: as2,
 	}
 
-	routeGroups.Config.Put("/:file", ac.updateConfig)
-	routeGroups.Config.Get("/:file", ac.getConfig)
-	routeGroups.Config.Get("/", ac.getConfigs)
+	routeGroups.Config.Put("/:file", ac.UpdateConfig)
+	routeGroups.Config.Get("/:file", ac.GetConfig)
+	routeGroups.Config.Get("/", ac.GetConfigs)
 
 	return ac
 }
@@ -44,7 +44,7 @@ func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGro
 //	@Tags			Config
 //	@Success		200	{array}	string
 //	@Router			/v1/server/{id}/config/{file} [put]
-func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
+func (ac *ConfigController) UpdateConfig(c *fiber.Ctx) error {
 	restart := c.QueryBool("restart")
 	serverID, _ := c.ParamsInt("id")
 	c.Locals("serverId", serverID)
@@ -79,7 +79,7 @@ func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
 //	@Tags			Config
 //	@Success		200	{array}	string
 //	@Router			/v1/server/{id}/config/{file} [get]
-func (ac *ConfigController) getConfig(c *fiber.Ctx) error {
+func (ac *ConfigController) GetConfig(c *fiber.Ctx) error {
 	Model, err := ac.service.GetConfig(c)
 	if err != nil {
 		logging.Error(err.Error())
@@ -96,7 +96,7 @@ func (ac *ConfigController) getConfig(c *fiber.Ctx) error {
 //	@Tags			Config
 //	@Success		200	{array}	string
 //	@Router			/v1/server/{id}/config [get]
-func (ac *ConfigController) getConfigs(c *fiber.Ctx) error {
+func (ac *ConfigController) GetConfigs(c *fiber.Ctx) error {
 	Model, err := ac.service.GetConfigs(c)
 	if err != nil {
 		logging.Error(err.Error())

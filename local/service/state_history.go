@@ -3,7 +3,7 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
-	"acc-server-manager/pkg/logging"
+	"acc-server-manager/local/utl/logging"
 	"sync"
 
 	"github.com/gofiber/fiber/v2"

@@ -17,10 +17,11 @@ import (
 )
 
 type RouteGroups struct {
-	Api    fiber.Router
-	Server fiber.Router
-	Config fiber.Router
-	Lookup fiber.Router
+	Api          fiber.Router
+	Auth         fiber.Router
+	Server       fiber.Router
+	Config       fiber.Router
+	Lookup       fiber.Router
 	StateHistory fiber.Router
 }
 

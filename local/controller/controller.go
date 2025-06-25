@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/logging"
 
@@ -14,6 +15,10 @@ import (
 //		*dig.Container: Dig Container
 func InitializeControllers(c *dig.Container) {
 	service.InitializeServices(c)
+
+	if err := c.Provide(middleware.NewAuthMiddleware); err != nil {
+		logging.Panic("unable to initialize auth middleware")
+	}
 
 	err := c.Invoke(NewApiController)
 	if err != nil {
@@ -38,5 +43,10 @@ func InitializeControllers(c *dig.Container) {
 	err = c.Invoke(NewStateHistoryController)
 	if err != nil {
 		logging.Panic("unable to initialize stateHistory controller")
+	}
+
+	err = c.Invoke(NewMembershipController)
+	if err != nil {
+		logging.Panic("unable to initialize membership controller")
 	}
 }

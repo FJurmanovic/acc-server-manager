@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
@@ -12,34 +13,26 @@ type ServerController struct {
 	service *service.ServerService
 }
 
-// NewServerController
-// Initializes ServerController.
-//
-//	Args:
-//		*services.ServerService: Server service
-//		*Fiber.RouterGroup: Fiber Router Group
-//	Returns:
-//		*ServerController: Controller for "Server" interactions
-func NewServerController(as *service.ServerService, routeGroups *common.RouteGroups,) *ServerController {
+// NewServerController initializes ServerController.
+func NewServerController(ss *service.ServerService, routeGroups *common.RouteGroups, auth *middleware.AuthMiddleware) *ServerController {
 	ac := &ServerController{
-		service: as,
+		service: ss,
 	}
 
-	routeGroups.Server.Get("/", ac.getAll)
-	routeGroups.Server.Get("/:id", ac.getById)
-	routeGroups.Server.Post("/", ac.createServer)
+	serverRoutes := routeGroups.Server
+	serverRoutes.Use(auth.Authenticate)
+
+	serverRoutes.Get("/", auth.HasPermission(model.ServerView), ac.GetAll)
+	serverRoutes.Get("/:id", auth.HasPermission(model.ServerView), ac.GetById)
+	serverRoutes.Post("/", auth.HasPermission(model.ServerCreate), ac.CreateServer)
+	serverRoutes.Put("/:id", auth.HasPermission(model.ServerUpdate), ac.UpdateServer)
+	serverRoutes.Delete("/:id", auth.HasPermission(model.ServerDelete), ac.DeleteServer)
 	return ac
 }
 
-// getAll returns Servers
-//
-//	@Summary		Return Servers
-//	@Description	Return Servers
-//	@Tags			Server
-//	@Success		200	{array}	string
-//	@Router			/v1/server [get]
-func (ac *ServerController) getAll(c *fiber.Ctx) error {
-	var filter model.ServerFilter	
+// GetAll returns Servers
+func (ac *ServerController) GetAll(c *fiber.Ctx) error {
+	var filter model.ServerFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
@@ -52,14 +45,8 @@ func (ac *ServerController) getAll(c *fiber.Ctx) error {
 	return c.JSON(ServerModel)
 }
 
-// getById returns Servers
-//
-//	@Summary		Return Servers
-//	@Description	Return Servers
-//	@Tags			Server
-//	@Success		200	{array}	string
-//	@Router			/v1/server [get]
-func (ac *ServerController) getById(c *fiber.Ctx) error {
+// GetById returns a single server by its ID
+func (ac *ServerController) GetById(c *fiber.Ctx) error {
 	serverID, _ := c.ParamsInt("id")
 	ServerModel, err := ac.service.GetById(c, serverID)
 	if err != nil {
@@ -68,14 +55,8 @@ func (ac *ServerController) getById(c *fiber.Ctx) error {
 	return c.JSON(ServerModel)
 }
 
-// createServer creates a new server
-//
-//	@Summary		Create a new server
-//	@Description	Create a new server
-//	@Tags			Server
-//	@Success		200	{array}	string
-//	@Router			/v1/server [post]
-func (ac *ServerController) createServer(c *fiber.Ctx) error {
+// CreateServer creates a new server
+func (ac *ServerController) CreateServer(c *fiber.Ctx) error {
 	server := new(model.Server)
 	if err := c.BodyParser(server); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -89,4 +70,37 @@ func (ac *ServerController) createServer(c *fiber.Ctx) error {
 		})
 	}
 	return c.JSON(server)
+}
+
+// UpdateServer updates an existing server
+func (ac *ServerController) UpdateServer(c *fiber.Ctx) error {
+	serverID, _ := c.ParamsInt("id")
+	server := new(model.Server)
+	if err := c.BodyParser(server); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	server.ID = uint(serverID)
+
+	if err := ac.service.UpdateServer(c, server); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(server)
+}
+
+// DeleteServer deletes a server
+func (ac *ServerController) DeleteServer(c *fiber.Ctx) error {
+	serverID, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid server ID"})
+	}
+
+	if err := ac.service.DeleteServer(c, serverID); err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+
+	return c.SendStatus(204)
 }
