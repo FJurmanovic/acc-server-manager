@@ -20,8 +20,6 @@ func Init(di *dig.Container, app *fiber.App) {
 	// Protected routes
 	groups := app.Group(configs.Prefix)
 
-
-
 	serverIdGroup := groups.Group("/server/:id")
 	routeGroups := &common.RouteGroups{
 		Api:          groups.Group("/api"),
@@ -32,20 +30,12 @@ func Init(di *dig.Container, app *fiber.App) {
 		StateHistory: serverIdGroup.Group("/state-history"),
 	}
 
-
 	err := di.Provide(func() *common.RouteGroups {
 		return routeGroups
 	})
 	if err != nil {
 		logging.Panic("unable to bind routes")
 	}
-	err = di.Provide(func() *dig.Container {
-		return di
-	})
-	if err != nil {
-		logging.Panic("unable to bind dig")
-	}
 
 	controller.InitializeControllers(di)
 }
-

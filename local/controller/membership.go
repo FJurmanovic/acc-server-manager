@@ -55,6 +55,7 @@ func (c *MembershipController) Login(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
+	logging.Debug("Login request received")
 	token, err := c.service.Login(ctx.UserContext(), req.Username, req.Password)
 	if err != nil {
 		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})

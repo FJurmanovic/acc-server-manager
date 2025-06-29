@@ -4,6 +4,7 @@ import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
 	"acc-server-manager/local/utl/jwt"
+	"acc-server-manager/local/utl/logging"
 	"context"
 	"errors"
 	"os"
@@ -28,7 +29,8 @@ func (s *MembershipService) Login(ctx context.Context, username, password string
 		return "", errors.New("invalid credentials")
 	}
 
-	if user.Password != password {
+	// Use secure password verification with constant-time comparison
+	if err := user.VerifyPassword(password); err != nil {
 		return "", errors.New("invalid credentials")
 	}
 
@@ -40,6 +42,7 @@ func (s *MembershipService) CreateUser(ctx context.Context, username, password, 
 
 	role, err := s.repo.FindRoleByName(ctx, roleName)
 	if err != nil {
+		logging.Error("Failed to find role by name: %v", err)
 		return nil, errors.New("role not found")
 	}
 
@@ -50,8 +53,10 @@ func (s *MembershipService) CreateUser(ctx context.Context, username, password, 
 	}
 
 	if err := s.repo.CreateUser(ctx, user); err != nil {
+		logging.Error("Failed to create user: %v", err)
 		return nil, err
 	}
+	logging.Debug("User created successfully")
 
 	return user, nil
 }
@@ -90,6 +95,7 @@ func (s *MembershipService) UpdateUser(ctx context.Context, userID uuid.UUID, re
 	}
 
 	if req.Password != nil && *req.Password != "" {
+		// Password will be automatically hashed in BeforeUpdate hook
 		user.Password = *req.Password
 	}
 
@@ -162,6 +168,7 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 	// Create a default admin user if one doesn't exist
 	_, err = s.repo.FindUserByUsername(ctx, "admin")
 	if err != nil {
+		logging.Debug("Creating default admin user")
 		_, err = s.CreateUser(ctx, "admin", os.Getenv("PASSWORD"), "Super Admin") // Default password, should be changed
 		if err != nil {
 			return err

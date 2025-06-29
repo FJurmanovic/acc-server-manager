@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"regexp"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -74,25 +76,67 @@ func (s *SteamCredentials) AfterFind(tx *gorm.DB) error {
 	return nil
 }
 
-// Validate checks if the credentials are valid
+// Validate checks if the credentials are valid with enhanced security checks
 func (s *SteamCredentials) Validate() error {
 	if s.Username == "" {
 		return errors.New("username is required")
 	}
+
+	// Enhanced username validation
+	if len(s.Username) < 3 || len(s.Username) > 64 {
+		return errors.New("username must be between 3 and 64 characters")
+	}
+
+	// Check for valid characters in username (alphanumeric, underscore, hyphen)
+	if matched, _ := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, s.Username); !matched {
+		return errors.New("username contains invalid characters")
+	}
+
 	if s.Password == "" {
 		return errors.New("password is required")
 	}
+
+	// Basic password validation
+	if len(s.Password) < 6 {
+		return errors.New("password must be at least 6 characters long")
+	}
+
+	if len(s.Password) > 128 {
+		return errors.New("password is too long")
+	}
+
+	// Check for obvious weak passwords
+	weakPasswords := []string{"password", "123456", "steam", "admin", "user"}
+	lowerPass := strings.ToLower(s.Password)
+	for _, weak := range weakPasswords {
+		if lowerPass == weak {
+			return errors.New("password is too weak")
+		}
+	}
+
 	return nil
 }
 
 // GetEncryptionKey returns the encryption key from config.
 // The key is loaded from the ENCRYPTION_KEY environment variable.
 func GetEncryptionKey() []byte {
-	return []byte(configs.EncryptionKey)
+	key := []byte(configs.EncryptionKey)
+	if len(key) != 32 {
+		panic("encryption key must be exactly 32 bytes for AES-256")
+	}
+	return key
 }
 
-// EncryptPassword encrypts a password using AES-256
+// EncryptPassword encrypts a password using AES-256-GCM with enhanced security
 func EncryptPassword(password string) (string, error) {
+	if password == "" {
+		return "", errors.New("password cannot be empty")
+	}
+
+	if len(password) > 1024 {
+		return "", errors.New("password too long")
+	}
+
 	key := GetEncryptionKey()
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -105,21 +149,30 @@ func EncryptPassword(password string) (string, error) {
 		return "", err
 	}
 
-	// Create a nonce
+	// Create a cryptographically secure nonce
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return "", err
 	}
 
-	// Encrypt the password
+	// Encrypt the password with authenticated encryption
 	ciphertext := gcm.Seal(nonce, nonce, []byte(password), nil)
 
 	// Return base64 encoded encrypted password
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// DecryptPassword decrypts an encrypted password
+// DecryptPassword decrypts an encrypted password with enhanced validation
 func DecryptPassword(encryptedPassword string) (string, error) {
+	if encryptedPassword == "" {
+		return "", errors.New("encrypted password cannot be empty")
+	}
+
+	// Validate base64 format
+	if len(encryptedPassword) < 24 { // Minimum reasonable length
+		return "", errors.New("invalid encrypted password format")
+	}
+
 	key := GetEncryptionKey()
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -135,7 +188,7 @@ func DecryptPassword(encryptedPassword string) (string, error) {
 	// Decode base64 encoded password
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedPassword)
 	if err != nil {
-		return "", err
+		return "", errors.New("invalid base64 encoding")
 	}
 
 	nonceSize := gcm.NonceSize()
@@ -146,8 +199,14 @@ func DecryptPassword(encryptedPassword string) (string, error) {
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return "", err
+		return "", errors.New("decryption failed - invalid ciphertext or key")
 	}
 
-	return string(plaintext), nil
-} 
+	// Validate decrypted content
+	decrypted := string(plaintext)
+	if len(decrypted) == 0 || len(decrypted) > 1024 {
+		return "", errors.New("invalid decrypted password")
+	}
+
+	return decrypted, nil
+}

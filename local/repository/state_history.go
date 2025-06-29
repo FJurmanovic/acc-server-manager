@@ -93,7 +93,7 @@ func (r *StateHistoryRepository) GetPlayerCountOverTime(ctx context.Context, fil
 	rawQuery := `
 		SELECT
 			DATETIME(MIN(date_created)) as timestamp,
-			AVG(player_count) as count
+			ROUND(AVG(player_count)) as count
 		FROM state_histories
 		WHERE server_id = ? AND date_created BETWEEN ? AND ?
 		GROUP BY strftime('%Y-%m-%d %H', date_created)

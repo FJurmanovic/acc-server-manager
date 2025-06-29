@@ -44,9 +44,9 @@ func Migrate(db *gorm.DB) {
 		&model.StateHistory{},
 		&model.SteamCredentials{},
 		&model.SystemConfig{},
-		&model.User{},
-		&model.Role{},
 		&model.Permission{},
+		&model.Role{},
+		&model.User{},
 	)
 
 	if err != nil {
@@ -54,6 +54,10 @@ func Migrate(db *gorm.DB) {
 	}
 
 	db.FirstOrCreate(&model.ApiModel{Api: "Works"})
+
+	// Run security migrations - temporarily disabled until migration is fixed
+	// TODO: Implement proper migration system
+	logging.Info("Database migration system needs to be implemented")
 
 	Seed(db)
 }
@@ -79,8 +83,6 @@ func Seed(db *gorm.DB) error {
 	}
 	return nil
 }
-
-
 
 func seedTracks(db *gorm.DB) error {
 	tracks := []model.Track{

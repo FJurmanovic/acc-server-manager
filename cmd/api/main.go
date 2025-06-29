@@ -8,14 +8,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/joho/godotenv"
 	"go.uber.org/dig"
 
 	_ "acc-server-manager/docs"
 )
 
 func main() {
-	godotenv.Load()
 	// Initialize logger
 	logger, err := logging.Initialize()
 	if err != nil {
@@ -26,7 +24,7 @@ func main() {
 
 	// Set up panic recovery
 	defer logging.RecoverAndLog()
-	
+
 	di := dig.New()
 	cache.Start(di)
 	db.Start(di)

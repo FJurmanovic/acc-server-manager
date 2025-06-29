@@ -154,6 +154,9 @@ func (instance *AccServerInstance) UpdateState(callback func(state *model.Server
 }
 
 func (instance *AccServerInstance) UpdatePlayerCount(count int) {
+    if (count < 0) {
+        return
+    }
     instance.UpdateState(func (state *model.ServerState, changes *[]StateChange) {
         if (count == state.PlayerCount) {
             return

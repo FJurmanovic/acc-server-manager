@@ -41,7 +41,6 @@ func (r *MembershipRepository) FindUserByIDWithPermissions(ctx context.Context, 
 	return &user, nil
 }
 
-
 // CreateUser creates a new user.
 func (r *MembershipRepository) CreateUser(ctx context.Context, user *model.User) error {
 	db := r.db.WithContext(ctx)
