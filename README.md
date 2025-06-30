@@ -19,7 +19,14 @@ A comprehensive web-based management system for Assetto Corsa Competizione (ACC)
    go build -o api.exe cmd/api/main.go
    ```
 
-2. **Generate Configuration**
+2. **Set Environment Variables**
+   ```powershell
+   # Set tool paths (optional - defaults will be used if not set)
+   $env:STEAMCMD_PATH = "C:\steamcmd\steamcmd.exe"
+   $env:NSSM_PATH = ".\nssm.exe"
+   ```
+
+3. **Generate Configuration**
    ```powershell
    # Windows PowerShell
    .\scripts\generate-secrets.ps1
@@ -28,7 +35,7 @@ A comprehensive web-based management system for Assetto Corsa Competizione (ACC)
    copy .env.example .env
    ```
 
-3. **Run Application**
+4. **Run Application**
    ```bash
    ./api.exe
    ```
@@ -43,6 +50,18 @@ A comprehensive web-based management system for Assetto Corsa Competizione (ACC)
 - **Advanced Security** - JWT authentication, role-based access, rate limiting
 - **Configuration Management** - Web-based configuration editor
 - **Service Integration** - Windows Service management
+
+## 🔧 Configuration
+
+### Environment Variables
+The application uses environment variables for tool configuration:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `STEAMCMD_PATH` | Path to SteamCMD executable | `c:\steamcmd\steamcmd.exe` |
+| `NSSM_PATH` | Path to NSSM executable | `.\nssm.exe` |
+
+For detailed configuration information, see [Environment Variables Documentation](documentation/ENVIRONMENT_VARIABLES.md).
 
 ## 🏗️ Architecture
 

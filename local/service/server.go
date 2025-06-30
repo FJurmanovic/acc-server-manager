@@ -3,6 +3,7 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
+	"acc-server-manager/local/utl/env"
 	"acc-server-manager/local/utl/logging"
 	"acc-server-manager/local/utl/tracking"
 	"context"
@@ -23,19 +24,18 @@ const (
 )
 
 type ServerService struct {
-	repository          *repository.ServerRepository
-	stateHistoryRepo    *repository.StateHistoryRepository
-	apiService          *ApiService
-	configService       *ConfigService
-	steamService        *SteamService
-	windowsService      *WindowsService
-	firewallService     *FirewallService
-	systemConfigService *SystemConfigService
-	instances           sync.Map // Track instances per server
-	lastInsertTimes     sync.Map // Track last insert time per server
-	debouncers          sync.Map // Track debounce timers per server
-	logTailers          sync.Map // Track log tailers per server
-	sessionIDs          sync.Map // Track current session ID per server
+	repository       *repository.ServerRepository
+	stateHistoryRepo *repository.StateHistoryRepository
+	apiService       *ApiService
+	configService    *ConfigService
+	steamService     *SteamService
+	windowsService   *WindowsService
+	firewallService  *FirewallService
+	instances        sync.Map // Track instances per server
+	lastInsertTimes  sync.Map // Track last insert time per server
+	debouncers       sync.Map // Track debounce timers per server
+	logTailers       sync.Map // Track log tailers per server
+	sessionIDs       sync.Map // Track current session ID per server
 }
 
 type pendingState struct {
@@ -68,17 +68,15 @@ func NewServerService(
 	steamService *SteamService,
 	windowsService *WindowsService,
 	firewallService *FirewallService,
-	systemConfigService *SystemConfigService,
 ) *ServerService {
 	service := &ServerService{
-		repository:          repository,
-		stateHistoryRepo:    stateHistoryRepo,
-		apiService:          apiService,
-		configService:       configService,
-		steamService:        steamService,
-		windowsService:      windowsService,
-		firewallService:     firewallService,
-		systemConfigService: systemConfigService,
+		repository:       repository,
+		stateHistoryRepo: stateHistoryRepo,
+		apiService:       apiService,
+		configService:    configService,
+		steamService:     steamService,
+		windowsService:   windowsService,
+		firewallService:  firewallService,
 	}
 
 	// Initialize server instances
@@ -203,13 +201,8 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 }
 
 func (s *ServerService) GenerateServerPath(server *model.Server) {
-	// Get the base steamcmd path
-	steamCMDPath, err := s.systemConfigService.GetSteamCMDDirPath(context.Background())
-	if err != nil {
-		logging.Error("Failed to get steamcmd path: %v", err)
-		return
-	}
-
+	// Get the base steamcmd path from environment variable
+	steamCMDPath := env.GetSteamCMDDirPath()
 	server.Path = server.GenerateServerPath(steamCMDPath)
 }
 

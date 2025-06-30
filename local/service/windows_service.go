@@ -2,6 +2,7 @@ package service
 
 import (
 	"acc-server-manager/local/utl/command"
+	"acc-server-manager/local/utl/env"
 	"acc-server-manager/local/utl/logging"
 	"context"
 	"fmt"
@@ -9,36 +10,27 @@ import (
 	"strings"
 )
 
-const (
-	NSSMPath = ".\\nssm.exe"
-)
-
 type WindowsService struct {
-	executor      *command.CommandExecutor
-	configService *SystemConfigService
+	executor *command.CommandExecutor
 }
 
-func NewWindowsService(configService *SystemConfigService) *WindowsService {
+func NewWindowsService() *WindowsService {
 	return &WindowsService{
 		executor: &command.CommandExecutor{
 			ExePath:   "powershell",
 			LogOutput: true,
 		},
-		configService: configService,
 	}
 }
 
 // executeNSSM runs an NSSM command through PowerShell with elevation
-func (s *WindowsService) executeNSSM(ctx context.Context, args ...string) (string, error) {
-	// Get NSSM path from config
-	nssmPath, err := s.configService.GetNSSMPath(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get NSSM path from config: %v", err)
-	}
+func (s *WindowsService) ExecuteNSSM(ctx context.Context, args ...string) (string, error) {
+	// Get NSSM path from environment variable
+	nssmPath := env.GetNSSMPath()
 
 	// Prepend NSSM path to arguments
 	nssmArgs := append([]string{"-NoProfile", "-NonInteractive", "-Command", "& " + nssmPath}, args...)
-	
+
 	output, err := s.executor.ExecuteWithOutput(nssmArgs...)
 	if err != nil {
 		// Log the full command and error for debugging
@@ -51,7 +43,7 @@ func (s *WindowsService) executeNSSM(ctx context.Context, args ...string) (strin
 	cleaned := strings.TrimSpace(strings.ReplaceAll(output, "\x00", ""))
 	// Remove \r\n from status strings
 	cleaned = strings.TrimSuffix(cleaned, "\r\n")
-	
+
 	return cleaned, nil
 }
 
@@ -77,25 +69,25 @@ func (s *WindowsService) CreateService(ctx context.Context, serviceName, execPat
 	logging.Info("  Working Directory: %s", absWorkingDir)
 
 	// First remove any existing service with the same name
-	s.executeNSSM(ctx, "remove", serviceName, "confirm")
+	s.ExecuteNSSM(ctx, "remove", serviceName, "confirm")
 
 	// Install service
-	if _, err := s.executeNSSM(ctx, "install", serviceName, absExecPath); err != nil {
+	if _, err := s.ExecuteNSSM(ctx, "install", serviceName, absExecPath); err != nil {
 		return fmt.Errorf("failed to install service: %v", err)
 	}
 
 	// Set arguments if provided
 	if len(args) > 0 {
 		cmdArgs := append([]string{"set", serviceName, "AppParameters"}, args...)
-		if _, err := s.executeNSSM(ctx, cmdArgs...); err != nil {
+		if _, err := s.ExecuteNSSM(ctx, cmdArgs...); err != nil {
 			// Try to clean up on failure
-			s.executeNSSM(ctx, "remove", serviceName, "confirm")
+			s.ExecuteNSSM(ctx, "remove", serviceName, "confirm")
 			return fmt.Errorf("failed to set arguments: %v", err)
 		}
 	}
 
 	// Verify service was created
-	if _, err := s.executeNSSM(ctx, "get", serviceName, "Application"); err != nil {
+	if _, err := s.ExecuteNSSM(ctx, "get", serviceName, "Application"); err != nil {
 		return fmt.Errorf("service creation verification failed: %v", err)
 	}
 
@@ -104,7 +96,7 @@ func (s *WindowsService) CreateService(ctx context.Context, serviceName, execPat
 }
 
 func (s *WindowsService) DeleteService(ctx context.Context, serviceName string) error {
-	if _, err := s.executeNSSM(ctx, "remove", serviceName, "confirm"); err != nil {
+	if _, err := s.ExecuteNSSM(ctx, "remove", serviceName, "confirm"); err != nil {
 		return fmt.Errorf("failed to remove service: %v", err)
 	}
 
@@ -125,15 +117,15 @@ func (s *WindowsService) UpdateService(ctx context.Context, serviceName, execPat
 // Service Control Methods
 
 func (s *WindowsService) Status(ctx context.Context, serviceName string) (string, error) {
-	return s.executeNSSM(ctx, "status", serviceName)
+	return s.ExecuteNSSM(ctx, "status", serviceName)
 }
 
 func (s *WindowsService) Start(ctx context.Context, serviceName string) (string, error) {
-	return s.executeNSSM(ctx, "start", serviceName)
+	return s.ExecuteNSSM(ctx, "start", serviceName)
 }
 
 func (s *WindowsService) Stop(ctx context.Context, serviceName string) (string, error) {
-	return s.executeNSSM(ctx, "stop", serviceName)
+	return s.ExecuteNSSM(ctx, "stop", serviceName)
 }
 
 func (s *WindowsService) Restart(ctx context.Context, serviceName string) (string, error) {
@@ -144,4 +136,4 @@ func (s *WindowsService) Restart(ctx context.Context, serviceName string) (strin
 
 	// Then start it again
 	return s.Start(ctx, serviceName)
-} 
+}

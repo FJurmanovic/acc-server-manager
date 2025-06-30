@@ -14,6 +14,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// CachedUserInfo holds cached user authentication and permission data
+type CachedUserInfo struct {
+	UserID      string
+	Username    string
+	RoleName    string
+	Permissions map[string]bool
+	CachedAt    time.Time
+}
+
 // AuthMiddleware provides authentication and permission middleware.
 type AuthMiddleware struct {
 	membershipService *service.MembershipService
@@ -23,11 +32,16 @@ type AuthMiddleware struct {
 
 // NewAuthMiddleware creates a new AuthMiddleware.
 func NewAuthMiddleware(ms *service.MembershipService, cache *cache.InMemoryCache) *AuthMiddleware {
-	return &AuthMiddleware{
+	auth := &AuthMiddleware{
 		membershipService: ms,
 		cache:             cache,
 		securityMW:        security.NewSecurityMiddleware(),
 	}
+
+	// Set up bidirectional relationship for cache invalidation
+	ms.SetCacheInvalidator(auth)
+
+	return auth
 }
 
 // Authenticate is a middleware for JWT authentication with enhanced security.
@@ -77,7 +91,17 @@ func (m *AuthMiddleware) Authenticate(ctx *fiber.Ctx) error {
 		})
 	}
 
+	// Preload and cache user info to avoid database queries on permission checks
+	userInfo, err := m.getCachedUserInfo(ctx.UserContext(), claims.UserID)
+	if err != nil {
+		logging.Error("Authentication failed: unable to load user info for %s from IP %s: %v", claims.UserID, ip, err)
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid or expired JWT",
+		})
+	}
+
 	ctx.Locals("userID", claims.UserID)
+	ctx.Locals("userInfo", userInfo)
 	ctx.Locals("authTime", time.Now())
 
 	logging.InfoWithContext("AUTH", "User %s authenticated successfully from IP %s", claims.UserID, ip)
@@ -103,14 +127,17 @@ func (m *AuthMiddleware) HasPermission(requiredPermission string) fiber.Handler 
 			})
 		}
 
-		// Use cached permission check for better performance
-		has, err := m.hasPermissionCached(ctx.UserContext(), userID, requiredPermission)
-		if err != nil {
-			logging.ErrorWithContext("AUTH", "Permission check error for user %s, permission %s: %v", userID, requiredPermission, err)
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Forbidden",
+		// Use cached user info from authentication step - no database queries needed
+		userInfo, ok := ctx.Locals("userInfo").(*CachedUserInfo)
+		if !ok {
+			logging.Error("Permission check failed: no cached user info in context from IP %s", ctx.IP())
+			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Unauthorized",
 			})
 		}
+
+		// Check if user has permission using cached data
+		has := m.hasPermissionFromCache(userInfo, requiredPermission)
 
 		if !has {
 			logging.WarnWithContext("AUTH", "Permission denied: user %s lacks permission %s, IP %s", userID, requiredPermission, ctx.IP())
@@ -143,34 +170,66 @@ func (m *AuthMiddleware) RequireHTTPS() fiber.Handler {
 	}
 }
 
-// hasPermissionCached checks user permissions with caching using existing cache
-func (m *AuthMiddleware) hasPermissionCached(ctx context.Context, userID, permission string) (bool, error) {
-	cacheKey := fmt.Sprintf("permission:%s:%s", userID, permission)
+// getCachedUserInfo retrieves and caches complete user information including permissions
+func (m *AuthMiddleware) getCachedUserInfo(ctx context.Context, userID string) (*CachedUserInfo, error) {
+	cacheKey := fmt.Sprintf("userinfo:%s", userID)
 
 	// Try cache first
 	if cached, found := m.cache.Get(cacheKey); found {
-		if hasPermission, ok := cached.(bool); ok {
-			logging.DebugWithContext("AUTH_CACHE", "Permission %s:%s found in cache: %v", userID, permission, hasPermission)
-			return hasPermission, nil
+		if userInfo, ok := cached.(*CachedUserInfo); ok {
+			logging.DebugWithContext("AUTH_CACHE", "User info for %s found in cache", userID)
+			return userInfo, nil
 		}
 	}
 
-	// Cache miss - check with service
-	has, err := m.membershipService.HasPermission(ctx, userID, permission)
+	// Cache miss - load from database
+	user, err := m.membershipService.GetUserWithPermissions(ctx, userID)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	// Cache the result for 10 minutes
-	m.cache.Set(cacheKey, has, 10*time.Minute)
-	logging.DebugWithContext("AUTH_CACHE", "Permission %s:%s cached: %v", userID, permission, has)
+	// Build permission map for fast lookups
+	permissions := make(map[string]bool)
+	for _, p := range user.Role.Permissions {
+		permissions[p.Name] = true
+	}
 
-	return has, nil
+	userInfo := &CachedUserInfo{
+		UserID:      userID,
+		Username:    user.Username,
+		RoleName:    user.Role.Name,
+		Permissions: permissions,
+		CachedAt:    time.Now(),
+	}
+
+	// Cache for 15 minutes
+	m.cache.Set(cacheKey, userInfo, 15*time.Minute)
+	logging.DebugWithContext("AUTH_CACHE", "User info for %s cached with %d permissions", userID, len(permissions))
+
+	return userInfo, nil
 }
 
-// InvalidateUserPermissions removes cached permissions for a user
+// hasPermissionFromCache checks permissions using cached user info (no database queries)
+func (m *AuthMiddleware) hasPermissionFromCache(userInfo *CachedUserInfo, permission string) bool {
+	// Super Admin and Admin have all permissions
+	if userInfo.RoleName == "Super Admin" || userInfo.RoleName == "Admin" {
+		return true
+	}
+
+	// Check specific permission in cached map
+	return userInfo.Permissions[permission]
+}
+
+// InvalidateUserPermissions removes cached user info for a user
 func (m *AuthMiddleware) InvalidateUserPermissions(userID string) {
-	// This is a simple implementation - in a production system you might want
-	// to track permission keys per user for more efficient invalidation
-	logging.InfoWithContext("AUTH_CACHE", "Permission cache invalidated for user %s", userID)
+	cacheKey := fmt.Sprintf("userinfo:%s", userID)
+	m.cache.Delete(cacheKey)
+	logging.InfoWithContext("AUTH_CACHE", "User info cache invalidated for user %s", userID)
+}
+
+// InvalidateAllUserPermissions clears all cached user info (useful for role/permission changes)
+func (m *AuthMiddleware) InvalidateAllUserPermissions() {
+	// This would need to be implemented based on your cache interface
+	// For now, just log that invalidation was requested
+	logging.InfoWithContext("AUTH_CACHE", "All user info caches invalidation requested")
 }

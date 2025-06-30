@@ -23,14 +23,13 @@ func InitializeServices(c *dig.Container) {
 	c.Provide(NewApiService)
 	c.Provide(NewConfigService)
 	c.Provide(NewLookupService)
-	c.Provide(NewSystemConfigService)
 	c.Provide(NewSteamService)
 	c.Provide(NewWindowsService)
 	c.Provide(NewFirewallService)
 	c.Provide(NewMembershipService)
 
 	logging.Debug("Initializing service dependencies")
-	err := c.Invoke(func(server *ServerService, api *ApiService, config *ConfigService, systemConfig *SystemConfigService) {
+	err := c.Invoke(func(server *ServerService, api *ApiService, config *ConfigService) {
 		logging.Debug("Setting up service cross-references")
 		api.SetServerService(server)
 		config.SetServerService(server)

@@ -5,7 +5,6 @@ import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/utl/logging"
 	"os"
-	"time"
 
 	"go.uber.org/dig"
 	"gorm.io/driver/sqlite"
@@ -45,10 +44,10 @@ func Migrate(db *gorm.DB) {
 		&model.SessionType{},
 		&model.StateHistory{},
 		&model.SteamCredentials{},
-		&model.SystemConfig{},
-		&model.Permission{},
-		&model.Role{},
+		&model.Server{},
 		&model.User{},
+		&model.Role{},
+		&model.Permission{},
 	)
 
 	if err != nil {
@@ -87,9 +86,6 @@ func Seed(db *gorm.DB) error {
 		return err
 	}
 	if err := seedSessionTypes(db); err != nil {
-		return err
-	}
-	if err := seedSystemConfigs(db); err != nil {
 		return err
 	}
 	return nil
@@ -192,43 +188,5 @@ func seedSessionTypes(db *gorm.DB) error {
 			return err
 		}
 	}
-	return nil
-}
-
-func seedSystemConfigs(db *gorm.DB) error {
-	configs := []model.SystemConfig{
-		{
-			Key:          model.ConfigKeySteamCMDPath,
-			DefaultValue: "c:\\steamcmd\\steamcmd.exe",
-			Description:  "Path to SteamCMD executable",
-			DateModified: time.Now().UTC().Format(time.RFC3339),
-		},
-		{
-			Key:          model.ConfigKeyNSSMPath,
-			DefaultValue: ".\\nssm.exe",
-			Description:  "Path to NSSM executable",
-			DateModified: time.Now().UTC().Format(time.RFC3339),
-		},
-	}
-
-	for _, config := range configs {
-		var exists bool
-		err := db.Model(&model.SystemConfig{}).
-			Select("count(*) > 0").
-			Where("key = ?", config.Key).
-			Find(&exists).
-			Error
-		if err != nil {
-			return err
-		}
-
-		if !exists {
-			if err := db.Create(&config).Error; err != nil {
-				return err
-			}
-			logging.Info("Seeded system config: %s", config.Key)
-		}
-	}
-
 	return nil
 }

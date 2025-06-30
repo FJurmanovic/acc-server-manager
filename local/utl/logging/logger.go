@@ -205,7 +205,6 @@ func InitializeLogging() error {
 	GetWarnLogger()
 	GetInfoLogger()
 	GetDebugLogger()
-	GetPerformanceLogger()
 
 	// Log successful initialization
 	Info("Logging system initialized successfully")

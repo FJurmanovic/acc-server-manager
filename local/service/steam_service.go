@@ -4,6 +4,7 @@ import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
 	"acc-server-manager/local/utl/command"
+	"acc-server-manager/local/utl/env"
 	"acc-server-manager/local/utl/logging"
 	"context"
 	"fmt"
@@ -12,23 +13,21 @@ import (
 )
 
 const (
-	ACCServerAppID  = "1430110"
+	ACCServerAppID = "1430110"
 )
 
 type SteamService struct {
-	executor         *command.CommandExecutor
-	repository      *repository.SteamCredentialsRepository
-	configService   *SystemConfigService
+	executor   *command.CommandExecutor
+	repository *repository.SteamCredentialsRepository
 }
 
-func NewSteamService(repository *repository.SteamCredentialsRepository, configService *SystemConfigService) *SteamService {
+func NewSteamService(repository *repository.SteamCredentialsRepository) *SteamService {
 	return &SteamService{
 		executor: &command.CommandExecutor{
 			ExePath:   "powershell",
 			LogOutput: true,
 		},
-		repository:    repository,
-		configService: configService,
+		repository: repository,
 	}
 }
 
@@ -44,12 +43,8 @@ func (s *SteamService) SaveCredentials(ctx context.Context, creds *model.SteamCr
 }
 
 func (s *SteamService) ensureSteamCMD(ctx context.Context) error {
-	// Get SteamCMD path from config
-	steamCMDPath, err := s.configService.GetSteamCMDDirPath(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get SteamCMD path from config: %v", err)
-	}
-
+	// Get SteamCMD path from environment variable
+	steamCMDPath := env.GetSteamCMDPath()
 	steamCMDDir := filepath.Dir(steamCMDPath)
 
 	// Check if SteamCMD exists
@@ -104,11 +99,8 @@ func (s *SteamService) InstallServer(ctx context.Context, installPath string) er
 		return fmt.Errorf("failed to get Steam credentials: %v", err)
 	}
 
-	// Get SteamCMD path from config
-	steamCMDPath, err := s.configService.GetSteamCMDPath(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get SteamCMD path from config: %v", err)
-	}
+	// Get SteamCMD path from environment variable
+	steamCMDPath := env.GetSteamCMDPath()
 
 	// Build SteamCMD command
 	args := []string{
@@ -162,4 +154,4 @@ func (s *SteamService) UpdateServer(ctx context.Context, installPath string) err
 
 func (s *SteamService) UninstallServer(installPath string) error {
 	return os.RemoveAll(installPath)
-} 
+}

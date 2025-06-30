@@ -19,8 +19,7 @@ type ApiService struct {
 }
 
 func NewApiService(repository *repository.ApiRepository,
-	serverRepository *repository.ServerRepository,
-	systemConfigService *SystemConfigService) *ApiService {
+	serverRepository *repository.ServerRepository) *ApiService {
 	return &ApiService{
 		repository:       repository,
 		serverRepository: serverRepository,
@@ -29,7 +28,7 @@ func NewApiService(repository *repository.ApiRepository,
 			ThrottleTime:   5 * time.Second,     // Minimum 5 seconds between checks
 			DefaultStatus:  model.StatusRunning, // Default to running if throttled
 		}),
-		windowsService: NewWindowsService(systemConfigService),
+		windowsService: NewWindowsService(),
 	}
 }
 

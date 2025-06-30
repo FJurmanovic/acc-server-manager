@@ -3,7 +3,6 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -122,33 +121,7 @@ type Configuration struct {
 	ConfigVersion   IntString `json:"configVersion"`
 }
 
-type SystemConfig struct {
-	ID           uuid.UUID `json:"id" gorm:"type:uuid;primary_key;"`
-	Key          string    `json:"key"`
-	Value        string    `json:"value"`
-	DefaultValue string    `json:"defaultValue"`
-	Description  string    `json:"description"`
-	DateModified string    `json:"dateModified"`
-}
-
-// BeforeCreate is a GORM hook that runs before creating new system config entries
-func (sc *SystemConfig) BeforeCreate(tx *gorm.DB) error {
-	if sc.ID == uuid.Nil {
-		sc.ID = uuid.New()
-	}
-	return nil
-}
-
 // Known configuration keys
-const (
-	ConfigKeySteamCMDPath = "steamcmd_path"
-	ConfigKeyNSSMPath     = "nssm_path"
-)
-
-// Cache keys
-const (
-	CacheKeySystemConfig = "system_config_%s" // Format with config key
-)
 
 func (i *IntBool) UnmarshalJSON(b []byte) error {
 	var str int
@@ -208,36 +181,4 @@ func (i IntString) ToString() string {
 
 func (i IntString) ToInt() int {
 	return int(i)
-}
-
-func (c *SystemConfig) Validate() error {
-	if c.Key == "" {
-		return fmt.Errorf("key is required")
-	}
-
-	// Validate paths exist for certain config keys
-	switch c.Key {
-	case ConfigKeySteamCMDPath, ConfigKeyNSSMPath:
-		if c.Value == "" {
-			if c.DefaultValue == "" {
-				return fmt.Errorf("value or default value is required for path configuration")
-			}
-			// Use default value if value is empty
-			c.Value = c.DefaultValue
-		}
-
-		// Check if path exists
-		if _, err := os.Stat(c.Value); os.IsNotExist(err) {
-			return fmt.Errorf("path does not exist: %s", c.Value)
-		}
-	}
-
-	return nil
-}
-
-func (c *SystemConfig) GetEffectiveValue() string {
-	if c.Value != "" {
-		return c.Value
-	}
-	return c.DefaultValue
 }

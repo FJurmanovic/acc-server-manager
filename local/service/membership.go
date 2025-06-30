@@ -12,16 +12,29 @@ import (
 	"github.com/google/uuid"
 )
 
+// CacheInvalidator interface for cache invalidation
+type CacheInvalidator interface {
+	InvalidateUserPermissions(userID string)
+	InvalidateAllUserPermissions()
+}
+
 // MembershipService provides business logic for membership-related operations.
 type MembershipService struct {
-	repo *repository.MembershipRepository
+	repo             *repository.MembershipRepository
+	cacheInvalidator CacheInvalidator
 }
 
 // NewMembershipService creates a new MembershipService.
 func NewMembershipService(repo *repository.MembershipRepository) *MembershipService {
 	return &MembershipService{
-		repo: repo,
+		repo:             repo,
+		cacheInvalidator: nil, // Will be set later via SetCacheInvalidator
 	}
+}
+
+// SetCacheInvalidator sets the cache invalidator after service initialization
+func (s *MembershipService) SetCacheInvalidator(invalidator CacheInvalidator) {
+	s.cacheInvalidator = invalidator
 }
 
 // Login authenticates a user and returns a JWT.
@@ -109,6 +122,11 @@ func (s *MembershipService) DeleteUser(ctx context.Context, userID uuid.UUID) er
 		return err
 	}
 
+	// Invalidate cache for deleted user
+	if s.cacheInvalidator != nil {
+		s.cacheInvalidator.InvalidateUserPermissions(userID.String())
+	}
+
 	logging.InfoOperation("USER_DELETE", "Deleted user: "+userID.String())
 	return nil
 }
@@ -140,6 +158,11 @@ func (s *MembershipService) UpdateUser(ctx context.Context, userID uuid.UUID, re
 
 	if err := s.repo.UpdateUser(ctx, user); err != nil {
 		return nil, err
+	}
+
+	// Invalidate cache if role was changed
+	if req.RoleID != nil && s.cacheInvalidator != nil {
+		s.cacheInvalidator.InvalidateUserPermissions(userID.String())
 	}
 
 	logging.InfoOperation("USER_UPDATE", "Updated user: "+user.Username+" (ID: "+user.ID.String()+")")
@@ -239,6 +262,11 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 
 	if err := s.repo.AssignPermissionsToRole(ctx, managerRole, managerPermissions); err != nil {
 		return err
+	}
+
+	// Invalidate all caches after role setup changes
+	if s.cacheInvalidator != nil {
+		s.cacheInvalidator.InvalidateAllUserPermissions()
 	}
 
 	// Create a default admin user if one doesn't exist
