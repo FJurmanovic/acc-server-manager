@@ -5,12 +5,14 @@ import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
+	"acc-server-manager/local/utl/error_handler"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type StateHistoryController struct {
-	service *service.StateHistoryService
+	service      *service.StateHistoryService
+	errorHandler *error_handler.ControllerErrorHandler
 }
 
 // NewStateHistoryController
@@ -23,7 +25,8 @@ type StateHistoryController struct {
 //		*StateHistoryController: Controller for "StateHistory" interactions
 func NewStateHistoryController(as *service.StateHistoryService, routeGroups *common.RouteGroups, auth *middleware.AuthMiddleware) *StateHistoryController {
 	ac := &StateHistoryController{
-		service: as,
+		service:      as,
+		errorHandler: error_handler.NewControllerErrorHandler(),
 	}
 
 	routeGroups.StateHistory.Use(auth.Authenticate)
@@ -43,16 +46,12 @@ func NewStateHistoryController(as *service.StateHistoryService, routeGroups *com
 func (ac *StateHistoryController) GetAll(c *fiber.Ctx) error {
 	var filter model.StateHistoryFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return ac.errorHandler.HandleValidationError(c, err, "query_filter")
 	}
 
 	result, err := ac.service.GetAll(c, &filter)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Error retrieving state history",
-		})
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
 
 	return c.JSON(result)
@@ -68,16 +67,12 @@ func (ac *StateHistoryController) GetAll(c *fiber.Ctx) error {
 func (ac *StateHistoryController) GetStatistics(c *fiber.Ctx) error {
 	var filter model.StateHistoryFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return ac.errorHandler.HandleValidationError(c, err, "query_filter")
 	}
 
 	result, err := ac.service.GetStatistics(c, &filter)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Error retrieving state history statistics",
-		})
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
 
 	return c.JSON(result)

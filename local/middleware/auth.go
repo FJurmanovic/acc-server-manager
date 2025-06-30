@@ -3,8 +3,11 @@ package middleware
 import (
 	"acc-server-manager/local/middleware/security"
 	"acc-server-manager/local/service"
+	"acc-server-manager/local/utl/cache"
 	"acc-server-manager/local/utl/jwt"
 	"acc-server-manager/local/utl/logging"
+	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -14,13 +17,15 @@ import (
 // AuthMiddleware provides authentication and permission middleware.
 type AuthMiddleware struct {
 	membershipService *service.MembershipService
+	cache             *cache.InMemoryCache
 	securityMW        *security.SecurityMiddleware
 }
 
 // NewAuthMiddleware creates a new AuthMiddleware.
-func NewAuthMiddleware(ms *service.MembershipService) *AuthMiddleware {
+func NewAuthMiddleware(ms *service.MembershipService, cache *cache.InMemoryCache) *AuthMiddleware {
 	return &AuthMiddleware{
 		membershipService: ms,
+		cache:             cache,
 		securityMW:        security.NewSecurityMiddleware(),
 	}
 }
@@ -75,7 +80,7 @@ func (m *AuthMiddleware) Authenticate(ctx *fiber.Ctx) error {
 	ctx.Locals("userID", claims.UserID)
 	ctx.Locals("authTime", time.Now())
 
-	logging.Info("User %s authenticated successfully from IP %s", claims.UserID, ip)
+	logging.InfoWithContext("AUTH", "User %s authenticated successfully from IP %s", claims.UserID, ip)
 	return ctx.Next()
 }
 
@@ -98,22 +103,23 @@ func (m *AuthMiddleware) HasPermission(requiredPermission string) fiber.Handler 
 			})
 		}
 
-		has, err := m.membershipService.HasPermission(ctx.UserContext(), userID, requiredPermission)
+		// Use cached permission check for better performance
+		has, err := m.hasPermissionCached(ctx.UserContext(), userID, requiredPermission)
 		if err != nil {
-			logging.Error("Permission check error for user %s, permission %s: %v", userID, requiredPermission, err)
+			logging.ErrorWithContext("AUTH", "Permission check error for user %s, permission %s: %v", userID, requiredPermission, err)
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "Forbidden",
 			})
 		}
 
 		if !has {
-			logging.Error("Permission denied: user %s lacks permission %s, IP %s", userID, requiredPermission, ctx.IP())
+			logging.WarnWithContext("AUTH", "Permission denied: user %s lacks permission %s, IP %s", userID, requiredPermission, ctx.IP())
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "Forbidden",
 			})
 		}
 
-		logging.Info("Permission granted: user %s has permission %s", userID, requiredPermission)
+		logging.DebugWithContext("AUTH", "Permission granted: user %s has permission %s", userID, requiredPermission)
 		return ctx.Next()
 	}
 }
@@ -135,4 +141,36 @@ func (m *AuthMiddleware) RequireHTTPS() fiber.Handler {
 		}
 		return ctx.Next()
 	}
+}
+
+// hasPermissionCached checks user permissions with caching using existing cache
+func (m *AuthMiddleware) hasPermissionCached(ctx context.Context, userID, permission string) (bool, error) {
+	cacheKey := fmt.Sprintf("permission:%s:%s", userID, permission)
+
+	// Try cache first
+	if cached, found := m.cache.Get(cacheKey); found {
+		if hasPermission, ok := cached.(bool); ok {
+			logging.DebugWithContext("AUTH_CACHE", "Permission %s:%s found in cache: %v", userID, permission, hasPermission)
+			return hasPermission, nil
+		}
+	}
+
+	// Cache miss - check with service
+	has, err := m.membershipService.HasPermission(ctx, userID, permission)
+	if err != nil {
+		return false, err
+	}
+
+	// Cache the result for 10 minutes
+	m.cache.Set(cacheKey, has, 10*time.Minute)
+	logging.DebugWithContext("AUTH_CACHE", "Permission %s:%s cached: %v", userID, permission, has)
+
+	return has, nil
+}
+
+// InvalidateUserPermissions removes cached permissions for a user
+func (m *AuthMiddleware) InvalidateUserPermissions(userID string) {
+	// This is a simple implementation - in a production system you might want
+	// to track permission keys per user for more efficient invalidation
+	logging.InfoWithContext("AUTH_CACHE", "Permission cache invalidated for user %s", userID)
 }

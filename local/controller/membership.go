@@ -5,6 +5,7 @@ import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
+	"acc-server-manager/local/utl/error_handler"
 	"acc-server-manager/local/utl/logging"
 	"context"
 	"fmt"
@@ -15,15 +16,17 @@ import (
 
 // MembershipController handles API requests for membership.
 type MembershipController struct {
-	service *service.MembershipService
-	auth    *middleware.AuthMiddleware
+	service      *service.MembershipService
+	auth         *middleware.AuthMiddleware
+	errorHandler *error_handler.ControllerErrorHandler
 }
 
 // NewMembershipController creates a new MembershipController.
 func NewMembershipController(service *service.MembershipService, auth *middleware.AuthMiddleware, routeGroups *common.RouteGroups) *MembershipController {
 	mc := &MembershipController{
-		service: service,
-		auth:    auth,
+		service:      service,
+		auth:         auth,
+		errorHandler: error_handler.NewControllerErrorHandler(),
 	}
 	// Setup initial data for membership
 	if err := service.SetupInitialData(context.Background()); err != nil {
@@ -32,11 +35,15 @@ func NewMembershipController(service *service.MembershipService, auth *middlewar
 
 	routeGroups.Auth.Post("/login", mc.Login)
 
-	usersGroup := routeGroups.Api.Group("/users", mc.auth.Authenticate)
+	usersGroup := routeGroups.Membership
+	usersGroup.Use(mc.auth.Authenticate)
 	usersGroup.Post("/", mc.auth.HasPermission(model.MembershipCreate), mc.CreateUser)
 	usersGroup.Get("/", mc.auth.HasPermission(model.MembershipView), mc.ListUsers)
+
+	usersGroup.Get("/roles", mc.auth.HasPermission(model.RoleView), mc.GetRoles)
 	usersGroup.Get("/:id", mc.auth.HasPermission(model.MembershipView), mc.GetUser)
 	usersGroup.Put("/:id", mc.auth.HasPermission(model.MembershipEdit), mc.UpdateUser)
+	usersGroup.Delete("/:id", mc.auth.HasPermission(model.MembershipEdit), mc.DeleteUser)
 
 	routeGroups.Auth.Get("/me", mc.auth.Authenticate, mc.GetMe)
 
@@ -52,13 +59,13 @@ func (c *MembershipController) Login(ctx *fiber.Ctx) error {
 
 	var req request
 	if err := ctx.BodyParser(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+		return c.errorHandler.HandleParsingError(ctx, err)
 	}
 
 	logging.Debug("Login request received")
 	token, err := c.service.Login(ctx.UserContext(), req.Username, req.Password)
 	if err != nil {
-		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
+		return c.errorHandler.HandleAuthError(ctx, err)
 	}
 
 	return ctx.JSON(fiber.Map{"token": token})
@@ -74,12 +81,12 @@ func (mc *MembershipController) CreateUser(c *fiber.Ctx) error {
 
 	var req request
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+		return mc.errorHandler.HandleParsingError(c, err)
 	}
 
 	user, err := mc.service.CreateUser(c.UserContext(), req.Username, req.Password, req.Role)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return mc.errorHandler.HandleServiceError(c, err)
 	}
 
 	return c.JSON(user)
@@ -89,7 +96,7 @@ func (mc *MembershipController) CreateUser(c *fiber.Ctx) error {
 func (mc *MembershipController) ListUsers(c *fiber.Ctx) error {
 	users, err := mc.service.ListUsers(c.UserContext())
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return mc.errorHandler.HandleServiceError(c, err)
 	}
 
 	return c.JSON(users)
@@ -99,12 +106,12 @@ func (mc *MembershipController) ListUsers(c *fiber.Ctx) error {
 func (mc *MembershipController) GetUser(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+		return mc.errorHandler.HandleUUIDError(c, "user ID")
 	}
 
 	user, err := mc.service.GetUser(c.UserContext(), id)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+		return mc.errorHandler.HandleNotFoundError(c, "User")
 	}
 
 	return c.JSON(user)
@@ -114,12 +121,12 @@ func (mc *MembershipController) GetUser(c *fiber.Ctx) error {
 func (mc *MembershipController) GetMe(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(string)
 	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return mc.errorHandler.HandleAuthError(c, fmt.Errorf("unauthorized: user ID not found in context"))
 	}
 
 	user, err := mc.service.GetUserWithPermissions(c.UserContext(), userID)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+		return mc.errorHandler.HandleNotFoundError(c, "User")
 	}
 
 	// Sanitize the user object to not expose password
@@ -128,22 +135,47 @@ func (mc *MembershipController) GetMe(c *fiber.Ctx) error {
 	return c.JSON(user)
 }
 
+// DeleteUser deletes a user.
+func (mc *MembershipController) DeleteUser(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return mc.errorHandler.HandleUUIDError(c, "user ID")
+	}
+
+	err = mc.service.DeleteUser(c.UserContext(), id)
+	if err != nil {
+		return mc.errorHandler.HandleServiceError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 // UpdateUser updates a user.
 func (mc *MembershipController) UpdateUser(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+		return mc.errorHandler.HandleUUIDError(c, "user ID")
 	}
 
 	var req service.UpdateUserRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+		return mc.errorHandler.HandleParsingError(c, err)
 	}
 
 	user, err := mc.service.UpdateUser(c.UserContext(), id, req)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return mc.errorHandler.HandleServiceError(c, err)
 	}
 
 	return c.JSON(user)
+}
+
+// GetRoles returns all available roles.
+func (mc *MembershipController) GetRoles(c *fiber.Ctx) error {
+	roles, err := mc.service.GetAllRoles(c.UserContext())
+	if err != nil {
+		return mc.errorHandler.HandleServiceError(c, err)
+	}
+
+	return c.JSON(roles)
 }

@@ -35,7 +35,6 @@ func InitializeServices(c *dig.Container) {
 		api.SetServerService(server)
 		config.SetServerService(server)
 
-
 	})
 	if err != nil {
 		logging.Panic("unable to initialize services: " + err.Error())

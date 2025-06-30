@@ -7,60 +7,61 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 const (
-	BaseServerPath = "servers"
+	BaseServerPath    = "servers"
 	ServiceNamePrefix = "ACC-Server"
 )
 
 // Server represents an ACC server instance
 type Server struct {
-	ID          uint   `gorm:"primaryKey" json:"id"`
-	Name        string `gorm:"not null" json:"name"`
-	Status      ServiceStatus `json:"status" gorm:"-"`
-	IP          string `gorm:"not null" json:"-"`
-	Port        int    `gorm:"not null" json:"-"`
-	Path  string `gorm:"not null" json:"path"` // e.g. "/acc/servers/server1/"
-	ServiceName string `gorm:"not null" json:"serviceName"` // Windows service name
-	State       *ServerState `gorm:"-" json:"state"`
-	DateCreated time.Time `json:"dateCreated"`
-	FromSteamCMD bool `gorm:"not null; default:true" json:"-"`
+	ID           uuid.UUID     `gorm:"type:uuid;primary_key;" json:"id"`
+	Name         string        `gorm:"not null" json:"name"`
+	Status       ServiceStatus `json:"status" gorm:"-"`
+	IP           string        `gorm:"not null" json:"-"`
+	Port         int           `gorm:"not null" json:"-"`
+	Path         string        `gorm:"not null" json:"path"`        // e.g. "/acc/servers/server1/"
+	ServiceName  string        `gorm:"not null" json:"serviceName"` // Windows service name
+	State        *ServerState  `gorm:"-" json:"state"`
+	DateCreated  time.Time     `json:"dateCreated"`
+	FromSteamCMD bool          `gorm:"not null; default:true" json:"-"`
 }
 
 type PlayerState struct {
-    CarID       int     // Car ID in broadcast packets
-    DriverName  string  // Optional: pulled from registration packet
-    TeamName    string
-    CarModel    string
-    CurrentLap  int
-    LastLapTime int     // in milliseconds
-    BestLapTime int     // in milliseconds
-    Position    int
-    ConnectedAt time.Time
-    DisconnectedAt *time.Time
-    IsConnected bool
+	CarID          int    // Car ID in broadcast packets
+	DriverName     string // Optional: pulled from registration packet
+	TeamName       string
+	CarModel       string
+	CurrentLap     int
+	LastLapTime    int // in milliseconds
+	BestLapTime    int // in milliseconds
+	Position       int
+	ConnectedAt    time.Time
+	DisconnectedAt *time.Time
+	IsConnected    bool
 }
 
 type State struct {
-    Session     string `json:"session"`
-    SessionStart time.Time  `json:"sessionStart"`
-    PlayerCount int `json:"playerCount"`
-    // Players     map[int]*PlayerState
-    // etc.
+	Session      string    `json:"session"`
+	SessionStart time.Time `json:"sessionStart"`
+	PlayerCount  int       `json:"playerCount"`
+	// Players     map[int]*PlayerState
+	// etc.
 }
 
 type ServerState struct {
-    sync.RWMutex
-    Session               string    `json:"session"`
-    SessionStart         time.Time  `json:"sessionStart"`
-    PlayerCount          int       `json:"playerCount"`
-    Track               string    `json:"track"`
-    MaxConnections      int       `json:"maxConnections"`
-    SessionDurationMinutes int    `json:"sessionDurationMinutes"`
-    // Players     map[int]*PlayerState
-    // etc.
+	sync.RWMutex
+	Session                string    `json:"session"`
+	SessionStart           time.Time `json:"sessionStart"`
+	PlayerCount            int       `json:"playerCount"`
+	Track                  string    `json:"track"`
+	MaxConnections         int       `json:"maxConnections"`
+	SessionDurationMinutes int       `json:"sessionDurationMinutes"`
+	// Players     map[int]*PlayerState
+	// etc.
 }
 
 // ServerFilter defines filtering options for Server queries
@@ -75,8 +76,10 @@ type ServerFilter struct {
 // ApplyFilter implements the Filterable interface
 func (f *ServerFilter) ApplyFilter(query *gorm.DB) *gorm.DB {
 	// Apply server filter
-	if f.ServerID != 0 {
-		query = query.Where("id = ?", f.ServerID)
+	if f.ServerID != "" {
+		if serverUUID, err := uuid.Parse(f.ServerID); err == nil {
+			query = query.Where("id = ?", serverUUID)
+		}
 	}
 
 	return query
@@ -86,6 +89,11 @@ func (f *ServerFilter) ApplyFilter(query *gorm.DB) *gorm.DB {
 func (s *Server) BeforeCreate(tx *gorm.DB) error {
 	if s.Name == "" {
 		return errors.New("server name is required")
+	}
+
+	// Generate UUID if not set
+	if s.ID == uuid.Nil {
+		s.ID = uuid.New()
 	}
 
 	// Generate service name and config path if not set
@@ -107,8 +115,8 @@ func (s *Server) BeforeCreate(tx *gorm.DB) error {
 // GenerateServiceName creates a unique service name based on the server name
 func (s *Server) GenerateServiceName() string {
 	// If ID is set, use it
-	if s.ID > 0 {
-		return fmt.Sprintf("%s-%d", ServiceNamePrefix, s.ID)
+	if s.ID != uuid.Nil {
+		return fmt.Sprintf("%s-%s", ServiceNamePrefix, s.ID.String()[:8])
 	}
 	// Otherwise use a timestamp-based unique identifier
 	return fmt.Sprintf("%s-%d", ServiceNamePrefix, time.Now().UnixNano())
@@ -120,14 +128,14 @@ func (s *Server) GenerateServerPath(steamCMDPath string) string {
 	if s.ServiceName == "" {
 		s.ServiceName = s.GenerateServiceName()
 	}
-	if (steamCMDPath == "") {
+	if steamCMDPath == "" {
 		steamCMDPath = BaseServerPath
 	}
 	return filepath.Join(steamCMDPath, "servers", s.ServiceName)
 }
 
 func (s *Server) GetServerPath() string {
-	if (!s.FromSteamCMD) {
+	if !s.FromSteamCMD {
 		return s.Path
 	}
 	return filepath.Join(s.Path, "server")
@@ -138,7 +146,7 @@ func (s *Server) GetConfigPath() string {
 }
 
 func (s *Server) GetLogPath() string {
-	if (!s.FromSteamCMD) {
+	if !s.FromSteamCMD {
 		return s.Path
 	}
 	return filepath.Join(s.GetServerPath(), "log")

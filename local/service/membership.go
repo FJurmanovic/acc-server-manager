@@ -19,7 +19,9 @@ type MembershipService struct {
 
 // NewMembershipService creates a new MembershipService.
 func NewMembershipService(repo *repository.MembershipRepository) *MembershipService {
-	return &MembershipService{repo: repo}
+	return &MembershipService{
+		repo: repo,
+	}
 }
 
 // Login authenticates a user and returns a JWT.
@@ -56,8 +58,8 @@ func (s *MembershipService) CreateUser(ctx context.Context, username, password, 
 		logging.Error("Failed to create user: %v", err)
 		return nil, err
 	}
-	logging.Debug("User created successfully")
 
+	logging.InfoOperation("USER_CREATE", "Created user: "+user.Username+" (ID: "+user.ID.String()+", Role: "+roleName+")")
 	return user, nil
 }
 
@@ -81,6 +83,34 @@ type UpdateUserRequest struct {
 	Username *string    `json:"username"`
 	Password *string    `json:"password"`
 	RoleID   *uuid.UUID `json:"roleId"`
+}
+
+// DeleteUser deletes a user with validation to prevent Super Admin deletion.
+func (s *MembershipService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	// Get user with role information
+	user, err := s.repo.FindUserByID(ctx, userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	// Get role to check if it's Super Admin
+	role, err := s.repo.FindRoleByID(ctx, user.RoleID)
+	if err != nil {
+		return errors.New("user role not found")
+	}
+
+	// Prevent deletion of Super Admin users
+	if role.Name == "Super Admin" {
+		return errors.New("cannot delete Super Admin user")
+	}
+
+	err = s.repo.DeleteUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	logging.InfoOperation("USER_DELETE", "Deleted user: "+userID.String())
+	return nil
 }
 
 // UpdateUser updates a user's details.
@@ -112,6 +142,7 @@ func (s *MembershipService) UpdateUser(ctx context.Context, userID uuid.UUID, re
 		return nil, err
 	}
 
+	logging.InfoOperation("USER_UPDATE", "Updated user: "+user.Username+" (ID: "+user.ID.String()+")")
 	return user, nil
 }
 
@@ -122,8 +153,8 @@ func (s *MembershipService) HasPermission(ctx context.Context, userID string, pe
 		return false, err
 	}
 
-	// Super admin has all permissions
-	if user.Role.Name == "Super Admin" {
+	// Super admin and Admin have all permissions
+	if user.Role.Name == "Super Admin" || user.Role.Name == "Admin" {
 		return true, nil
 	}
 
@@ -165,6 +196,51 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 		return err
 	}
 
+	// Create Admin role with same permissions as Super Admin
+	adminRole, err := s.repo.FindRoleByName(ctx, "Admin")
+	if err != nil {
+		adminRole = &model.Role{Name: "Admin"}
+		if err := s.repo.CreateRole(ctx, adminRole); err != nil {
+			return err
+		}
+	}
+	if err := s.repo.AssignPermissionsToRole(ctx, adminRole, createdPermissions); err != nil {
+		return err
+	}
+
+	// Create Manager role with limited permissions (excluding membership, role, user, server create/delete)
+	managerRole, err := s.repo.FindRoleByName(ctx, "Manager")
+	if err != nil {
+		managerRole = &model.Role{Name: "Manager"}
+		if err := s.repo.CreateRole(ctx, managerRole); err != nil {
+			return err
+		}
+	}
+
+	// Define manager permissions (limited set)
+	managerPermissionNames := []string{
+		model.ServerView,
+		model.ServerUpdate,
+		model.ServerStart,
+		model.ServerStop,
+		model.ConfigView,
+		model.ConfigUpdate,
+	}
+
+	managerPermissions := make([]model.Permission, 0)
+	for _, permName := range managerPermissionNames {
+		for _, perm := range createdPermissions {
+			if perm.Name == permName {
+				managerPermissions = append(managerPermissions, perm)
+				break
+			}
+		}
+	}
+
+	if err := s.repo.AssignPermissionsToRole(ctx, managerRole, managerPermissions); err != nil {
+		return err
+	}
+
 	// Create a default admin user if one doesn't exist
 	_, err = s.repo.FindUserByUsername(ctx, "admin")
 	if err != nil {
@@ -176,4 +252,9 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// GetAllRoles retrieves all roles for dropdown selection.
+func (s *MembershipService) GetAllRoles(ctx context.Context) ([]*model.Role, error) {
+	return s.repo.ListRoles(ctx)
 }

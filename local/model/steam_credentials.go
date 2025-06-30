@@ -12,12 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 // SteamCredentials represents stored Steam login credentials
 type SteamCredentials struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
+	ID          uuid.UUID `gorm:"type:uuid;primary_key;" json:"id"`
 	Username    string    `gorm:"not null" json:"username"`
 	Password    string    `gorm:"not null" json:"-"` // Encrypted, not exposed in JSON
 	DateCreated time.Time `json:"dateCreated"`
@@ -31,6 +32,10 @@ func (SteamCredentials) TableName() string {
 
 // BeforeCreate is a GORM hook that runs before creating new credentials
 func (s *SteamCredentials) BeforeCreate(tx *gorm.DB) error {
+	if s.ID == uuid.Nil {
+		s.ID = uuid.New()
+	}
+
 	now := time.Now().UTC()
 	if s.DateCreated.IsZero() {
 		s.DateCreated = now

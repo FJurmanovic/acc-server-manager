@@ -8,34 +8,34 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 
 	"acc-server-manager/local/utl/network"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 const (
-	DefaultStartPort = 9600
+	DefaultStartPort  = 9600
 	RequiredPortCount = 1 // Update this if ACC needs more ports
 )
 
 type ServerService struct {
-	repository       *repository.ServerRepository
-	stateHistoryRepo *repository.StateHistoryRepository
-	apiService       *ApiService
-	configService    *ConfigService
-	steamService     *SteamService
-	windowsService   *WindowsService
-	firewallService  *FirewallService
+	repository          *repository.ServerRepository
+	stateHistoryRepo    *repository.StateHistoryRepository
+	apiService          *ApiService
+	configService       *ConfigService
+	steamService        *SteamService
+	windowsService      *WindowsService
+	firewallService     *FirewallService
 	systemConfigService *SystemConfigService
-	instances        sync.Map // Track instances per server
-	lastInsertTimes  sync.Map // Track last insert time per server
-	debouncers       sync.Map // Track debounce timers per server
-	logTailers       sync.Map // Track log tailers per server
-	sessionIDs       sync.Map // Track current session ID per server
+	instances           sync.Map // Track instances per server
+	lastInsertTimes     sync.Map // Track last insert time per server
+	debouncers          sync.Map // Track debounce timers per server
+	logTailers          sync.Map // Track log tailers per server
+	sessionIDs          sync.Map // Track current session ID per server
 }
 
 type pendingState struct {
@@ -54,7 +54,7 @@ func (s *ServerService) ensureLogTailing(server *model.Server, instance *trackin
 		logPath := filepath.Join(server.GetLogPath(), "server.log")
 		tailer := tracking.NewLogTailer(logPath, instance.HandleLogLine)
 		s.logTailers.Store(server.ID, tailer)
-		
+
 		// Start tailing and automatically handle file changes
 		tailer.Start()
 	}()
@@ -71,13 +71,13 @@ func NewServerService(
 	systemConfigService *SystemConfigService,
 ) *ServerService {
 	service := &ServerService{
-		repository:       repository,
-		stateHistoryRepo: stateHistoryRepo,
-		apiService:       apiService,
-		configService:    configService,
-		steamService:     steamService,
-		windowsService:   windowsService,
-		firewallService:  firewallService,
+		repository:          repository,
+		stateHistoryRepo:    stateHistoryRepo,
+		apiService:          apiService,
+		configService:       configService,
+		steamService:        steamService,
+		windowsService:      windowsService,
+		firewallService:     firewallService,
 		systemConfigService: systemConfigService,
 	}
 
@@ -97,39 +97,42 @@ func NewServerService(
 	return service
 }
 
-func (s *ServerService) shouldInsertStateHistory(serverID uint) bool {
+func (s *ServerService) shouldInsertStateHistory(serverID uuid.UUID) bool {
 	insertInterval := 5 * time.Minute // Configure this as needed
-	
+
 	lastInsertInterface, exists := s.lastInsertTimes.Load(serverID)
 	if !exists {
 		s.lastInsertTimes.Store(serverID, time.Now().UTC())
 		return true
 	}
-	
+
 	lastInsert := lastInsertInterface.(time.Time)
 	now := time.Now().UTC()
-	
+
 	if now.Sub(lastInsert) >= insertInterval {
 		s.lastInsertTimes.Store(serverID, now)
 		return true
 	}
-	
+
 	return false
 }
 
-func (s *ServerService) getNextSessionID(serverID uint) uint {
+func (s *ServerService) getNextSessionID(serverID uuid.UUID) uuid.UUID {
 	lastID, err := s.stateHistoryRepo.GetLastSessionID(context.Background(), serverID)
 	if err != nil {
-		logging.Error("Failed to get last session ID for server %d: %v", serverID, err)
-		return 1 // Return 1 as fallback
+		logging.Error("Failed to get last session ID for server %s: %v", serverID, err)
+		return uuid.New() // Return new UUID as fallback
 	}
-	return lastID + 1
+	if lastID == uuid.Nil {
+		return uuid.New() // Return new UUID if no previous session
+	}
+	return uuid.New() // Always generate new UUID for each session
 }
 
-func (s *ServerService) insertStateHistory(serverID uint, state *model.ServerState) {
+func (s *ServerService) insertStateHistory(serverID uuid.UUID, state *model.ServerState) {
 	// Get or create session ID when session changes
 	currentSessionInterface, exists := s.instances.Load(serverID)
-	var sessionID uint
+	var sessionID uuid.UUID
 	if !exists {
 		sessionID = s.getNextSessionID(serverID)
 	} else {
@@ -141,20 +144,20 @@ func (s *ServerService) insertStateHistory(serverID uint, state *model.ServerSta
 			if !exists {
 				sessionID = s.getNextSessionID(serverID)
 			} else {
-				sessionID = sessionIDInterface.(uint)
+				sessionID = sessionIDInterface.(uuid.UUID)
 			}
 		}
 	}
 
 	s.stateHistoryRepo.Insert(context.Background(), &model.StateHistory{
-		ServerID:    serverID,
-		Session:     state.Session,
-		Track:       state.Track,
-		PlayerCount: state.PlayerCount,
-		DateCreated: time.Now().UTC(),
-		SessionStart: state.SessionStart,
+		ServerID:               serverID,
+		Session:                state.Session,
+		Track:                  state.Track,
+		PlayerCount:            state.PlayerCount,
+		DateCreated:            time.Now().UTC(),
+		SessionStart:           state.SessionStart,
 		SessionDurationMinutes: state.SessionDurationMinutes,
-		SessionID:   sessionID,
+		SessionID:              sessionID,
 	})
 }
 
@@ -210,7 +213,6 @@ func (s *ServerService) GenerateServerPath(server *model.Server) {
 	server.Path = server.GenerateServerPath(steamCMDPath)
 }
 
-
 func (s *ServerService) handleStateChange(server *model.Server, state *model.ServerState) {
 	// Update session duration when session changes
 	s.updateSessionDuration(server, state.Session)
@@ -258,7 +260,7 @@ func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 	}
 
 	// Invalidate config cache for this server before loading new configs
-	serverIDStr := strconv.FormatUint(uint64(server.ID), 10)
+	serverIDStr := server.ID.String()
 	s.configService.configCache.InvalidateServerCache(serverIDStr)
 
 	s.updateSessionDuration(server, instance.State.Session)
@@ -309,7 +311,7 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
-func (as *ServerService) GetById(ctx *fiber.Ctx, serverID int) (*model.Server, error) {
+func (as *ServerService) GetById(ctx *fiber.Ctx, serverID uuid.UUID) (*model.Server, error) {
 	server, err := as.repository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
 		return nil, err
@@ -321,10 +323,10 @@ func (as *ServerService) GetById(ctx *fiber.Ctx, serverID int) (*model.Server, e
 	server.Status = model.ParseServiceStatus(status)
 	instance, ok := as.instances.Load(server.ID)
 	if !ok {
-		logging.Error("Unable to retrieve instance for server of ID: %d", server.ID)
+		logging.Error("Unable to retrieve instance for server of ID: %s", server.ID)
 	} else {
 		serverInstance := instance.(*tracking.AccServerInstance)
-		if (serverInstance.State != nil) {
+		if serverInstance.State != nil {
 			server.State = serverInstance.State
 		}
 	}
@@ -389,7 +391,7 @@ func (s *ServerService) CreateServer(ctx *fiber.Ctx, server *model.Server) error
 	return nil
 }
 
-func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID int) error {
+func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID uuid.UUID) error {
 	// Get server details
 	server, err := s.repository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
@@ -400,7 +402,6 @@ func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID int) error {
 	if err := s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName); err != nil {
 		logging.Error("Failed to delete Windows service: %v", err)
 	}
-
 
 	// Remove firewall rules
 	configuration, err := s.configService.GetConfiguration(server)
@@ -443,7 +444,7 @@ func (s *ServerService) UpdateServer(ctx *fiber.Ctx, server *model.Server) error
 	}
 
 	// Get existing server details
-	existingServer, err := s.repository.GetByID(ctx.UserContext(), int(server.ID))
+	existingServer, err := s.repository.GetByID(ctx.UserContext(), server.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get existing server details: %v", err)
 	}

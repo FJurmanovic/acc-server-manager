@@ -57,7 +57,7 @@ func (r *BaseRepository[T, F]) GetAll(ctx context.Context, filter *F) (*[]T, err
 // GetByID retrieves a single record by ID
 func (r *BaseRepository[T, F]) GetByID(ctx context.Context, id interface{}) (*T, error) {
 	result := new(T)
-	if err := r.db.WithContext(ctx).First(result, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -118,4 +118,4 @@ type Pageable interface {
 
 type Sortable interface {
 	GetSorting() (field string, desc bool)
-} 
+}

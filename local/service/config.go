@@ -13,14 +13,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/qjebbs/go-jsons"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
+
 const (
 	ConfigurationJson = "configuration.json"
 	AssistRulesJson   = "assistRules.json"
@@ -75,9 +76,9 @@ func NewConfigService(repository *repository.ConfigRepository, serverRepository 
 	return &ConfigService{
 		repository:       repository,
 		serverRepository: serverRepository,
-		configCache:      model.NewServerConfigCache(model.CacheConfig{
-			ExpirationTime: 5 * time.Minute,  // Cache configs for 5 minutes
-			ThrottleTime:   1 * time.Second,  // Prevent rapid re-reads
+		configCache: model.NewServerConfigCache(model.CacheConfig{
+			ExpirationTime: 5 * time.Minute, // Cache configs for 5 minutes
+			ThrottleTime:   1 * time.Second, // Prevent rapid re-reads
 			DefaultStatus:  model.StatusUnknown,
 		}),
 	}
@@ -95,7 +96,7 @@ func (as *ConfigService) SetServerService(serverService *ServerService) {
 //		Returns:
 //			string: Application version
 func (as *ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{}) (*model.Config, error) {
-	serverID := ctx.Locals("serverId").(int)
+	serverID := ctx.Locals("serverId").(string)
 	configFile := ctx.Params("file")
 	override := ctx.QueryBool("override", false)
 
@@ -103,8 +104,14 @@ func (as *ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface
 }
 
 // updateConfigInternal handles the actual config update logic without Fiber dependencies
-func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID int, configFile string, body *map[string]interface{}, override bool) (*model.Config, error) {
-	server, err := as.serverRepository.GetByID(ctx, serverID)
+func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID string, configFile string, body *map[string]interface{}, override bool) (*model.Config, error) {
+	serverUUID, err := uuid.Parse(serverID)
+	if err != nil {
+		logging.Error("Invalid server ID format: %v", err)
+		return nil, fmt.Errorf("invalid server ID format")
+	}
+
+	server, err := as.serverRepository.GetByID(ctx, serverUUID)
 	if err != nil {
 		logging.Error("Server not found")
 		return nil, fmt.Errorf("server not found")
@@ -162,13 +169,13 @@ func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID int,
 	}
 
 	// Invalidate all configs for this server since configs can be interdependent
-	as.configCache.InvalidateServerCache(strconv.Itoa(serverID))
+	as.configCache.InvalidateServerCache(serverID)
 
 	as.serverService.StartAccServerRuntime(server)
 
 	// Log change
 	return as.repository.UpdateConfig(ctx, &model.Config{
-		ServerID:   uint(serverID),
+		ServerID:   serverUUID,
 		ConfigFile: configFile,
 		OldConfig:  string(oldDataUTF8),
 		NewConfig:  string(newData),
@@ -184,13 +191,12 @@ func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID int,
 //		Returns:
 //			string: Application version
 func (as *ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
-	serverID, _ := ctx.ParamsInt("id")
+	serverIDStr := ctx.Params("id")
 	configFile := ctx.Params("file")
-	serverIDStr := strconv.Itoa(serverID)
 
-	logging.Debug("Getting config for server ID: %d, file: %s", serverID, configFile)
+	logging.Debug("Getting config for server ID: %s, file: %s", serverIDStr, configFile)
 
-	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
+	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverIDStr)
 	if err != nil {
 		logging.Error("Server not found")
 		return nil, fiber.NewError(404, "Server not found")
@@ -276,7 +282,7 @@ func (as *ConfigService) GetConfig(ctx *fiber.Ctx) (interface{}, error) {
 // GetConfigs
 // Gets all configurations for a server, using cache when possible.
 func (as *ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, error) {
-	serverID, _ := ctx.ParamsInt("id")
+	serverID := ctx.Params("id")
 
 	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
@@ -288,7 +294,7 @@ func (as *ConfigService) GetConfigs(ctx *fiber.Ctx) (*model.Configurations, erro
 }
 
 func (as *ConfigService) LoadConfigs(server *model.Server) (*model.Configurations, error) {
-	serverIDStr := strconv.Itoa(int(server.ID))
+	serverIDStr := server.ID.String()
 	logging.Info("Loading configs for server ID: %s at path: %s", serverIDStr, server.GetConfigPath())
 	configs := &model.Configurations{}
 
@@ -442,11 +448,11 @@ func transformBytes(t transform.Transformer, input []byte) ([]byte, error) {
 }
 
 func (as *ConfigService) GetEventConfig(server *model.Server) (*model.EventConfig, error) {
-	serverIDStr := strconv.Itoa(int(server.ID))
+	serverIDStr := server.ID.String()
 	if cached, ok := as.configCache.GetEvent(serverIDStr); ok {
 		return cached, nil
 	}
-	
+
 	event, err := mustDecode[model.EventConfig](EventJson, server.GetConfigPath())
 	if err != nil {
 		return nil, err
@@ -456,11 +462,11 @@ func (as *ConfigService) GetEventConfig(server *model.Server) (*model.EventConfi
 }
 
 func (as *ConfigService) GetConfiguration(server *model.Server) (*model.Configuration, error) {
-	serverIDStr := strconv.Itoa(int(server.ID))
+	serverIDStr := server.ID.String()
 	if cached, ok := as.configCache.GetConfiguration(serverIDStr); ok {
 		return cached, nil
 	}
-	
+
 	config, err := mustDecode[model.Configuration](ConfigurationJson, server.GetConfigPath())
 	if err != nil {
 		return nil, err
@@ -482,6 +488,6 @@ func (as *ConfigService) SaveConfiguration(server *model.Server, config *model.C
 	}
 
 	// Update the configuration using the internal method
-	_, err = as.updateConfigInternal(context.Background(), int(server.ID), ConfigurationJson, &configMap, true)
+	_, err = as.updateConfigInternal(context.Background(), server.ID.String(), ConfigurationJson, &configMap, true)
 	return err
 }

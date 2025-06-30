@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -35,7 +36,7 @@ func (s *StateHistoryService) Insert(ctx *fiber.Ctx, model *model.StateHistory) 
 	return nil
 }
 
-func (s *StateHistoryService) GetLastSessionID(ctx *fiber.Ctx, serverID uint) (uint, error) {
+func (s *StateHistoryService) GetLastSessionID(ctx *fiber.Ctx, serverID uuid.UUID) (uuid.UUID, error) {
 	return s.repository.GetLastSessionID(ctx.UserContext(), serverID)
 }
 

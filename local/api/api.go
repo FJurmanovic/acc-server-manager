@@ -28,6 +28,7 @@ func Init(di *dig.Container, app *fiber.App) {
 		Config:       serverIdGroup.Group("/config"),
 		Lookup:       groups.Group("/lookup"),
 		StateHistory: serverIdGroup.Group("/state-history"),
+		Membership:   groups.Group("/membership"),
 	}
 
 	err := di.Provide(func() *common.RouteGroups {

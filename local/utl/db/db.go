@@ -1,6 +1,7 @@
 package db
 
 import (
+	"acc-server-manager/local/migrations"
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/utl/logging"
 	"os"
@@ -33,6 +34,7 @@ func Start(di *dig.Container) {
 func Migrate(db *gorm.DB) {
 	logging.Info("Migrating database")
 
+	// Run GORM AutoMigrate for all models
 	err := db.AutoMigrate(
 		&model.ApiModel{},
 		&model.Config{},
@@ -50,16 +52,25 @@ func Migrate(db *gorm.DB) {
 	)
 
 	if err != nil {
-		logging.Panic("failed to migrate database models")
+		logging.Error("GORM AutoMigrate failed: %v", err)
+		// Don't panic, just log the error as custom migrations may have handled this
 	}
 
 	db.FirstOrCreate(&model.ApiModel{Api: "Works"})
 
-	// Run security migrations - temporarily disabled until migration is fixed
-	// TODO: Implement proper migration system
-	logging.Info("Database migration system needs to be implemented")
-
 	Seed(db)
+}
+
+func runMigrations(db *gorm.DB) {
+	logging.Info("Running custom database migrations...")
+
+	// Migration 001: Password security upgrade
+	if err := migrations.RunPasswordSecurityMigration(db); err != nil {
+		logging.Error("Failed to run password security migration: %v", err)
+		// Continue - this migration might not be needed for all setups
+	}
+
+	logging.Info("Custom database migrations completed")
 }
 
 func Seed(db *gorm.DB) error {

@@ -14,19 +14,29 @@ import (
 )
 
 func main() {
-	// Initialize logger
-	logger, err := logging.Initialize()
-	if err != nil {
-		fmt.Printf("Failed to initialize logger: %v\n", err)
+	// Initialize new logging system
+	if err := logging.InitializeLogging(); err != nil {
+		fmt.Printf("Failed to initialize logging system: %v\n", err)
 		os.Exit(1)
 	}
-	defer logger.Close()
+
+	// Get legacy logger for backward compatibility
+	logger := logging.GetLegacyLogger()
+	if logger != nil {
+		defer logger.Close()
+	}
 
 	// Set up panic recovery
 	defer logging.RecoverAndLog()
+
+	// Log application startup
+	logging.InfoStartup("APPLICATION", "ACC Server Manager starting up")
 
 	di := dig.New()
 	cache.Start(di)
 	db.Start(di)
 	server.Start(di)
+
+	// Log successful startup
+	logging.InfoStartup("APPLICATION", "ACC Server Manager started successfully")
 }

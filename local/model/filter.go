@@ -2,6 +2,9 @@ package model
 
 import (
 	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // BaseFilter contains common filter fields that can be embedded in other filters
@@ -20,14 +23,14 @@ type DateRangeFilter struct {
 
 // ServerBasedFilter adds server ID filtering capability
 type ServerBasedFilter struct {
-	ServerID int `param:"id"`
+	ServerID string `param:"id"`
 }
 
 // ConfigFilter defines filtering options for Config queries
 type ConfigFilter struct {
 	BaseFilter
 	ServerBasedFilter
-	ConfigFile string `query:"config_file"`
+	ConfigFile string    `query:"config_file"`
 	ChangedAt  time.Time `query:"changed_at" time_format:"2006-01-02T15:04:05Z07:00"`
 }
 
@@ -35,6 +38,14 @@ type ConfigFilter struct {
 type ApiFilter struct {
 	BaseFilter
 	Api string `query:"api"`
+}
+
+// MembershipFilter defines filtering options for User queries
+type MembershipFilter struct {
+	BaseFilter
+	Username string `query:"username"`
+	RoleName string `query:"role_name"`
+	RoleID   string `query:"role_id"`
 }
 
 // Pagination returns the offset and limit for database queries
@@ -64,4 +75,30 @@ func (f *DateRangeFilter) IsDateRangeValid() bool {
 		return true // If either date is not set, consider it valid
 	}
 	return f.StartDate.Before(f.EndDate)
-} 
+}
+
+// ApplyFilter applies the membership filter to a GORM query
+func (f *MembershipFilter) ApplyFilter(query *gorm.DB) *gorm.DB {
+	if f.Username != "" {
+		query = query.Where("username LIKE ?", "%"+f.Username+"%")
+	}
+	if f.RoleName != "" {
+		query = query.Joins("JOIN roles ON users.role_id = roles.id").Where("roles.name = ?", f.RoleName)
+	}
+	if f.RoleID != "" {
+		if roleUUID, err := uuid.Parse(f.RoleID); err == nil {
+			query = query.Where("role_id = ?", roleUUID)
+		}
+	}
+	return query
+}
+
+// Pagination returns the offset and limit for database queries
+func (f *MembershipFilter) Pagination() (offset, limit int) {
+	return f.BaseFilter.Pagination()
+}
+
+// GetSorting returns the sort field and direction for database queries
+func (f *MembershipFilter) GetSorting() (field string, desc bool) {
+	return f.BaseFilter.GetSorting()
+}

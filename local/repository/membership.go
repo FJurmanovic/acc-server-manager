@@ -10,12 +10,14 @@ import (
 
 // MembershipRepository handles database operations for users, roles, and permissions.
 type MembershipRepository struct {
-	db *gorm.DB
+	*BaseRepository[model.User, model.MembershipFilter]
 }
 
 // NewMembershipRepository creates a new MembershipRepository.
 func NewMembershipRepository(db *gorm.DB) *MembershipRepository {
-	return &MembershipRepository{db: db}
+	return &MembershipRepository{
+		BaseRepository: NewBaseRepository[model.User, model.MembershipFilter](db, model.User{}),
+	}
 }
 
 // FindUserByUsername finds a user by their username.
@@ -112,6 +114,12 @@ func (r *MembershipRepository) ListUsers(ctx context.Context) ([]*model.User, er
 	return users, err
 }
 
+// DeleteUser deletes a user.
+func (r *MembershipRepository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	db := r.db.WithContext(ctx)
+	return db.Delete(&model.User{}, "id = ?", userID).Error
+}
+
 // FindUserByID finds a user by their ID.
 func (r *MembershipRepository) FindUserByID(ctx context.Context, userID uuid.UUID) (*model.User, error) {
 	var user model.User
@@ -138,4 +146,17 @@ func (r *MembershipRepository) FindRoleByID(ctx context.Context, roleID uuid.UUI
 		return nil, err
 	}
 	return &role, nil
+}
+
+// ListUsersWithFilter retrieves users based on the membership filter.
+func (r *MembershipRepository) ListUsersWithFilter(ctx context.Context, filter *model.MembershipFilter) (*[]model.User, error) {
+	return r.BaseRepository.GetAll(ctx, filter)
+}
+
+// ListRoles retrieves all roles.
+func (r *MembershipRepository) ListRoles(ctx context.Context) ([]*model.Role, error) {
+	var roles []*model.Role
+	db := r.db.WithContext(ctx)
+	err := db.Find(&roles).Error
+	return roles, err
 }

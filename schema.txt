@@ -1,0 +1,16 @@
+CREATE TABLE `api_models` (`api` text);
+CREATE TABLE sqlite_sequence(name,seq);
+CREATE TABLE `configs` (`id` integer PRIMARY KEY AUTOINCREMENT,`server_id` integer NOT NULL,`config_file` text NOT NULL,`old_config` text,`new_config` text,`changed_at` datetime DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE `tracks` (`name` text,`unique_pit_boxes` integer,`private_server_slots` integer,PRIMARY KEY (`name`));
+CREATE TABLE `car_models` (`value` integer PRIMARY KEY AUTOINCREMENT,`car_model` text);
+CREATE TABLE `cup_categories` (`value` integer PRIMARY KEY AUTOINCREMENT,`category` text);
+CREATE TABLE `driver_categories` (`value` integer PRIMARY KEY AUTOINCREMENT,`category` text);
+CREATE TABLE `session_types` (`value` integer PRIMARY KEY AUTOINCREMENT,`session_type` text);
+CREATE TABLE `state_histories` (`id` integer PRIMARY KEY AUTOINCREMENT,`server_id` integer NOT NULL,`session` text,`player_count` integer,`date_created` datetime, `session_duration_minutes` integer, `track` text, `session_start` datetime, `session_id` integer NOT NULL DEFAULT 0);
+CREATE TABLE `servers` (`id` integer PRIMARY KEY AUTOINCREMENT,`name` text NOT NULL,`ip` text NOT NULL,`port` integer NOT NULL,`config_path` text NOT NULL,`service_name` text NOT NULL, `date_created` datetime);
+CREATE TABLE `steam_credentials` (`id` integer PRIMARY KEY AUTOINCREMENT,`username` text NOT NULL,`password` text NOT NULL,`date_created` datetime,`last_updated` datetime);
+CREATE TABLE `system_configs` (`id` integer PRIMARY KEY AUTOINCREMENT,`key` text,`value` text,`default_value` text,`description` text,`date_modified` text);
+CREATE TABLE `roles` (`id` uuid,`name` text NOT NULL,PRIMARY KEY (`id`));
+CREATE TABLE `users` (`id` uuid,`username` text NOT NULL,`password` text NOT NULL,`role_id` uuid,PRIMARY KEY (`id`),CONSTRAINT `fk_users_role` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`));
+CREATE TABLE `permissions` (`id` uuid,`name` text NOT NULL,PRIMARY KEY (`id`));
+CREATE TABLE `role_permissions` (`role_id` uuid,`permission_id` uuid,PRIMARY KEY (`role_id`,`permission_id`),CONSTRAINT `fk_role_permissions_permission` FOREIGN KEY (`permission_id`) REFERENCES `permissions`(`id`),CONSTRAINT `fk_role_permissions_role` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`));

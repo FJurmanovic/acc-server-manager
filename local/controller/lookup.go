@@ -3,12 +3,14 @@ package controller
 import (
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
+	"acc-server-manager/local/utl/error_handler"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type LookupController struct {
-	service *service.LookupService
+	service      *service.LookupService
+	errorHandler *error_handler.ControllerErrorHandler
 }
 
 // NewLookupController
@@ -21,7 +23,8 @@ type LookupController struct {
 //		*LookupController: Controller for "Lookup" interactions
 func NewLookupController(as *service.LookupService, routeGroups *common.RouteGroups) *LookupController {
 	ac := &LookupController{
-		service: as,
+		service:      as,
+		errorHandler: error_handler.NewControllerErrorHandler(),
 	}
 	routeGroups.Lookup.Get("/tracks", ac.GetTracks)
 	routeGroups.Lookup.Get("/car-models", ac.GetCarModels)
@@ -42,9 +45,7 @@ func NewLookupController(as *service.LookupService, routeGroups *common.RouteGro
 func (ac *LookupController) GetTracks(c *fiber.Ctx) error {
 	result, err := ac.service.GetTracks(c)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Error fetching tracks",
-		})
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
 	return c.JSON(result)
 }
@@ -59,9 +60,7 @@ func (ac *LookupController) GetTracks(c *fiber.Ctx) error {
 func (ac *LookupController) GetCarModels(c *fiber.Ctx) error {
 	result, err := ac.service.GetCarModels(c)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Error fetching car models",
-		})
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
 	return c.JSON(result)
 }
@@ -76,9 +75,7 @@ func (ac *LookupController) GetCarModels(c *fiber.Ctx) error {
 func (ac *LookupController) GetDriverCategories(c *fiber.Ctx) error {
 	result, err := ac.service.GetDriverCategories(c)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Error fetching driver categories",
-		})
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
 	return c.JSON(result)
 }
@@ -93,9 +90,7 @@ func (ac *LookupController) GetDriverCategories(c *fiber.Ctx) error {
 func (ac *LookupController) GetCupCategories(c *fiber.Ctx) error {
 	result, err := ac.service.GetCupCategories(c)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Error fetching cup categories",
-		})
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
 	return c.JSON(result)
 }
@@ -110,9 +105,7 @@ func (ac *LookupController) GetCupCategories(c *fiber.Ctx) error {
 func (ac *LookupController) GetSessionTypes(c *fiber.Ctx) error {
 	result, err := ac.service.GetSessionTypes(c)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Error fetching session types",
-		})
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
 	return c.JSON(result)
 }

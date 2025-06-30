@@ -2,27 +2,26 @@ package logging
 
 import (
 	"fmt"
-	"io"
-	"log"
-	"os"
-	"path/filepath"
-	"runtime"
 	"sync"
-	"time"
 )
 
 var (
-	logger     *Logger
-	once       sync.Once
-	timeFormat = "2006-01-02 15:04:05.000"
+	// Legacy logger for backward compatibility
+	logger *Logger
+	once   sync.Once
 )
 
+// Logger maintains backward compatibility with existing code
 type Logger struct {
-	file   *os.File
-	logger *log.Logger
+	base        *BaseLogger
+	errorLogger *ErrorLogger
+	warnLogger  *WarnLogger
+	infoLogger  *InfoLogger
+	debugLogger *DebugLogger
 }
 
 // Initialize creates or gets the singleton logger instance
+// This maintains backward compatibility with existing code
 func Initialize() (*Logger, error) {
 	var err error
 	once.Do(func() {
@@ -32,119 +31,183 @@ func Initialize() (*Logger, error) {
 }
 
 func newLogger() (*Logger, error) {
-	// Ensure logs directory exists
-	if err := os.MkdirAll("logs", 0755); err != nil {
-		return nil, fmt.Errorf("failed to create logs directory: %v", err)
-	}
-
-	// Open log file with date in name
-	logPath := filepath.Join("logs", fmt.Sprintf("acc-server-%s.log", time.Now().Format("2006-01-02")))
-	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	// Initialize the base logger
+	baseLogger, err := InitializeBase("log")
 	if err != nil {
-		return nil, fmt.Errorf("failed to open log file: %v", err)
+		return nil, err
 	}
 
-	// Create multi-writer for both file and console
-	multiWriter := io.MultiWriter(file, os.Stdout)
-	
-	// Create logger with custom prefix
+	// Create the legacy logger wrapper
 	logger := &Logger{
-		file:   file,
-		logger: log.New(multiWriter, "", 0),
+		base:        baseLogger,
+		errorLogger: NewErrorLogger(),
+		warnLogger:  NewWarnLogger(),
+		infoLogger:  NewInfoLogger(),
+		debugLogger: NewDebugLogger(),
 	}
 
 	return logger, nil
 }
 
+// Close closes the logger
 func (l *Logger) Close() error {
-	if l.file != nil {
-		return l.file.Close()
+	if l.base != nil {
+		return l.base.Close()
 	}
 	return nil
 }
 
+// Legacy methods for backward compatibility
 func (l *Logger) log(level, format string, v ...interface{}) {
-	// Get caller info
-	_, file, line, _ := runtime.Caller(2)
-	file = filepath.Base(file)
-
-	// Format message
-	msg := fmt.Sprintf(format, v...)
-	
-	// Format final log line
-	logLine := fmt.Sprintf("[%s] [%s] [%s:%d] %s",
-		time.Now().Format(timeFormat),
-		level,
-		file,
-		line,
-		msg,
-	)
-
-	l.logger.Println(logLine)
+	if l.base != nil {
+		l.base.LogWithCaller(LogLevel(level), 3, format, v...)
+	}
 }
 
 func (l *Logger) Info(format string, v ...interface{}) {
-	l.log("INFO", format, v...)
+	if l.infoLogger != nil {
+		l.infoLogger.Log(format, v...)
+	}
 }
 
 func (l *Logger) Error(format string, v ...interface{}) {
-	l.log("ERROR", format, v...)
+	if l.errorLogger != nil {
+		l.errorLogger.Log(format, v...)
+	}
 }
 
 func (l *Logger) Warn(format string, v ...interface{}) {
-	l.log("WARN", format, v...)
+	if l.warnLogger != nil {
+		l.warnLogger.Log(format, v...)
+	}
 }
 
 func (l *Logger) Debug(format string, v ...interface{}) {
-	l.log("DEBUG", format, v...)
+	if l.debugLogger != nil {
+		l.debugLogger.Log(format, v...)
+	}
 }
 
 func (l *Logger) Panic(format string) {
-	l.Panic("PANIC " + format)
+	if l.errorLogger != nil {
+		l.errorLogger.LogFatal(format)
+	}
 }
 
-// Global convenience functions
-func Info(format string, v ...interface{}) {
+// Global convenience functions for backward compatibility
+// These are now implemented in individual logger files to avoid redeclaration
+func LegacyInfo(format string, v ...interface{}) {
 	if logger != nil {
 		logger.Info(format, v...)
+	} else {
+		// Fallback to direct logger if legacy logger not initialized
+		GetInfoLogger().Log(format, v...)
 	}
 }
 
-func Error(format string, v ...interface{}) {
+func LegacyError(format string, v ...interface{}) {
 	if logger != nil {
 		logger.Error(format, v...)
+	} else {
+		// Fallback to direct logger if legacy logger not initialized
+		GetErrorLogger().Log(format, v...)
 	}
 }
 
-func Warn(format string, v ...interface{}) {
+func LegacyWarn(format string, v ...interface{}) {
 	if logger != nil {
 		logger.Warn(format, v...)
+	} else {
+		// Fallback to direct logger if legacy logger not initialized
+		GetWarnLogger().Log(format, v...)
 	}
 }
 
-func Debug(format string, v ...interface{}) {
+func LegacyDebug(format string, v ...interface{}) {
 	if logger != nil {
 		logger.Debug(format, v...)
+	} else {
+		// Fallback to direct logger if legacy logger not initialized
+		GetDebugLogger().Log(format, v...)
 	}
 }
 
 func Panic(format string) {
 	if logger != nil {
 		logger.Panic(format)
+	} else {
+		// Fallback to direct logger if legacy logger not initialized
+		GetErrorLogger().LogFatal(format)
 	}
 }
 
-// RecoverAndLog recovers from panics and logs them
-func RecoverAndLog() {
-	if logger != nil {
-		logger.Info("Recovering from panic")
-		if r := recover(); r != nil {
-			// Get stack trace
-			buf := make([]byte, 4096)
-			n := runtime.Stack(buf, false)
-			stackTrace := string(buf[:n])
+// Enhanced logging convenience functions
+// These provide direct access to specialized logging functions
 
-			logger.log("PANIC", "Recovered from panic: %v\nStack Trace:\n%s", r, stackTrace)
-		}
+// LogStartup logs application startup information
+func LogStartup(component string, message string) {
+	GetInfoLogger().LogStartup(component, message)
+}
+
+// LogShutdown logs application shutdown information
+func LogShutdown(component string, message string) {
+	GetInfoLogger().LogShutdown(component, message)
+}
+
+// LogOperation logs general operation information
+func LogOperation(operation string, details string) {
+	GetInfoLogger().LogOperation(operation, details)
+}
+
+// LogRequest logs incoming HTTP requests
+func LogRequest(method string, path string, userAgent string) {
+	GetInfoLogger().LogRequest(method, path, userAgent)
+}
+
+// LogResponse logs outgoing HTTP responses
+func LogResponse(method string, path string, statusCode int, duration string) {
+	GetInfoLogger().LogResponse(method, path, statusCode, duration)
+}
+
+// LogSQL logs SQL queries for debugging
+func LogSQL(query string, args ...interface{}) {
+	GetDebugLogger().LogSQL(query, args...)
+}
+
+// LogMemory logs memory usage information
+func LogMemory() {
+	GetDebugLogger().LogMemory()
+}
+
+// LogTiming logs timing information for performance debugging
+func LogTiming(operation string, duration interface{}) {
+	GetDebugLogger().LogTiming(operation, duration)
+}
+
+// GetLegacyLogger returns the legacy logger instance for backward compatibility
+func GetLegacyLogger() *Logger {
+	if logger == nil {
+		logger, _ = Initialize()
 	}
-} 
+	return logger
+}
+
+// InitializeLogging initializes all logging components
+func InitializeLogging() error {
+	// Initialize base logger
+	_, err := InitializeBase("log")
+	if err != nil {
+		return fmt.Errorf("failed to initialize base logger: %v", err)
+	}
+
+	// Initialize legacy logger for backward compatibility
+	_, err = Initialize()
+	if err != nil {
+		return fmt.Errorf("failed to initialize legacy logger: %v", err)
+	}
+
+	// Log successful initialization
+	Info("Logging system initialized successfully")
+
+	return nil
+}

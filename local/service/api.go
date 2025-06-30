@@ -25,9 +25,9 @@ func NewApiService(repository *repository.ApiRepository,
 		repository:       repository,
 		serverRepository: serverRepository,
 		statusCache: model.NewServerStatusCache(model.CacheConfig{
-			ExpirationTime:  30 * time.Second,  // Cache expires after 30 seconds
-			ThrottleTime:    5 * time.Second,   // Minimum 5 seconds between checks
-			DefaultStatus:   model.StatusRunning, // Default to running if throttled
+			ExpirationTime: 30 * time.Second,    // Cache expires after 30 seconds
+			ThrottleTime:   5 * time.Second,     // Minimum 5 seconds between checks
+			DefaultStatus:  model.StatusRunning, // Default to running if throttled
 		}),
 		windowsService: NewWindowsService(systemConfigService),
 	}
@@ -65,15 +65,15 @@ func (as *ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Update status cache for this service before starting
 	as.statusCache.UpdateStatus(serviceName, model.StatusStarting)
-	
+
 	statusStr, err := as.StartServer(serviceName)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Parse and update cache with new status
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
@@ -85,15 +85,15 @@ func (as *ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Update status cache for this service before stopping
 	as.statusCache.UpdateStatus(serviceName, model.StatusStopping)
-	
+
 	statusStr, err := as.StopServer(serviceName)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Parse and update cache with new status
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
@@ -105,15 +105,15 @@ func (as *ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Update status cache for this service before restarting
 	as.statusCache.UpdateStatus(serviceName, model.StatusRestarting)
-	
+
 	statusStr, err := as.RestartServer(serviceName)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Parse and update cache with new status
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
@@ -172,8 +172,8 @@ func (as *ApiService) GetServiceName(ctx *fiber.Ctx) (string, error) {
 	var err error
 	serviceName, ok := ctx.Locals("service").(string)
 	if !ok || serviceName == "" {
-		serverId, ok2 := ctx.Locals("serverId").(int)
-		if !ok2 || serverId == 0 {
+		serverId, ok2 := ctx.Locals("serverId").(string)
+		if !ok2 || serverId == "" {
 			return "", errors.New("service name missing")
 		}
 		server, err = as.serverRepository.GetByID(ctx.UserContext(), serverId)
