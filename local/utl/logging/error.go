@@ -3,6 +3,7 @@ package logging
 import (
 	"fmt"
 	"runtime"
+	"sync"
 )
 
 // ErrorLogger handles error-level logging
@@ -12,8 +13,9 @@ type ErrorLogger struct {
 
 // NewErrorLogger creates a new error logger instance
 func NewErrorLogger() *ErrorLogger {
+	base, _ := InitializeBase("error")
 	return &ErrorLogger{
-		base: GetBaseLogger("error"),
+		base: base,
 	}
 }
 
@@ -65,13 +67,16 @@ func (el *ErrorLogger) LogFatal(format string, v ...interface{}) {
 }
 
 // Global error logger instance
-var errorLogger *ErrorLogger
+var (
+	errorLogger *ErrorLogger
+	errorOnce   sync.Once
+)
 
 // GetErrorLogger returns the global error logger instance
 func GetErrorLogger() *ErrorLogger {
-	if errorLogger == nil {
+	errorOnce.Do(func() {
 		errorLogger = NewErrorLogger()
-	}
+	})
 	return errorLogger
 }
 

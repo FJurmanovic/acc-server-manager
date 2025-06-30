@@ -13,8 +13,6 @@ import (
 
 var (
 	timeFormat = "2006-01-02 15:04:05.000"
-	baseOnce   sync.Once
-	baseLogger *BaseLogger
 )
 
 // BaseLogger provides the core logging functionality
@@ -36,13 +34,9 @@ const (
 	LogLevelPanic LogLevel = "PANIC"
 )
 
-// Initialize creates or gets the singleton base logger instance
+// Initialize creates a new base logger instance
 func InitializeBase(tp string) (*BaseLogger, error) {
-	var err error
-	baseOnce.Do(func() {
-		baseLogger, err = newBaseLogger(tp)
-	})
-	return baseLogger, err
+	return newBaseLogger(tp)
 }
 
 func newBaseLogger(tp string) (*BaseLogger, error) {
@@ -71,11 +65,9 @@ func newBaseLogger(tp string) (*BaseLogger, error) {
 	return logger, nil
 }
 
-// GetBaseLogger returns the singleton base logger instance
+// GetBaseLogger creates and returns a new base logger instance
 func GetBaseLogger(tp string) *BaseLogger {
-	if baseLogger == nil {
-		baseLogger, _ = InitializeBase(tp)
-	}
+	baseLogger, _ := InitializeBase(tp)
 	return baseLogger
 }
 
@@ -158,7 +150,7 @@ func (bl *BaseLogger) IsInitialized() bool {
 
 // RecoverAndLog recovers from panics and logs them
 func RecoverAndLog() {
-	baseLogger := GetBaseLogger("log")
+	baseLogger := GetBaseLogger("panic")
 	if baseLogger != nil && baseLogger.IsInitialized() {
 		if r := recover(); r != nil {
 			// Get stack trace

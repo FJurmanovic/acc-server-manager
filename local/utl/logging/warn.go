@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+	"sync"
 )
 
 // WarnLogger handles warn-level logging
@@ -11,8 +12,9 @@ type WarnLogger struct {
 
 // NewWarnLogger creates a new warn logger instance
 func NewWarnLogger() *WarnLogger {
+	base, _ := InitializeBase("warn")
 	return &WarnLogger{
-		base: GetBaseLogger("warn"),
+		base: base,
 	}
 }
 
@@ -57,13 +59,16 @@ func (wl *WarnLogger) LogPerformance(operation string, threshold string, actual 
 }
 
 // Global warn logger instance
-var warnLogger *WarnLogger
+var (
+	warnLogger *WarnLogger
+	warnOnce   sync.Once
+)
 
 // GetWarnLogger returns the global warn logger instance
 func GetWarnLogger() *WarnLogger {
-	if warnLogger == nil {
+	warnOnce.Do(func() {
 		warnLogger = NewWarnLogger()
-	}
+	})
 	return warnLogger
 }
 

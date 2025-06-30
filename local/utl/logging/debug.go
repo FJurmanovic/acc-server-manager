@@ -3,6 +3,7 @@ package logging
 import (
 	"fmt"
 	"runtime"
+	"sync"
 )
 
 // DebugLogger handles debug-level logging
@@ -12,8 +13,9 @@ type DebugLogger struct {
 
 // NewDebugLogger creates a new debug logger instance
 func NewDebugLogger() *DebugLogger {
+	base, _ := InitializeBase("debug")
 	return &DebugLogger{
-		base: GetBaseLogger("debug"),
+		base: base,
 	}
 }
 
@@ -98,13 +100,16 @@ func bToKb(b uint64) uint64 {
 }
 
 // Global debug logger instance
-var debugLogger *DebugLogger
+var (
+	debugLogger *DebugLogger
+	debugOnce   sync.Once
+)
 
 // GetDebugLogger returns the global debug logger instance
 func GetDebugLogger() *DebugLogger {
-	if debugLogger == nil {
+	debugOnce.Do(func() {
 		debugLogger = NewDebugLogger()
-	}
+	})
 	return debugLogger
 }
 

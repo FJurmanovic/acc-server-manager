@@ -40,10 +40,10 @@ func newLogger() (*Logger, error) {
 	// Create the legacy logger wrapper
 	logger := &Logger{
 		base:        baseLogger,
-		errorLogger: NewErrorLogger(),
-		warnLogger:  NewWarnLogger(),
-		infoLogger:  NewInfoLogger(),
-		debugLogger: NewDebugLogger(),
+		errorLogger: GetErrorLogger(),
+		warnLogger:  GetWarnLogger(),
+		infoLogger:  GetInfoLogger(),
+		debugLogger: GetDebugLogger(),
 	}
 
 	return logger, nil
@@ -194,17 +194,18 @@ func GetLegacyLogger() *Logger {
 
 // InitializeLogging initializes all logging components
 func InitializeLogging() error {
-	// Initialize base logger
-	_, err := InitializeBase("log")
-	if err != nil {
-		return fmt.Errorf("failed to initialize base logger: %v", err)
-	}
-
 	// Initialize legacy logger for backward compatibility
-	_, err = Initialize()
+	_, err := Initialize()
 	if err != nil {
 		return fmt.Errorf("failed to initialize legacy logger: %v", err)
 	}
+
+	// Pre-initialize all logger types to ensure separate log files
+	GetErrorLogger()
+	GetWarnLogger()
+	GetInfoLogger()
+	GetDebugLogger()
+	GetPerformanceLogger()
 
 	// Log successful initialization
 	Info("Logging system initialized successfully")

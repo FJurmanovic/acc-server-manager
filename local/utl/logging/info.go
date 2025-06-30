@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+	"sync"
 )
 
 // InfoLogger handles info-level logging
@@ -11,8 +12,9 @@ type InfoLogger struct {
 
 // NewInfoLogger creates a new info logger instance
 func NewInfoLogger() *InfoLogger {
+	base, _ := InitializeBase("info")
 	return &InfoLogger{
-		base: GetBaseLogger("info"),
+		base: base,
 	}
 }
 
@@ -74,13 +76,16 @@ func (il *InfoLogger) LogResponse(method string, path string, statusCode int, du
 }
 
 // Global info logger instance
-var infoLogger *InfoLogger
+var (
+	infoLogger *InfoLogger
+	infoOnce   sync.Once
+)
 
 // GetInfoLogger returns the global info logger instance
 func GetInfoLogger() *InfoLogger {
-	if infoLogger == nil {
+	infoOnce.Do(func() {
 		infoLogger = NewInfoLogger()
-	}
+	})
 	return infoLogger
 }
 
