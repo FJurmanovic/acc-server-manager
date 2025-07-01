@@ -123,6 +123,25 @@ func (as *ApiService) StatusServer(serviceName string) (string, error) {
 	return as.windowsService.Status(context.Background(), serviceName)
 }
 
+// GetCachedStatus gets the cached status for a service name without requiring fiber context
+func (as *ApiService) GetCachedStatus(serviceName string) (string, error) {
+	// Try to get status from cache
+	if status, shouldCheck := as.statusCache.GetStatus(serviceName); !shouldCheck {
+		return status.String(), nil
+	}
+
+	// If cache miss or expired, check actual status
+	statusStr, err := as.StatusServer(serviceName)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse and update cache with new status
+	status := model.ParseServiceStatus(statusStr)
+	as.statusCache.UpdateStatus(serviceName, status)
+	return status.String(), nil
+}
+
 func (as *ApiService) StartServer(serviceName string) (string, error) {
 	status, err := as.windowsService.Start(context.Background(), serviceName)
 	if err != nil {

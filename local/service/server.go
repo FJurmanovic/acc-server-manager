@@ -210,6 +210,9 @@ func (s *ServerService) handleStateChange(server *model.Server, state *model.Ser
 	// Update session duration when session changes
 	s.updateSessionDuration(server, state.Session)
 
+	// Invalidate status cache when server state changes
+	s.apiService.statusCache.InvalidateStatus(server.ServiceName)
+
 	// Cancel existing timer if any
 	if debouncer, exists := s.debouncers.Load(server.ID); exists {
 		pending := debouncer.(*pendingState)
@@ -278,7 +281,7 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 
 	for i := range *servers {
 		server := &(*servers)[i]
-		status, err := s.apiService.StatusServer(server.ServiceName)
+		status, err := s.apiService.GetCachedStatus(server.ServiceName)
 		if err != nil {
 			logging.Error("Failed to get status for server %s: %v", server.ServiceName, err)
 		}
@@ -309,7 +312,7 @@ func (as *ServerService) GetById(ctx *fiber.Ctx, serverID uuid.UUID) (*model.Ser
 	if err != nil {
 		return nil, err
 	}
-	status, err := as.apiService.StatusServer(server.ServiceName)
+	status, err := as.apiService.GetCachedStatus(server.ServiceName)
 	if err != nil {
 		logging.Error(err.Error())
 	}
@@ -427,6 +430,9 @@ func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID uuid.UUID) error {
 	s.debouncers.Delete(server.ID)
 	s.sessionIDs.Delete(server.ID)
 
+	// Invalidate status cache for deleted server
+	s.apiService.statusCache.InvalidateStatus(server.ServiceName)
+
 	return nil
 }
 
@@ -467,6 +473,8 @@ func (s *ServerService) UpdateServer(ctx *fiber.Ctx, server *model.Server) error
 		if err := s.configureFirewall(server); err != nil {
 			return fmt.Errorf("failed to update firewall rules: %v", err)
 		}
+		// Invalidate cache for old service name
+		s.apiService.statusCache.InvalidateStatus(existingServer.ServiceName)
 	}
 
 	// Update database record

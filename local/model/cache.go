@@ -14,9 +14,9 @@ type StatusCache struct {
 
 // CacheConfig holds configuration for cache behavior
 type CacheConfig struct {
-	ExpirationTime  time.Duration // How long before a cache entry expires
-	ThrottleTime    time.Duration // Minimum time between status checks
-	DefaultStatus   ServiceStatus // Default status to return when throttled
+	ExpirationTime time.Duration // How long before a cache entry expires
+	ThrottleTime   time.Duration // Minimum time between status checks
+	DefaultStatus  ServiceStatus // Default status to return when throttled
 }
 
 // ServerStatusCache manages cached server statuses
@@ -73,6 +73,15 @@ func (c *ServerStatusCache) UpdateStatus(serviceName string, status ServiceStatu
 	c.lastChecked[serviceName] = time.Now()
 }
 
+// InvalidateStatus removes a specific service from the cache
+func (c *ServerStatusCache) InvalidateStatus(serviceName string) {
+	c.Lock()
+	defer c.Unlock()
+
+	delete(c.cache, serviceName)
+	delete(c.lastChecked, serviceName)
+}
+
 // Clear removes all entries from the cache
 func (c *ServerStatusCache) Clear() {
 	c.Lock()
@@ -100,7 +109,7 @@ func NewLookupCache() *LookupCache {
 func (c *LookupCache) Get(key string) (interface{}, bool) {
 	c.RLock()
 	defer c.RUnlock()
-	
+
 	value, exists := c.data[key]
 	if exists {
 		logging.Debug("Cache HIT for key: %s", key)
@@ -114,7 +123,7 @@ func (c *LookupCache) Get(key string) (interface{}, bool) {
 func (c *LookupCache) Set(key string, value interface{}) {
 	c.Lock()
 	defer c.Unlock()
-	
+
 	c.data[key] = value
 	logging.Debug("Cache SET for key: %s", key)
 }
@@ -123,7 +132,7 @@ func (c *LookupCache) Set(key string, value interface{}) {
 func (c *LookupCache) Clear() {
 	c.Lock()
 	defer c.Unlock()
-	
+
 	c.data = make(map[string]interface{})
 	logging.Debug("Cache CLEARED")
 }
@@ -285,4 +294,4 @@ func (c *ServerConfigCache) Clear() {
 	c.event = make(map[string]*ConfigEntry[EventConfig])
 	c.eventRules = make(map[string]*ConfigEntry[EventRules])
 	c.settings = make(map[string]*ConfigEntry[ServerSettings])
-} 
+}

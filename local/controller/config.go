@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
 	"acc-server-manager/local/utl/error_handler"
@@ -24,16 +25,18 @@ type ConfigController struct {
 //		*Fiber.RouterGroup: Fiber Router Group
 //	Returns:
 //		*ConfigController: Controller for "Config" interactions
-func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGroups, as2 *service.ApiService) *ConfigController {
+func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGroups, as2 *service.ApiService, auth *middleware.AuthMiddleware) *ConfigController {
 	ac := &ConfigController{
 		service:      as,
 		apiService:   as2,
 		errorHandler: error_handler.NewControllerErrorHandler(),
 	}
 
-	routeGroups.Config.Put("/:file", ac.UpdateConfig)
-	routeGroups.Config.Get("/:file", ac.GetConfig)
-	routeGroups.Config.Get("/", ac.GetConfigs)
+	configGroup := routeGroups.Config
+	configGroup.Use(auth.Authenticate)
+	configGroup.Put("/:file", ac.UpdateConfig)
+	configGroup.Get("/:file", ac.GetConfig)
+	configGroup.Get("/", ac.GetConfigs)
 
 	return ac
 }

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
 	"acc-server-manager/local/utl/error_handler"
@@ -22,17 +23,19 @@ type ApiController struct {
 //		*Fiber.RouterGroup: Fiber Router Group
 //	Returns:
 //		*ApiController: Controller for "api" interactions
-func NewApiController(as *service.ApiService, routeGroups *common.RouteGroups) *ApiController {
+func NewApiController(as *service.ApiService, routeGroups *common.RouteGroups, auth *middleware.AuthMiddleware) *ApiController {
 	ac := &ApiController{
 		service:      as,
 		errorHandler: error_handler.NewControllerErrorHandler(),
 	}
 
-	routeGroups.Api.Get("/", ac.getFirst)
-	routeGroups.Api.Get("/:service", ac.getStatus)
-	routeGroups.Api.Post("/start", ac.startServer)
-	routeGroups.Api.Post("/stop", ac.stopServer)
-	routeGroups.Api.Post("/restart", ac.restartServer)
+	apiGroup := routeGroups.Api
+	apiGroup.Use(auth.Authenticate)
+	apiGroup.Get("/", ac.getFirst)
+	apiGroup.Get("/:service", ac.getStatus)
+	apiGroup.Post("/start", ac.startServer)
+	apiGroup.Post("/stop", ac.stopServer)
+	apiGroup.Post("/restart", ac.restartServer)
 
 	return ac
 }
