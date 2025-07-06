@@ -68,7 +68,11 @@ func (as *ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
 	// Update status cache for this service before starting
 	as.statusCache.UpdateStatus(serviceName, model.StatusStarting)
 
-	statusStr, err := as.StartServer(serviceName)
+	_, err = as.StartServer(serviceName)
+	if err != nil {
+		return "", err
+	}
+	statusStr, err := as.StatusServer(serviceName)
 	if err != nil {
 		return "", err
 	}
@@ -88,7 +92,11 @@ func (as *ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
 	// Update status cache for this service before stopping
 	as.statusCache.UpdateStatus(serviceName, model.StatusStopping)
 
-	statusStr, err := as.StopServer(serviceName)
+	_, err = as.StopServer(serviceName)
+	if err != nil {
+		return "", err
+	}
+	statusStr, err := as.StatusServer(serviceName)
 	if err != nil {
 		return "", err
 	}
@@ -108,7 +116,11 @@ func (as *ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
 	// Update status cache for this service before restarting
 	as.statusCache.UpdateStatus(serviceName, model.StatusRestarting)
 
-	statusStr, err := as.RestartServer(serviceName)
+	_, err = as.RestartServer(serviceName)
+	if err != nil {
+		return "", err
+	}
+	statusStr, err := as.StatusServer(serviceName)
 	if err != nil {
 		return "", err
 	}
