@@ -65,6 +65,19 @@ func GenerateToken(user *model.User) (string, error) {
 	return token.SignedString(SecretKey)
 }
 
+func GenerateTokenWithExpiry(user *model.User, expiry time.Time) (string, error) {
+	expirationTime := expiry
+	claims := &Claims{
+		UserID: user.ID.String(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(SecretKey)
+}
+
 // ValidateToken validates a JWT and returns the claims if the token is valid.
 func ValidateToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}

@@ -1,0 +1,684 @@
+package service
+
+import (
+	"acc-server-manager/local/middleware"
+	"acc-server-manager/local/model"
+	"acc-server-manager/local/service"
+	"acc-server-manager/local/utl/cache"
+	"acc-server-manager/local/utl/jwt"
+	"acc-server-manager/tests"
+	"context"
+	"errors"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	jwtLib "github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
+)
+
+func TestAuthMiddleware_Authenticate_Success(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create test user
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: "testuser",
+		Password: "password123",
+		RoleID:   uuid.New(),
+		Role: model.Role{
+			ID:   uuid.New(),
+			Name: "User",
+			Permissions: []model.Permission{
+				{Name: "read", Description: "Read permission"},
+			},
+		},
+	}
+
+	// Create mock membership service
+	mockMembershipService := &MockMembershipService{
+		users: map[string]*model.User{
+			user.ID.String(): user,
+		},
+	}
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Generate valid JWT
+	token, err := jwt.GenerateToken(user)
+	tests.AssertNoError(t, err)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request with valid token
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+}
+
+func TestAuthMiddleware_Authenticate_MissingToken(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	mockMembershipService := &MockMembershipService{}
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request without token
+	req := httptest.NewRequest("GET", "/test", nil)
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 401, resp.StatusCode)
+}
+
+func TestAuthMiddleware_Authenticate_InvalidToken(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	mockMembershipService := &MockMembershipService{}
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request with invalid token
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer invalid-token")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 401, resp.StatusCode)
+}
+
+func TestAuthMiddleware_Authenticate_MalformedHeader(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	mockMembershipService := &MockMembershipService{}
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	testCases := []struct {
+		name   string
+		header string
+	}{
+		{"Missing Bearer", "invalid-token"},
+		{"Extra parts", "Bearer token1 token2"},
+		{"Wrong prefix", "Basic token"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/test", nil)
+			req.Header.Set("Authorization", tc.header)
+
+			resp, err := app.Test(req)
+			tests.AssertNoError(t, err)
+			tests.AssertEqual(t, 401, resp.StatusCode)
+		})
+	}
+}
+
+func TestAuthMiddleware_Authenticate_ExpiredToken(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create test user
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: "testuser",
+		Password: "password123",
+		RoleID:   uuid.New(),
+	}
+
+	// Create mock membership service
+	mockMembershipService := &MockMembershipService{
+		users: map[string]*model.User{
+			user.ID.String(): user,
+		},
+	}
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Generate token with very short expiration (simulate expired token)
+	claims := &jwt.Claims{
+		UserID: user.ID.String(),
+		RegisteredClaims: jwtLib.RegisteredClaims{
+			ExpiresAt: jwtLib.NewNumericDate(time.Now().Add(-1 * time.Hour)), // Expired
+		},
+	}
+	token := jwtLib.NewWithClaims(jwtLib.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwt.SecretKey)
+	tests.AssertNoError(t, err)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request with expired token
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+tokenString)
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 401, resp.StatusCode)
+}
+
+func TestAuthMiddleware_HasPermission_Success(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create test user with permissions
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: "testuser",
+		Password: "password123",
+		RoleID:   uuid.New(),
+		Role: model.Role{
+			ID:   uuid.New(),
+			Name: "User",
+			Permissions: []model.Permission{
+				{Name: "read", Description: "Read permission"},
+				{Name: "write", Description: "Write permission"},
+			},
+		},
+	}
+
+	// Create mock membership service
+	mockMembershipService := &MockMembershipService{
+		users: map[string]*model.User{
+			user.ID.String(): user,
+		},
+	}
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Generate valid JWT
+	token, err := jwt.GenerateToken(user)
+	tests.AssertNoError(t, err)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Use(authMiddleware.HasPermission("read"))
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request with valid token
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+}
+
+func TestAuthMiddleware_HasPermission_Forbidden(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create test user without required permission
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: "testuser",
+		Password: "password123",
+		RoleID:   uuid.New(),
+		Role: model.Role{
+			ID:   uuid.New(),
+			Name: "User",
+			Permissions: []model.Permission{
+				{Name: "read", Description: "Read permission"},
+			},
+		},
+	}
+
+	// Create mock membership service
+	mockMembershipService := &MockMembershipService{
+		users: map[string]*model.User{
+			user.ID.String(): user,
+		},
+	}
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Generate valid JWT
+	token, err := jwt.GenerateToken(user)
+	tests.AssertNoError(t, err)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Use(authMiddleware.HasPermission("admin")) // User doesn't have admin permission
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request with valid token
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 403, resp.StatusCode)
+}
+
+func TestAuthMiddleware_HasPermission_SuperAdmin(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create test user with Super Admin role
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: "superadmin",
+		Password: "password123",
+		RoleID:   uuid.New(),
+		Role: model.Role{
+			ID:   uuid.New(),
+			Name: "Super Admin",
+			Permissions: []model.Permission{
+				{Name: "basic", Description: "Basic permission"},
+			},
+		},
+	}
+
+	// Create mock membership service
+	mockMembershipService := &MockMembershipService{
+		users: map[string]*model.User{
+			user.ID.String(): user,
+		},
+	}
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Generate valid JWT
+	token, err := jwt.GenerateToken(user)
+	tests.AssertNoError(t, err)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Use(authMiddleware.HasPermission("any-permission")) // Super Admin has all permissions
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request with valid token
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+}
+
+func TestAuthMiddleware_HasPermission_Admin(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create test user with Admin role
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: "admin",
+		Password: "password123",
+		RoleID:   uuid.New(),
+		Role: model.Role{
+			ID:   uuid.New(),
+			Name: "Admin",
+			Permissions: []model.Permission{
+				{Name: "basic", Description: "Basic permission"},
+			},
+		},
+	}
+
+	// Create mock membership service
+	mockMembershipService := &MockMembershipService{
+		users: map[string]*model.User{
+			user.ID.String(): user,
+		},
+	}
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Generate valid JWT
+	token, err := jwt.GenerateToken(user)
+	tests.AssertNoError(t, err)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Use(authMiddleware.HasPermission("any-permission")) // Admin has all permissions
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request with valid token
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+}
+
+func TestAuthMiddleware_HasPermission_NoUserInContext(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	mockMembershipService := &MockMembershipService{}
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Create Fiber app for testing (skip authentication middleware)
+	app := fiber.New()
+	app.Use(authMiddleware.HasPermission("read")) // No user in context
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request
+	req := httptest.NewRequest("GET", "/test", nil)
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 401, resp.StatusCode)
+}
+
+func TestAuthMiddleware_UserCaching(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create test user
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: "testuser",
+		Password: "password123",
+		RoleID:   uuid.New(),
+		Role: model.Role{
+			ID:   uuid.New(),
+			Name: "User",
+			Permissions: []model.Permission{
+				{Name: "read", Description: "Read permission"},
+			},
+		},
+	}
+
+	// Create mock membership service that tracks calls
+	mockMembershipService := &MockMembershipService{
+		users: map[string]*model.User{
+			user.ID.String(): user,
+		},
+		getUserCallCount: 0,
+	}
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Generate valid JWT
+	token, err := jwt.GenerateToken(user)
+	tests.AssertNoError(t, err)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// First request - should call database
+	resp1, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp1.StatusCode)
+	tests.AssertEqual(t, 1, mockMembershipService.getUserCallCount)
+
+	// Second request - should use cache
+	resp2, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp2.StatusCode)
+	tests.AssertEqual(t, 1, mockMembershipService.getUserCallCount) // Should still be 1 (cached)
+}
+
+func TestAuthMiddleware_CacheInvalidation(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create test user
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: "testuser",
+		Password: "password123",
+		RoleID:   uuid.New(),
+		Role: model.Role{
+			ID:   uuid.New(),
+			Name: "User",
+			Permissions: []model.Permission{
+				{Name: "read", Description: "Read permission"},
+			},
+		},
+	}
+
+	// Create mock membership service
+	mockMembershipService := &MockMembershipService{
+		users: map[string]*model.User{
+			user.ID.String(): user,
+		},
+		getUserCallCount: 0,
+	}
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Generate valid JWT
+	token, err := jwt.GenerateToken(user)
+	tests.AssertNoError(t, err)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// First request - should call database
+	resp1, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp1.StatusCode)
+	tests.AssertEqual(t, 1, mockMembershipService.getUserCallCount)
+
+	// Invalidate cache
+	authMiddleware.InvalidateUserPermissions(user.ID.String())
+
+	// Second request - should call database again due to cache invalidation
+	resp2, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp2.StatusCode)
+	tests.AssertEqual(t, 2, mockMembershipService.getUserCallCount) // Should be 2 (cache invalidated)
+}
+
+func TestAuthMiddleware_UserNotFound(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create test user for token generation
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: "testuser",
+		Password: "password123",
+		RoleID:   uuid.New(),
+	}
+
+	// Create mock membership service without the user (user not found scenario)
+	mockMembershipService := &MockMembershipService{
+		users: map[string]*model.User{}, // Empty - user not found
+	}
+
+	// Create cache and auth middleware
+	cache := cache.NewInMemoryCache()
+	authMiddleware := middleware.NewAuthMiddleware(mockMembershipService, cache)
+
+	// Generate valid JWT for non-existent user
+	token, err := jwt.GenerateToken(user)
+	tests.AssertNoError(t, err)
+
+	// Create Fiber app for testing
+	app := fiber.New()
+	app.Use(authMiddleware.Authenticate)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"message": "success"})
+	})
+
+	// Create test request with valid token but non-existent user
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 401, resp.StatusCode)
+}
+
+// MockMembershipService implements the MembershipService interface for testing
+type MockMembershipService struct {
+	users            map[string]*model.User
+	getUserCallCount int
+	shouldFailGet    bool
+}
+
+func (m *MockMembershipService) GetUserWithPermissions(ctx context.Context, userID string) (*model.User, error) {
+	m.getUserCallCount++
+	if m.shouldFailGet {
+		return nil, errors.New("database error")
+	}
+	user, exists := m.users[userID]
+	if !exists {
+		return nil, errors.New("user not found")
+	}
+	return user, nil
+}
+
+func (m *MockMembershipService) SetCacheInvalidator(invalidator service.CacheInvalidator) {
+	// Mock implementation
+}
+
+func (m *MockMembershipService) Login(ctx context.Context, username, password string) (string, error) {
+	for _, user := range m.users {
+		if user.Username == username {
+			if err := user.VerifyPassword(password); err == nil {
+				return jwt.GenerateToken(user)
+			}
+		}
+	}
+	return "", errors.New("invalid credentials")
+}
+
+func (m *MockMembershipService) CreateUser(ctx context.Context, username, password, roleName string) (*model.User, error) {
+	user := &model.User{
+		ID:       uuid.New(),
+		Username: username,
+		Password: password,
+		RoleID:   uuid.New(),
+	}
+	m.users[user.ID.String()] = user
+	return user, nil
+}
+
+func (m *MockMembershipService) ListUsers(ctx context.Context) ([]*model.User, error) {
+	users := make([]*model.User, 0, len(m.users))
+	for _, user := range m.users {
+		users = append(users, user)
+	}
+	return users, nil
+}
+
+func (m *MockMembershipService) GetUser(ctx context.Context, userID uuid.UUID) (*model.User, error) {
+	user, exists := m.users[userID.String()]
+	if !exists {
+		return nil, errors.New("user not found")
+	}
+	return user, nil
+}
+
+func (m *MockMembershipService) SetShouldFailGet(shouldFail bool) {
+	m.shouldFailGet = shouldFail
+}

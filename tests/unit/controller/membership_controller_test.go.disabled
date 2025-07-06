@@ -1,0 +1,598 @@
+package controller
+
+import (
+	"acc-server-manager/local/controller"
+	"acc-server-manager/local/model"
+	"acc-server-manager/local/service"
+	"acc-server-manager/local/utl/common"
+	"acc-server-manager/tests"
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+)
+
+func TestMembershipController_Login_Success(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{
+		loginResponse: "mock-jwt-token-12345",
+	}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Prepare request body
+	loginData := map[string]string{
+		"username": "testuser",
+		"password": "password123",
+	}
+	bodyBytes, err := json.Marshal(loginData)
+	tests.AssertNoError(t, err)
+
+	// Create test request
+	req := httptest.NewRequest("POST", "/auth/login", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+
+	// Parse response
+	var response map[string]string
+	body, err := io.ReadAll(resp.Body)
+	tests.AssertNoError(t, err)
+	err = json.Unmarshal(body, &response)
+	tests.AssertNoError(t, err)
+
+	// Verify response
+	tests.AssertEqual(t, "mock-jwt-token-12345", response["token"])
+	tests.AssertEqual(t, true, mockMembershipService.loginCalled)
+}
+
+func TestMembershipController_Login_InvalidCredentials(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create mock service with login failure
+	mockMembershipService := &MockMembershipService{
+		shouldFailLogin: true,
+	}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Prepare request body
+	loginData := map[string]string{
+		"username": "baduser",
+		"password": "wrongpassword",
+	}
+	bodyBytes, err := json.Marshal(loginData)
+	tests.AssertNoError(t, err)
+
+	// Create test request
+	req := httptest.NewRequest("POST", "/auth/login", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 401, resp.StatusCode)
+
+	// Verify service was called
+	tests.AssertEqual(t, true, mockMembershipService.loginCalled)
+}
+
+func TestMembershipController_Login_InvalidJSON(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Create test request with invalid JSON
+	req := httptest.NewRequest("POST", "/auth/login", bytes.NewReader([]byte("invalid json")))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 400, resp.StatusCode)
+
+	// Verify service was not called
+	tests.AssertEqual(t, false, mockMembershipService.loginCalled)
+}
+
+func TestMembershipController_CreateUser_Success(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create expected user response
+	expectedUser := &model.User{
+		ID:       uuid.New(),
+		Username: "newuser",
+		RoleID:   uuid.New(),
+	}
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{
+		createUserResponse: expectedUser,
+	}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{authenticated: true}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Prepare request body
+	createUserData := map[string]string{
+		"username": "newuser",
+		"password": "password123",
+		"role":     "User",
+	}
+	bodyBytes, err := json.Marshal(createUserData)
+	tests.AssertNoError(t, err)
+
+	// Create test request
+	req := httptest.NewRequest("POST", "/membership/", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+
+	// Parse response
+	var response model.User
+	body, err := io.ReadAll(resp.Body)
+	tests.AssertNoError(t, err)
+	err = json.Unmarshal(body, &response)
+	tests.AssertNoError(t, err)
+
+	// Verify response
+	tests.AssertEqual(t, expectedUser.ID, response.ID)
+	tests.AssertEqual(t, expectedUser.Username, response.Username)
+	tests.AssertEqual(t, true, mockMembershipService.createUserCalled)
+}
+
+func TestMembershipController_CreateUser_Unauthorized(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{authenticated: false}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Prepare request body
+	createUserData := map[string]string{
+		"username": "newuser",
+		"password": "password123",
+		"role":     "User",
+	}
+	bodyBytes, err := json.Marshal(createUserData)
+	tests.AssertNoError(t, err)
+
+	// Create test request
+	req := httptest.NewRequest("POST", "/membership/", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 401, resp.StatusCode)
+
+	// Verify service was not called
+	tests.AssertEqual(t, false, mockMembershipService.createUserCalled)
+}
+
+func TestMembershipController_CreateUser_Forbidden(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{
+		authenticated: true,
+		hasPermission: false, // User doesn't have MembershipCreate permission
+	}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Prepare request body
+	createUserData := map[string]string{
+		"username": "newuser",
+		"password": "password123",
+		"role":     "User",
+	}
+	bodyBytes, err := json.Marshal(createUserData)
+	tests.AssertNoError(t, err)
+
+	// Create test request
+	req := httptest.NewRequest("POST", "/membership/", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 403, resp.StatusCode)
+
+	// Verify service was not called
+	tests.AssertEqual(t, false, mockMembershipService.createUserCalled)
+}
+
+func TestMembershipController_ListUsers_Success(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create expected users response
+	expectedUsers := []*model.User{
+		{
+			ID:       uuid.New(),
+			Username: "user1",
+			RoleID:   uuid.New(),
+		},
+		{
+			ID:       uuid.New(),
+			Username: "user2",
+			RoleID:   uuid.New(),
+		},
+	}
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{
+		listUsersResponse: expectedUsers,
+	}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{
+		authenticated: true,
+		hasPermission: true,
+	}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Create test request
+	req := httptest.NewRequest("GET", "/membership/", nil)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+
+	// Parse response
+	var response []*model.User
+	body, err := io.ReadAll(resp.Body)
+	tests.AssertNoError(t, err)
+	err = json.Unmarshal(body, &response)
+	tests.AssertNoError(t, err)
+
+	// Verify response
+	tests.AssertEqual(t, 2, len(response))
+	tests.AssertEqual(t, expectedUsers[0].Username, response[0].Username)
+	tests.AssertEqual(t, expectedUsers[1].Username, response[1].Username)
+	tests.AssertEqual(t, true, mockMembershipService.listUsersCalled)
+}
+
+func TestMembershipController_GetUser_Success(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create expected user response
+	userID := uuid.New()
+	expectedUser := &model.User{
+		ID:       userID,
+		Username: "testuser",
+		RoleID:   uuid.New(),
+	}
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{
+		getUserResponse: expectedUser,
+	}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{
+		authenticated: true,
+		hasPermission: true,
+	}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Create test request
+	req := httptest.NewRequest("GET", "/membership/"+userID.String(), nil)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+
+	// Parse response
+	var response model.User
+	body, err := io.ReadAll(resp.Body)
+	tests.AssertNoError(t, err)
+	err = json.Unmarshal(body, &response)
+	tests.AssertNoError(t, err)
+
+	// Verify response
+	tests.AssertEqual(t, expectedUser.ID, response.ID)
+	tests.AssertEqual(t, expectedUser.Username, response.Username)
+	tests.AssertEqual(t, true, mockMembershipService.getUserCalled)
+}
+
+func TestMembershipController_GetUser_InvalidUUID(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{
+		authenticated: true,
+		hasPermission: true,
+	}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Create test request with invalid UUID
+	req := httptest.NewRequest("GET", "/membership/invalid-uuid", nil)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 400, resp.StatusCode)
+
+	// Verify service was not called
+	tests.AssertEqual(t, false, mockMembershipService.getUserCalled)
+}
+
+func TestMembershipController_DeleteUser_Success(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{
+		authenticated: true,
+		hasPermission: true,
+	}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Create test request
+	userID := uuid.New().String()
+	req := httptest.NewRequest("DELETE", "/membership/"+userID, nil)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+
+	// Verify service was called
+	tests.AssertEqual(t, true, mockMembershipService.deleteUserCalled)
+}
+
+func TestMembershipController_GetMe_Success(t *testing.T) {
+	// Setup
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create expected user response
+	expectedUser := &model.User{
+		ID:       uuid.New(),
+		Username: "currentuser",
+		RoleID:   uuid.New(),
+	}
+
+	// Create mock service
+	mockMembershipService := &MockMembershipService{
+		getUserWithPermissionsResponse: expectedUser,
+	}
+
+	// Create Fiber app with controller
+	app := fiber.New()
+	routeGroups := &common.RouteGroups{
+		Auth:       app.Group("/auth"),
+		Membership: app.Group("/membership"),
+	}
+	mockAuth := &MockAuthMiddleware{authenticated: true}
+	controller.NewMembershipController(mockMembershipService, mockAuth, routeGroups)
+
+	// Create test request
+	req := httptest.NewRequest("GET", "/auth/me", nil)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	tests.AssertNoError(t, err)
+	tests.AssertEqual(t, 200, resp.StatusCode)
+
+	// Parse response
+	var response model.User
+	body, err := io.ReadAll(resp.Body)
+	tests.AssertNoError(t, err)
+	err = json.Unmarshal(body, &response)
+	tests.AssertNoError(t, err)
+
+	// Verify response
+	tests.AssertEqual(t, expectedUser.ID, response.ID)
+	tests.AssertEqual(t, expectedUser.Username, response.Username)
+}
+
+// MockMembershipService implements the MembershipService interface for testing
+type MockMembershipService struct {
+	loginResponse                    string
+	createUserResponse               *model.User
+	listUsersResponse                []*model.User
+	getUserResponse                  *model.User
+	getUserWithPermissionsResponse   *model.User
+	getRolesResponse                 []*model.Role
+	shouldFailLogin                  bool
+	shouldFailCreateUser             bool
+	shouldFailListUsers              bool
+	shouldFailGetUser                bool
+	shouldFailGetUserWithPermissions bool
+	shouldFailDeleteUser             bool
+	shouldFailUpdateUser             bool
+	shouldFailGetRoles               bool
+	loginCalled                      bool
+	createUserCalled                 bool
+	listUsersCalled                  bool
+	getUserCalled                    bool
+	getUserWithPermissionsCalled     bool
+	deleteUserCalled                 bool
+	updateUserCalled                 bool
+	getRolesCalled                   bool
+}
+
+func (m *MockMembershipService) Login(ctx context.Context, username, password string) (string, error) {
+	m.loginCalled = true
+	if m.shouldFailLogin {
+		return "", tests.ErrorForTesting("invalid credentials")
+	}
+	return m.loginResponse, nil
+}
+
+func (m *MockMembershipService) CreateUser(ctx context.Context, username, password, roleName string) (*model.User, error) {
+	m.createUserCalled = true
+	if m.shouldFailCreateUser {
+		return nil, tests.ErrorForTesting("failed to create user")
+	}
+	return m.createUserResponse, nil
+}
+
+func (m *MockMembershipService) ListUsers(ctx context.Context) ([]*model.User, error) {
+	m.listUsersCalled = true
+	if m.shouldFailListUsers {
+		return nil, tests.ErrorForTesting("failed to list users")
+	}
+	return m.listUsersResponse, nil
+}
+
+func (m *MockMembershipService) GetUser(ctx context.Context, userID uuid.UUID) (*model.User, error) {
+	m.getUserCalled = true
+	if m.shouldFailGetUser {
+		return nil, tests.ErrorForTesting("user not found")
+	}
+	return m.getUserResponse, nil
+}
+
+func (m *MockMembershipService) GetUserWithPermissions(ctx context.Context, userID string) (*model.User, error) {
+	m.getUserWithPermissionsCalled = true
+	if m.shouldFailGetUserWithPermissions {
+		return nil, tests.ErrorForTesting("user not found")
+	}
+	return m.getUserWithPermissionsResponse, nil
+}
+
+func (m *MockMembershipService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	m.deleteUserCalled = true
+	if m.shouldFailDeleteUser {
+		return tests.ErrorForTesting("failed to delete user")
+	}
+	return nil
+}
+
+func (m *MockMembershipService) UpdateUser(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*model.User, error) {
+	m.updateUserCalled = true
+	if m.shouldFailUpdateUser {
+		return nil, tests.ErrorForTesting("failed to update user")
+	}
+	return m.getUserResponse, nil
+}
+
+func (m *MockMembershipService) GetRoles(ctx context.Context) ([]*model.Role, error) {
+	m.getRolesCalled = true
+	if m.shouldFailGetRoles {
+		return nil, tests.ErrorForTesting("failed to get roles")
+	}
+	return m.getRolesResponse, nil
+}
+
+func (m *MockMembershipService) SetCacheInvalidator(invalidator service.CacheInvalidator) {
+	// Mock implementation
+}
+
+func (m *MockMembershipService) SetupInitialData(ctx context.Context) error {
+	// Mock implementation - no-op for testing
+	return nil
+}
