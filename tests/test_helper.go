@@ -2,6 +2,8 @@ package tests
 
 import (
 	"acc-server-manager/local/model"
+	"acc-server-manager/local/utl/configs"
+	"acc-server-manager/local/utl/jwt"
 	"bytes"
 	"context"
 	"errors"
@@ -45,8 +47,12 @@ func SetTestEnv() {
 	os.Setenv("APP_SECRET_CODE", "test-code-for-testing-123456789012")
 	os.Setenv("ENCRYPTION_KEY", "12345678901234567890123456789012")
 	os.Setenv("JWT_SECRET", "test-jwt-secret-key-for-testing-123456789012345678901234567890")
+	os.Setenv("ACCESS_KEY", "test-access-key-for-testing")
 	// Set test-specific environment variables
 	os.Setenv("TESTING_ENV", "true") // Used to bypass
+
+	configs.Init()
+	jwt.Init()
 }
 
 // NewTestHelper creates a new test helper with in-memory database

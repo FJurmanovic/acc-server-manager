@@ -17,6 +17,25 @@ const (
 )
 
 // Server represents an ACC server instance
+type ServerAPI struct {
+	Name        string        `json:"name"`
+	Status      ServiceStatus `json:"status"`
+	State       *ServerState  `json:"state"`
+	PlayerCount int           `json:"playerCount"`
+	Track       string        `json:"track"`
+}
+
+func (s *Server) ToServerAPI() *ServerAPI {
+	return &ServerAPI{
+		Name:        s.Name,
+		Status:      s.Status,
+		State:       s.State,
+		PlayerCount: s.State.PlayerCount,
+		Track:       s.State.Track,
+	}
+}
+
+// Server represents an ACC server instance
 type Server struct {
 	ID           uuid.UUID     `gorm:"type:uuid;primary_key;" json:"id"`
 	Name         string        `gorm:"not null" json:"name"`

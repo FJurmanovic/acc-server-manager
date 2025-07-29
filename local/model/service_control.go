@@ -104,6 +104,6 @@ func (s ServiceStatus) Value() (driver.Value, error) {
 	return s.String(), nil
 }
 
-type ApiModel struct {
-	Api string `json:"api"`
+type ServiceControlModel struct {
+	ServiceControl string `json:"serviceControl"`
 }

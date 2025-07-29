@@ -31,10 +31,28 @@ func NewServerController(ss *service.ServerService, routeGroups *common.RouteGro
 	serverRoutes.Post("/", auth.HasPermission(model.ServerCreate), ac.CreateServer)
 	serverRoutes.Put("/:id", auth.HasPermission(model.ServerUpdate), ac.UpdateServer)
 	serverRoutes.Delete("/:id", auth.HasPermission(model.ServerDelete), ac.DeleteServer)
+
+	apiServerRoutes := routeGroups.Api.Group("/server")
+	apiServerRoutes.Get("/", auth.HasPermission(model.ServerView), ac.GetAllApi)
 	return ac
 }
 
 // GetAll returns Servers
+func (ac *ServerController) GetAllApi(c *fiber.Ctx) error {
+	var filter model.ServerFilter
+	if err := common.ParseQueryFilter(c, &filter); err != nil {
+		return ac.errorHandler.HandleValidationError(c, err, "query_filter")
+	}
+	ServerModel, err := ac.service.GetAll(c, &filter)
+	if err != nil {
+		return ac.errorHandler.HandleServiceError(c, err)
+	}
+	var apiServers []model.ServerAPI
+	for _, server := range *ServerModel {
+		apiServers = append(apiServers, *server.ToServerAPI())
+	}
+	return c.JSON(apiServers)
+}
 func (ac *ServerController) GetAll(c *fiber.Ctx) error {
 	var filter model.ServerFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {

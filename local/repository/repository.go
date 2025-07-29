@@ -10,7 +10,7 @@ import (
 //	Args:
 //		*dig.Container: Dig Container
 func InitializeRepositories(c *dig.Container) {
-	c.Provide(NewApiRepository)
+	c.Provide(NewServiceControlRepository)
 	c.Provide(NewStateHistoryRepository)
 	c.Provide(NewServerRepository)
 	c.Provide(NewConfigRepository)

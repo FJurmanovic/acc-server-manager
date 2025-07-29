@@ -10,17 +10,17 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type ApiService struct {
-	repository       *repository.ApiRepository
+type ServiceControlService struct {
+	repository       *repository.ServiceControlRepository
 	serverRepository *repository.ServerRepository
 	serverService    *ServerService
 	statusCache      *model.ServerStatusCache
 	windowsService   *WindowsService
 }
 
-func NewApiService(repository *repository.ApiRepository,
-	serverRepository *repository.ServerRepository) *ApiService {
-	return &ApiService{
+func NewServiceControlService(repository *repository.ServiceControlRepository,
+	serverRepository *repository.ServerRepository) *ServiceControlService {
+	return &ServiceControlService{
 		repository:       repository,
 		serverRepository: serverRepository,
 		statusCache: model.NewServerStatusCache(model.CacheConfig{
@@ -32,11 +32,11 @@ func NewApiService(repository *repository.ApiRepository,
 	}
 }
 
-func (as *ApiService) SetServerService(serverService *ServerService) {
+func (as *ServiceControlService) SetServerService(serverService *ServerService) {
 	as.serverService = serverService
 }
 
-func (as *ApiService) GetStatus(ctx *fiber.Ctx) (string, error) {
+func (as *ServiceControlService) GetStatus(ctx *fiber.Ctx) (string, error) {
 	serviceName, err := as.GetServiceName(ctx)
 	if err != nil {
 		return "", err
@@ -59,7 +59,7 @@ func (as *ApiService) GetStatus(ctx *fiber.Ctx) (string, error) {
 	return status.String(), nil
 }
 
-func (as *ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
+func (as *ServiceControlService) ServiceControlStartServer(ctx *fiber.Ctx) (string, error) {
 	serviceName, err := as.GetServiceName(ctx)
 	if err != nil {
 		return "", err
@@ -83,7 +83,7 @@ func (as *ApiService) ApiStartServer(ctx *fiber.Ctx) (string, error) {
 	return status.String(), nil
 }
 
-func (as *ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
+func (as *ServiceControlService) ServiceControlStopServer(ctx *fiber.Ctx) (string, error) {
 	serviceName, err := as.GetServiceName(ctx)
 	if err != nil {
 		return "", err
@@ -107,7 +107,7 @@ func (as *ApiService) ApiStopServer(ctx *fiber.Ctx) (string, error) {
 	return status.String(), nil
 }
 
-func (as *ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
+func (as *ServiceControlService) ServiceControlRestartServer(ctx *fiber.Ctx) (string, error) {
 	serviceName, err := as.GetServiceName(ctx)
 	if err != nil {
 		return "", err
@@ -131,12 +131,12 @@ func (as *ApiService) ApiRestartServer(ctx *fiber.Ctx) (string, error) {
 	return status.String(), nil
 }
 
-func (as *ApiService) StatusServer(serviceName string) (string, error) {
+func (as *ServiceControlService) StatusServer(serviceName string) (string, error) {
 	return as.windowsService.Status(context.Background(), serviceName)
 }
 
 // GetCachedStatus gets the cached status for a service name without requiring fiber context
-func (as *ApiService) GetCachedStatus(serviceName string) (string, error) {
+func (as *ServiceControlService) GetCachedStatus(serviceName string) (string, error) {
 	// Try to get status from cache
 	if status, shouldCheck := as.statusCache.GetStatus(serviceName); !shouldCheck {
 		return status.String(), nil
@@ -154,7 +154,7 @@ func (as *ApiService) GetCachedStatus(serviceName string) (string, error) {
 	return status.String(), nil
 }
 
-func (as *ApiService) StartServer(serviceName string) (string, error) {
+func (as *ServiceControlService) StartServer(serviceName string) (string, error) {
 	status, err := as.windowsService.Start(context.Background(), serviceName)
 	if err != nil {
 		return "", err
@@ -168,7 +168,7 @@ func (as *ApiService) StartServer(serviceName string) (string, error) {
 	return status, err
 }
 
-func (as *ApiService) StopServer(serviceName string) (string, error) {
+func (as *ServiceControlService) StopServer(serviceName string) (string, error) {
 	status, err := as.windowsService.Stop(context.Background(), serviceName)
 	if err != nil {
 		return "", err
@@ -183,7 +183,7 @@ func (as *ApiService) StopServer(serviceName string) (string, error) {
 	return status, err
 }
 
-func (as *ApiService) RestartServer(serviceName string) (string, error) {
+func (as *ServiceControlService) RestartServer(serviceName string) (string, error) {
 	status, err := as.windowsService.Restart(context.Background(), serviceName)
 	if err != nil {
 		return "", err
@@ -197,7 +197,7 @@ func (as *ApiService) RestartServer(serviceName string) (string, error) {
 	return status, err
 }
 
-func (as *ApiService) GetServiceName(ctx *fiber.Ctx) (string, error) {
+func (as *ServiceControlService) GetServiceName(ctx *fiber.Ctx) (string, error) {
 	var server *model.Server
 	var err error
 	serviceName, ok := ctx.Locals("service").(string)

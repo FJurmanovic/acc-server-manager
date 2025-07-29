@@ -26,7 +26,7 @@ const (
 type ServerService struct {
 	repository       *repository.ServerRepository
 	stateHistoryRepo *repository.StateHistoryRepository
-	apiService       *ApiService
+	apiService       *ServiceControlService
 	configService    *ConfigService
 	steamService     *SteamService
 	windowsService   *WindowsService
@@ -63,7 +63,7 @@ func (s *ServerService) ensureLogTailing(server *model.Server, instance *trackin
 func NewServerService(
 	repository *repository.ServerRepository,
 	stateHistoryRepo *repository.StateHistoryRepository,
-	apiService *ApiService,
+	apiService *ServiceControlService,
 	configService *ConfigService,
 	steamService *SteamService,
 	windowsService *WindowsService,

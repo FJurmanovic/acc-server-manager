@@ -24,6 +24,7 @@ type RouteGroups struct {
 	Lookup       fiber.Router
 	StateHistory fiber.Router
 	Membership   fiber.Router
+	System       fiber.Router
 }
 
 func CheckError(err error) {

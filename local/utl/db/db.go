@@ -35,7 +35,7 @@ func Migrate(db *gorm.DB) {
 
 	// Run GORM AutoMigrate for all models
 	err := db.AutoMigrate(
-		&model.ApiModel{},
+		&model.ServiceControlModel{},
 		&model.Config{},
 		&model.Track{},
 		&model.CarModel{},
@@ -55,7 +55,7 @@ func Migrate(db *gorm.DB) {
 		// Don't panic, just log the error as custom migrations may have handled this
 	}
 
-	db.FirstOrCreate(&model.ApiModel{Api: "Works"})
+	db.FirstOrCreate(&model.ServiceControlModel{ServiceControl: "Works"})
 
 	Seed(db)
 }

@@ -35,9 +35,9 @@ type ConfigFilter struct {
 }
 
 // ApiFilter defines filtering options for Api queries
-type ApiFilter struct {
+type ServiceControlFilter struct {
 	BaseFilter
-	Api string `query:"api"`
+	ServiceControl string `query:"serviceControl"`
 }
 
 // MembershipFilter defines filtering options for User queries

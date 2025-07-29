@@ -13,14 +13,16 @@ var (
 	Secret        string
 	SecretCode    string
 	EncryptionKey string
+	AccessKey     string
 )
 
-func init() {
+func Init() {
 	godotenv.Load()
 	// Fail fast if critical environment variables are missing
 	Secret = getEnvRequired("APP_SECRET")
 	SecretCode = getEnvRequired("APP_SECRET_CODE")
 	EncryptionKey = getEnvRequired("ENCRYPTION_KEY")
+	AccessKey = getEnvRequired("ACCESS_KEY")
 
 	if len(EncryptionKey) != 32 {
 		log.Fatal("ENCRYPTION_KEY must be exactly 32 bytes long for AES-256")

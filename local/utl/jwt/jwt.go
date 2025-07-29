@@ -22,7 +22,7 @@ type Claims struct {
 }
 
 // init initializes the JWT secret key from environment variable
-func init() {
+func Init() {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET environment variable is required and cannot be empty")

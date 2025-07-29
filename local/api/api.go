@@ -2,6 +2,7 @@ package api
 
 import (
 	"acc-server-manager/local/controller"
+	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/utl/common"
 	"acc-server-manager/local/utl/configs"
 	"acc-server-manager/local/utl/logging"
@@ -29,7 +30,11 @@ func Init(di *dig.Container, app *fiber.App) {
 		Lookup:       groups.Group("/lookup"),
 		StateHistory: serverIdGroup.Group("/state-history"),
 		Membership:   groups.Group("/membership"),
+		System:       groups.Group("/system"),
 	}
+
+	accessKeyMiddleware := middleware.NewAccessKeyMiddleware()
+	routeGroups.Api.Use(accessKeyMiddleware.Authenticate)
 
 	err := di.Provide(func() *common.RouteGroups {
 		return routeGroups

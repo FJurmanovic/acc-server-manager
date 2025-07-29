@@ -14,6 +14,11 @@ import (
 )
 
 func TestController_JSONParsing_Success(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test basic JSON parsing functionality
 	app := fiber.New()
 
@@ -55,6 +60,11 @@ func TestController_JSONParsing_Success(t *testing.T) {
 }
 
 func TestController_JSONParsing_InvalidJSON(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test handling of invalid JSON
 	app := fiber.New()
 
@@ -87,6 +97,11 @@ func TestController_JSONParsing_InvalidJSON(t *testing.T) {
 }
 
 func TestController_UUIDValidation_Success(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test UUID parameter validation
 	app := fiber.New()
 
@@ -123,6 +138,11 @@ func TestController_UUIDValidation_Success(t *testing.T) {
 }
 
 func TestController_UUIDValidation_InvalidUUID(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test handling of invalid UUID
 	app := fiber.New()
 
@@ -157,6 +177,11 @@ func TestController_UUIDValidation_InvalidUUID(t *testing.T) {
 }
 
 func TestController_QueryParameters_Success(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test query parameter handling
 	app := fiber.New()
 
@@ -194,6 +219,11 @@ func TestController_QueryParameters_Success(t *testing.T) {
 }
 
 func TestController_HTTPMethods_Success(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test different HTTP methods
 	app := fiber.New()
 
@@ -249,6 +279,11 @@ func TestController_HTTPMethods_Success(t *testing.T) {
 }
 
 func TestController_ErrorHandling_StatusCodes(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test different error status codes
 	app := fiber.New()
 
@@ -293,6 +328,11 @@ func TestController_ErrorHandling_StatusCodes(t *testing.T) {
 }
 
 func TestController_ConfigurationModel_JSONSerialization(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test Configuration model JSON serialization
 	app := fiber.New()
 
@@ -333,6 +373,11 @@ func TestController_ConfigurationModel_JSONSerialization(t *testing.T) {
 }
 
 func TestController_UserModel_JSONSerialization(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test User model JSON serialization (password should be hidden)
 	app := fiber.New()
 
@@ -370,6 +415,11 @@ func TestController_UserModel_JSONSerialization(t *testing.T) {
 }
 
 func TestController_MiddlewareChaining_Success(t *testing.T) {
+	// Setup environment and test helper
+	tests.SetTestEnv()
+	helper := tests.NewTestHelper(t)
+	defer helper.Cleanup()
+
 	// Test middleware chaining
 	app := fiber.New()
 
