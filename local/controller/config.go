@@ -1,16 +1,20 @@
 package controller
 
 import (
+	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
+	"acc-server-manager/local/utl/error_handler"
 	"acc-server-manager/local/utl/logging"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type ConfigController struct {
-	service    *service.ConfigService
-	apiService *service.ApiService
+	service      *service.ConfigService
+	apiService   *service.ServiceControlService
+	errorHandler *error_handler.ControllerErrorHandler
 }
 
 // NewConfigController
@@ -21,49 +25,65 @@ type ConfigController struct {
 //		*Fiber.RouterGroup: Fiber Router Group
 //	Returns:
 //		*ConfigController: Controller for "Config" interactions
-func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGroups, as2 *service.ApiService) *ConfigController {
+func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGroups, as2 *service.ServiceControlService, auth *middleware.AuthMiddleware) *ConfigController {
 	ac := &ConfigController{
-		service:    as,
-		apiService: as2,
+		service:      as,
+		apiService:   as2,
+		errorHandler: error_handler.NewControllerErrorHandler(),
 	}
 
-	routeGroups.Config.Put("/:file", ac.updateConfig)
-	routeGroups.Config.Get("/:file", ac.getConfig)
-	routeGroups.Config.Get("/", ac.getConfigs)
+	configGroup := routeGroups.Config
+	configGroup.Use(auth.Authenticate)
+	configGroup.Put("/:file", ac.UpdateConfig)
+	configGroup.Get("/:file", ac.GetConfig)
+	configGroup.Get("/", ac.GetConfigs)
 
 	return ac
 }
 
 // updateConfig returns Config
 //
-//	@Summary		Update config
-//	@Description	Updates config
-//	@Param			id path number true "required"
-//	@Param			file path string true "required"
-//	@Param			content body string true "required"
-//	@Tags			Config
-//	@Success		200	{array}	string
+//	@Summary		Update server configuration file
+//	@Description	Update a specific configuration file for an ACC server
+//	@Tags			Server Configuration
+//	@Accept			json
+//	@Produce		json
+//	@Param			id path string true "Server ID (UUID format)"
+//	@Param			file path string true "Config file name (e.g., configuration.json, settings.json, event.json)"
+//	@Param			content body object true "Configuration file content as JSON"
+//	@Success		200	{object} object{message=string} "Update successful"
+//	@Failure		400	{object} error_handler.ErrorResponse "Invalid request or JSON format"
+//	@Failure		401	{object} error_handler.ErrorResponse "Unauthorized"
+//	@Failure		403	{object} error_handler.ErrorResponse "Insufficient permissions"
+//	@Failure		404	{object} error_handler.ErrorResponse "Server or config file not found"
+//	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
+//	@Security		BearerAuth
 //	@Router			/v1/server/{id}/config/{file} [put]
-func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
+func (ac *ConfigController) UpdateConfig(c *fiber.Ctx) error {
 	restart := c.QueryBool("restart")
-	serverID, _ := c.ParamsInt("id")
+	serverID := c.Params("id")
+
+	// Validate UUID format
+	if _, err := uuid.Parse(serverID); err != nil {
+		return ac.errorHandler.HandleUUIDError(c, "server ID")
+	}
+
 	c.Locals("serverId", serverID)
 
 	var config map[string]interface{}
 	if err := c.BodyParser(&config); err != nil {
-		logging.Error("Invalid config format")
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid config format"})
+		return ac.errorHandler.HandleParsingError(c, err)
 	}
 
 	ConfigModel, err := ac.service.UpdateConfig(c, &config)
 	if err != nil {
-		return c.Status(400).SendString(err.Error())
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
-	logging.Info("restart", restart)
+	logging.Info("restart: %v", restart)
 	if restart {
-		_, err := ac.apiService.ApiRestartServer(c)
+		_, err := ac.apiService.ServiceControlRestartServer(c)
 		if err != nil {
-			logging.Error(err.Error())
+			logging.ErrorWithContext("CONFIG_RESTART", "Failed to restart server after config update: %v", err)
 		}
 	}
 
@@ -72,35 +92,49 @@ func (ac *ConfigController) updateConfig(c *fiber.Ctx) error {
 
 // getConfig returns Config
 //
-//	@Summary		Return Config file
-//	@Description	Returns Config file
-//	@Param			id path number true "required"
-//	@Param			file path string true "required"
-//	@Tags			Config
-//	@Success		200	{array}	string
+//	@Summary		Get server configuration file
+//	@Description	Retrieve a specific configuration file for an ACC server
+//	@Tags			Server Configuration
+//	@Accept			json
+//	@Produce		json
+//	@Param			id path string true "Server ID (UUID format)"
+//	@Param			file path string true "Config file name (e.g., configuration.json, settings.json, event.json)"
+//	@Success		200	{object} object "Configuration file content as JSON"
+//	@Failure		400	{object} error_handler.ErrorResponse "Invalid server ID"
+//	@Failure		401	{object} error_handler.ErrorResponse "Unauthorized"
+//	@Failure		403	{object} error_handler.ErrorResponse "Insufficient permissions"
+//	@Failure		404	{object} error_handler.ErrorResponse "Server or config file not found"
+//	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
+//	@Security		BearerAuth
 //	@Router			/v1/server/{id}/config/{file} [get]
-func (ac *ConfigController) getConfig(c *fiber.Ctx) error {
+func (ac *ConfigController) GetConfig(c *fiber.Ctx) error {
 	Model, err := ac.service.GetConfig(c)
 	if err != nil {
-		logging.Error(err.Error())
-		return c.Status(400).SendString(err.Error())
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
 	return c.JSON(Model)
 }
 
 // getConfigs returns Config
 //
-//	@Summary		Return Configs
-//	@Description	Return Config files
-//	@Param			id path number true "required"
-//	@Tags			Config
-//	@Success		200	{array}	string
+//	@Summary		List available configuration files
+//	@Description	Get a list of all available configuration files for an ACC server
+//	@Tags			Server Configuration
+//	@Accept			json
+//	@Produce		json
+//	@Param			id path string true "Server ID (UUID format)"
+//	@Success		200	{array} string "List of available configuration files"
+//	@Failure		400	{object} error_handler.ErrorResponse "Invalid server ID"
+//	@Failure		401	{object} error_handler.ErrorResponse "Unauthorized"
+//	@Failure		403	{object} error_handler.ErrorResponse "Insufficient permissions"
+//	@Failure		404	{object} error_handler.ErrorResponse "Server not found"
+//	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
+//	@Security		BearerAuth
 //	@Router			/v1/server/{id}/config [get]
-func (ac *ConfigController) getConfigs(c *fiber.Ctx) error {
+func (ac *ConfigController) GetConfigs(c *fiber.Ctx) error {
 	Model, err := ac.service.GetConfigs(c)
 	if err != nil {
-		logging.Error(err.Error())
-		return c.Status(400).SendString(err.Error())
+		return ac.errorHandler.HandleServiceError(c, err)
 	}
 	return c.JSON(Model)
 }

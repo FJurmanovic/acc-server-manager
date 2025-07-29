@@ -1,0 +1,198 @@
+name: Release and Deploy
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  GO_VERSION: "1.21"
+  BINARY_NAME: "acc-server-manager"
+  MIGRATE_BINARY: "acc-server-migration"
+  API_BINARY: "api"
+  DEPLOY_PATH: 'C:\acc-server-manager'
+  SERVICE_NAME: "ACC Server Manager"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build binaries
+        run: |
+          mkdir -p build
+          go build -v -o ./build/${{ env.BINARY_NAME }}.exe ./cmd/server
+          go build -v -o ./build/${{ env.MIGRATE_BINARY }}.exe ./cmd/migration
+          go build -v -o ./build/${{ env.API_BINARY }}.exe ./cmd/api
+
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./build/
+          asset_name: acc-server-manager-${{ github.ref_name }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries
+          path: ./build/
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: windows-latest
+    environment: production
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: binaries
+          path: ./build
+
+      - name: Stop Windows Service
+        shell: powershell
+        run: |
+          $service = Get-Service -Name "${{ env.SERVICE_NAME }}" -ErrorAction SilentlyContinue
+          if ($service) {
+            Write-Host "Stopping service: ${{ env.SERVICE_NAME }}"
+            Stop-Service -Name "${{ env.SERVICE_NAME }}" -Force
+            Start-Sleep -Seconds 5
+          }
+        env:
+          SERVER_HOST: ${{ secrets.DEPLOY_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.DEPLOY_SERVER_USER }}
+          SERVER_PASSWORD: ${{ secrets.DEPLOY_SERVER_PASSWORD }}
+
+      - name: Create backup
+        shell: powershell
+        run: |
+          $backupDir = "${{ env.DEPLOY_PATH }}_backups"
+          $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+          $backupPath = Join-Path $backupDir "backup_$timestamp"
+
+          if (Test-Path "${{ env.DEPLOY_PATH }}") {
+            New-Item -ItemType Directory -Path $backupPath -Force
+            Copy-Item "${{ env.DEPLOY_PATH }}\*" -Destination $backupPath -Recurse -Force
+          }
+
+      - name: Deploy binaries
+        shell: powershell
+        run: |
+          # Ensure deploy directory exists
+          New-Item -ItemType Directory -Path "${{ env.DEPLOY_PATH }}" -Force
+
+          # Copy new binaries
+          Copy-Item "./build/*" -Destination "${{ env.DEPLOY_PATH }}" -Force
+
+          # Run database migrations
+          Write-Host "Running database migrations..."
+          try {
+            & "${{ env.DEPLOY_PATH }}\${{ env.MIGRATE_BINARY }}.exe"
+          } catch {
+            Write-Warning "Migration failed: $_"
+            throw "Migration failed"
+          }
+
+      - name: Start Windows Service
+        shell: powershell
+        run: |
+          $service = Get-Service -Name "${{ env.SERVICE_NAME }}" -ErrorAction SilentlyContinue
+          if ($service) {
+            Write-Host "Starting service: ${{ env.SERVICE_NAME }}"
+            Start-Service -Name "${{ env.SERVICE_NAME }}"
+            Start-Sleep -Seconds 5
+
+            $service.Refresh()
+            if ($service.Status -ne 'Running') {
+              throw "Service failed to start"
+            }
+          }
+
+      - name: Cleanup old backups
+        shell: powershell
+        run: |
+          $backupDir = "${{ env.DEPLOY_PATH }}_backups"
+          Get-ChildItem -Path $backupDir -Directory -Filter "backup_*" |
+            Sort-Object CreationTime -Descending |
+            Select-Object -Skip 5 |
+            Remove-Item -Recurse -Force
+
+      - name: Verify deployment
+        shell: powershell
+        run: |
+          $maxAttempts = 6
+          $delaySeconds = 10
+          $attempt = 1
+          $success = $false
+
+          while ($attempt -le $maxAttempts -and -not $success) {
+            try {
+              $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 5
+              if ($response.StatusCode -eq 200) {
+                Write-Host "Health check passed!"
+                $success = $true
+              }
+            } catch {
+              Write-Host "Attempt $attempt of $maxAttempts failed. Waiting $delaySeconds seconds..."
+              Start-Sleep -Seconds $delaySeconds
+              $attempt++
+            }
+          }
+
+          if (-not $success) {
+            throw "Health check failed after $maxAttempts attempts"
+          }
+
+      - name: Notify on success
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { repo, owner } = context.repo;
+            const release = context.ref.replace('refs/tags/', '');
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: context.issue.number,
+              body: `✅ Successfully deployed ${release} to production!`
+            });
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { repo, owner } = context.repo;
+            const release = context.ref.replace('refs/tags/', '');
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: context.issue.number,
+              body: `❌ Failed to deploy ${release} to production. Check the workflow logs for details.`
+            });

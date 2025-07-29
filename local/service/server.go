@@ -3,23 +3,35 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
+	"acc-server-manager/local/utl/env"
 	"acc-server-manager/local/utl/logging"
 	"acc-server-manager/local/utl/tracking"
 	"context"
+	"fmt"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 
+	"acc-server-manager/local/utl/network"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+)
+
+const (
+	DefaultStartPort  = 9600
+	RequiredPortCount = 1 // Update this if ACC needs more ports
 )
 
 type ServerService struct {
 	repository       *repository.ServerRepository
 	stateHistoryRepo *repository.StateHistoryRepository
-	apiService       *ApiService
-	instances        sync.Map
+	apiService       *ServiceControlService
 	configService    *ConfigService
+	steamService     *SteamService
+	windowsService   *WindowsService
+	firewallService  *FirewallService
+	instances        sync.Map // Track instances per server
 	lastInsertTimes  sync.Map // Track last insert time per server
 	debouncers       sync.Map // Track debounce timers per server
 	logTailers       sync.Map // Track log tailers per server
@@ -39,24 +51,35 @@ func (s *ServerService) ensureLogTailing(server *model.Server, instance *trackin
 
 	// Start tailing in a goroutine that handles file creation/deletion
 	go func() {
-		logPath := filepath.Join(server.ConfigPath, "\\server\\log\\server.log")
+		logPath := filepath.Join(server.GetLogPath(), "server.log")
 		tailer := tracking.NewLogTailer(logPath, instance.HandleLogLine)
 		s.logTailers.Store(server.ID, tailer)
-		
+
 		// Start tailing and automatically handle file changes
 		tailer.Start()
 	}()
 }
 
-func NewServerService(repository *repository.ServerRepository, stateHistoryRepo *repository.StateHistoryRepository, apiService *ApiService, configService *ConfigService) *ServerService {
+func NewServerService(
+	repository *repository.ServerRepository,
+	stateHistoryRepo *repository.StateHistoryRepository,
+	apiService *ServiceControlService,
+	configService *ConfigService,
+	steamService *SteamService,
+	windowsService *WindowsService,
+	firewallService *FirewallService,
+) *ServerService {
 	service := &ServerService{
 		repository:       repository,
+		stateHistoryRepo: stateHistoryRepo,
 		apiService:       apiService,
 		configService:    configService,
-		stateHistoryRepo: stateHistoryRepo,
+		steamService:     steamService,
+		windowsService:   windowsService,
+		firewallService:  firewallService,
 	}
 
-	// Initialize instances for all servers
+	// Initialize server instances
 	servers, err := repository.GetAll(context.Background(), &model.ServerFilter{})
 	if err != nil {
 		logging.Error("Failed to get servers: %v", err)
@@ -72,37 +95,42 @@ func NewServerService(repository *repository.ServerRepository, stateHistoryRepo 
 	return service
 }
 
-func (s *ServerService) shouldInsertStateHistory(serverID uint) bool {
+func (s *ServerService) shouldInsertStateHistory(serverID uuid.UUID) bool {
 	insertInterval := 5 * time.Minute // Configure this as needed
-	
+
 	lastInsertInterface, exists := s.lastInsertTimes.Load(serverID)
 	if !exists {
 		s.lastInsertTimes.Store(serverID, time.Now().UTC())
 		return true
 	}
-	
+
 	lastInsert := lastInsertInterface.(time.Time)
 	now := time.Now().UTC()
-	
+
 	if now.Sub(lastInsert) >= insertInterval {
 		s.lastInsertTimes.Store(serverID, now)
 		return true
 	}
-	
+
 	return false
 }
 
-func (s *ServerService) getNextSessionID(serverID uint) uint {
-	currentID, _ := s.sessionIDs.LoadOrStore(serverID, uint(0))
-	nextID := currentID.(uint) + 1
-	s.sessionIDs.Store(serverID, nextID)
-	return nextID
+func (s *ServerService) getNextSessionID(serverID uuid.UUID) uuid.UUID {
+	lastID, err := s.stateHistoryRepo.GetLastSessionID(context.Background(), serverID)
+	if err != nil {
+		logging.Error("Failed to get last session ID for server %s: %v", serverID, err)
+		return uuid.New() // Return new UUID as fallback
+	}
+	if lastID == uuid.Nil {
+		return uuid.New() // Return new UUID if no previous session
+	}
+	return uuid.New() // Always generate new UUID for each session
 }
 
-func (s *ServerService) insertStateHistory(serverID uint, state *model.ServerState) {
+func (s *ServerService) insertStateHistory(serverID uuid.UUID, state *model.ServerState) {
 	// Get or create session ID when session changes
 	currentSessionInterface, exists := s.instances.Load(serverID)
-	var sessionID uint
+	var sessionID uuid.UUID
 	if !exists {
 		sessionID = s.getNextSessionID(serverID)
 	} else {
@@ -114,20 +142,20 @@ func (s *ServerService) insertStateHistory(serverID uint, state *model.ServerSta
 			if !exists {
 				sessionID = s.getNextSessionID(serverID)
 			} else {
-				sessionID = sessionIDInterface.(uint)
+				sessionID = sessionIDInterface.(uuid.UUID)
 			}
 		}
 	}
 
 	s.stateHistoryRepo.Insert(context.Background(), &model.StateHistory{
-		ServerID:    serverID,
-		Session:     state.Session,
-		Track:       state.Track,
-		PlayerCount: state.PlayerCount,
-		DateCreated: time.Now().UTC(),
-		SessionStart: state.SessionStart,
+		ServerID:               serverID,
+		Session:                state.Session,
+		Track:                  state.Track,
+		PlayerCount:            state.PlayerCount,
+		DateCreated:            time.Now().UTC(),
+		SessionStart:           state.SessionStart,
 		SessionDurationMinutes: state.SessionDurationMinutes,
-		SessionID:   sessionID,
+		SessionID:              sessionID,
 	})
 }
 
@@ -135,14 +163,14 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 	// Get configs using helper methods
 	event, err := s.configService.GetEventConfig(server)
 	if err != nil {
+		event = &model.EventConfig{}
 		logging.Error("Failed to get event config for server %d: %v", server.ID, err)
-		return
 	}
 
 	configuration, err := s.configService.GetConfiguration(server)
 	if err != nil {
+		configuration = &model.Configuration{}
 		logging.Error("Failed to get configuration for server %d: %v", server.ID, err)
-		return
 	}
 
 	if instance, ok := s.instances.Load(server.ID); ok {
@@ -172,9 +200,18 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 	}
 }
 
+func (s *ServerService) GenerateServerPath(server *model.Server) {
+	// Get the base steamcmd path from environment variable
+	steamCMDPath := env.GetSteamCMDDirPath()
+	server.Path = server.GenerateServerPath(steamCMDPath)
+}
+
 func (s *ServerService) handleStateChange(server *model.Server, state *model.ServerState) {
 	// Update session duration when session changes
 	s.updateSessionDuration(server, state.Session)
+
+	// Invalidate status cache when server state changes
+	s.apiService.statusCache.InvalidateStatus(server.ServiceName)
 
 	// Cancel existing timer if any
 	if debouncer, exists := s.debouncers.Load(server.ID); exists {
@@ -219,7 +256,7 @@ func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 	}
 
 	// Invalidate config cache for this server before loading new configs
-	serverIDStr := strconv.FormatUint(uint64(server.ID), 10)
+	serverIDStr := server.ID.String()
 	s.configService.configCache.InvalidateServerCache(serverIDStr)
 
 	s.updateSessionDuration(server, instance.State.Session)
@@ -244,7 +281,7 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 
 	for i := range *servers {
 		server := &(*servers)[i]
-		status, err := s.apiService.StatusServer(server.ServiceName)
+		status, err := s.apiService.GetCachedStatus(server.ServiceName)
 		if err != nil {
 			logging.Error("Failed to get status for server %s: %v", server.ServiceName, err)
 		}
@@ -255,7 +292,7 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 		} else {
 			serverInstance := instance.(*tracking.AccServerInstance)
 			if serverInstance.State != nil {
-				(*server).State = *serverInstance.State
+				server.State = serverInstance.State
 			}
 		}
 	}
@@ -270,25 +307,228 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
-func (as *ServerService) GetById(ctx *fiber.Ctx, serverID int) (*model.Server, error) {
+func (as *ServerService) GetById(ctx *fiber.Ctx, serverID uuid.UUID) (*model.Server, error) {
 	server, err := as.repository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
 		return nil, err
 	}
-	status, err := as.apiService.StatusServer(server.ServiceName)
+	status, err := as.apiService.GetCachedStatus(server.ServiceName)
 	if err != nil {
 		logging.Error(err.Error())
 	}
 	server.Status = model.ParseServiceStatus(status)
 	instance, ok := as.instances.Load(server.ID)
 	if !ok {
-		logging.Error("Unable to retrieve instance for server of ID: %d", server.ID)
+		logging.Error("Unable to retrieve instance for server of ID: %s", server.ID)
 	} else {
 		serverInstance := instance.(*tracking.AccServerInstance)
-		if (serverInstance.State != nil) {
-			(*server).State = *serverInstance.State
+		if serverInstance.State != nil {
+			server.State = serverInstance.State
 		}
 	}
 
 	return server, nil
+}
+
+func (s *ServerService) CreateServer(ctx *fiber.Ctx, server *model.Server) error {
+	// Validate basic server configuration
+	if err := server.Validate(); err != nil {
+		return err
+	}
+
+	// Install server using SteamCMD
+	if err := s.steamService.InstallServer(ctx.UserContext(), server.GetServerPath()); err != nil {
+		return fmt.Errorf("failed to install server: %v", err)
+	}
+
+	// Create Windows service with correct paths
+	execPath := filepath.Join(server.GetServerPath(), "accServer.exe")
+	serverWorkingDir := filepath.Join(server.GetServerPath(), "server")
+	if err := s.windowsService.CreateService(ctx.UserContext(), server.ServiceName, execPath, serverWorkingDir, nil); err != nil {
+		// Cleanup on failure
+		s.steamService.UninstallServer(server.Path)
+		return fmt.Errorf("failed to create Windows service: %v", err)
+	}
+
+	s.configureFirewall(server)
+	ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
+	if err != nil {
+		return fmt.Errorf("failed to find available ports: %v", err)
+	}
+
+	// Use the first port for both TCP and UDP
+	serverPort := ports[0]
+	tcpPorts := []int{serverPort}
+	udpPorts := []int{serverPort}
+	if err := s.firewallService.CreateServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
+		// Cleanup on failure
+		s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName)
+		s.steamService.UninstallServer(server.Path)
+		return fmt.Errorf("failed to create firewall rules: %v", err)
+	}
+
+	// Update server configuration with the allocated port
+	if err := s.updateServerPort(server, serverPort); err != nil {
+		return fmt.Errorf("failed to update server configuration: %v", err)
+	}
+
+	// Insert server into database
+	if err := s.repository.Insert(ctx.UserContext(), server); err != nil {
+		// Cleanup on failure
+		s.firewallService.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts)
+		s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName)
+		s.steamService.UninstallServer(server.Path)
+		return fmt.Errorf("failed to insert server into database: %v", err)
+	}
+
+	// Initialize server runtime
+	s.StartAccServerRuntime(server)
+
+	return nil
+}
+
+func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID uuid.UUID) error {
+	// Get server details
+	server, err := s.repository.GetByID(ctx.UserContext(), serverID)
+	if err != nil {
+		return fmt.Errorf("failed to get server details: %v", err)
+	}
+
+	// Stop and remove Windows service
+	if err := s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName); err != nil {
+		logging.Error("Failed to delete Windows service: %v", err)
+	}
+
+	// Remove firewall rules
+	configuration, err := s.configService.GetConfiguration(server)
+	if err != nil {
+		logging.Error("Failed to get configuration for server %d: %v", server.ID, err)
+	}
+	tcpPorts := []int{configuration.TcpPort.ToInt()}
+	udpPorts := []int{configuration.UdpPort.ToInt()}
+	if err := s.firewallService.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
+		logging.Error("Failed to delete firewall rules: %v", err)
+	}
+
+	// Uninstall server files
+	if err := s.steamService.UninstallServer(server.Path); err != nil {
+		logging.Error("Failed to uninstall server: %v", err)
+	}
+
+	// Remove from database
+	if err := s.repository.Delete(ctx.UserContext(), serverID); err != nil {
+		return fmt.Errorf("failed to delete server from database: %v", err)
+	}
+
+	// Cleanup runtime resources
+	if tailer, exists := s.logTailers.Load(server.ID); exists {
+		tailer.(*tracking.LogTailer).Stop()
+		s.logTailers.Delete(server.ID)
+	}
+	s.instances.Delete(server.ID)
+	s.lastInsertTimes.Delete(server.ID)
+	s.debouncers.Delete(server.ID)
+	s.sessionIDs.Delete(server.ID)
+
+	// Invalidate status cache for deleted server
+	s.apiService.statusCache.InvalidateStatus(server.ServiceName)
+
+	return nil
+}
+
+func (s *ServerService) UpdateServer(ctx *fiber.Ctx, server *model.Server) error {
+	// Validate server configuration
+	if err := server.Validate(); err != nil {
+		return err
+	}
+
+	// Get existing server details
+	existingServer, err := s.repository.GetByID(ctx.UserContext(), server.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get existing server details: %v", err)
+	}
+
+	// Update server files if path changed
+	if existingServer.Path != server.Path {
+		if err := s.steamService.InstallServer(ctx.UserContext(), server.Path); err != nil {
+			return fmt.Errorf("failed to install server to new location: %v", err)
+		}
+		// Clean up old installation
+		if err := s.steamService.UninstallServer(existingServer.Path); err != nil {
+			logging.Error("Failed to remove old server installation: %v", err)
+		}
+	}
+
+	// Update Windows service if necessary
+	if existingServer.ServiceName != server.ServiceName || existingServer.Path != server.Path {
+		execPath := filepath.Join(server.GetServerPath(), "accServer.exe")
+		serverWorkingDir := server.GetServerPath()
+		if err := s.windowsService.UpdateService(ctx.UserContext(), server.ServiceName, execPath, serverWorkingDir, nil); err != nil {
+			return fmt.Errorf("failed to update Windows service: %v", err)
+		}
+	}
+
+	// Update firewall rules if service name changed
+	if existingServer.ServiceName != server.ServiceName {
+		if err := s.configureFirewall(server); err != nil {
+			return fmt.Errorf("failed to update firewall rules: %v", err)
+		}
+		// Invalidate cache for old service name
+		s.apiService.statusCache.InvalidateStatus(existingServer.ServiceName)
+	}
+
+	// Update database record
+	if err := s.repository.Update(ctx.UserContext(), server); err != nil {
+		return fmt.Errorf("failed to update server in database: %v", err)
+	}
+
+	// Restart server runtime
+	s.StartAccServerRuntime(server)
+
+	return nil
+}
+
+func (s *ServerService) configureFirewall(server *model.Server) error {
+	// Find available ports for the server
+	ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
+	if err != nil {
+		return fmt.Errorf("failed to find available ports: %v", err)
+	}
+
+	// Use the first port for both TCP and UDP
+	serverPort := ports[0]
+	tcpPorts := []int{serverPort}
+	udpPorts := []int{serverPort}
+
+	logging.Info("Configuring firewall for server %d with port %d", server.ID, serverPort)
+
+	// Configure firewall rules
+	if err := s.firewallService.UpdateServerRules(server.Name, tcpPorts, udpPorts); err != nil {
+		return fmt.Errorf("failed to configure firewall: %v", err)
+	}
+
+	// Update server configuration with the allocated port
+	if err := s.updateServerPort(server, serverPort); err != nil {
+		return fmt.Errorf("failed to update server configuration: %v", err)
+	}
+
+	return nil
+}
+
+func (s *ServerService) updateServerPort(server *model.Server, port int) error {
+	// Load current configuration
+	config, err := s.configService.GetConfiguration(server)
+	if err != nil {
+		return fmt.Errorf("failed to load server configuration: %v", err)
+	}
+
+	config.TcpPort = model.IntString(port)
+	config.UdpPort = model.IntString(port)
+
+	// Save the updated configuration
+	if err := s.configService.SaveConfiguration(server, config); err != nil {
+		return fmt.Errorf("failed to save server configuration: %v", err)
+	}
+
+	return nil
 }

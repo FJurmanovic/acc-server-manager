@@ -1,0 +1,109 @@
+# ACC Server Manager Deployment Configuration
+# Copy this file to deploy.config and fill in your server details
+
+[Server]
+# Windows server hostname or IP address
+ServerHost=192.168.1.100
+
+# Username for SSH connection to Windows server
+ServerUser=admin
+
+# Full path where the application will be deployed on the server
+DeployPath=C:\AccServerManager
+
+# Windows service name (must match the service installed on the server)
+ServiceName=ACC Server Manager
+
+[Build]
+# Main application binary name (without .exe extension)
+BinaryName=acc-server-manager
+
+# Migration tool binary name (without .exe extension)
+MigrateBinaryName=acc-migrate
+
+# Skip running tests during build (true/false)
+SkipTests=false
+
+# Skip building binaries (useful if you already have them built)
+SkipBuild=false
+
+[Deployment]
+# Backup retention - number of backup directories to keep
+BackupRetention=5
+
+# Service stop timeout in seconds
+ServiceStopTimeout=30
+
+# Service start timeout in seconds
+ServiceStartTimeout=30
+
+# Enable rollback on deployment failure (true/false)
+EnableRollback=true
+
+[Notifications]
+# Slack webhook URL for deployment notifications (optional)
+SlackWebhookUrl=
+
+# Discord webhook URL for deployment notifications (optional)
+DiscordWebhookUrl=
+
+# Email settings for notifications (optional)
+EmailSmtpServer=
+EmailSmtpPort=587
+EmailUsername=
+EmailPassword=
+EmailFrom=
+EmailTo=
+
+[SSH]
+# SSH private key file path (optional, uses default SSH key if not specified)
+SshKeyPath=
+
+# SSH port (default is 22)
+SshPort=22
+
+# SSH connection timeout in seconds
+SshTimeout=30
+
+[Database]
+# Database connection string template for migrations
+# This will be passed to the migration tool
+DatabaseConnectionString=
+
+# Run migrations automatically during deployment (true/false)
+AutoMigrate=true
+
+# Migration timeout in seconds
+MigrationTimeout=300
+
+[Advanced]
+# PowerShell execution policy for remote execution
+ExecutionPolicy=Bypass
+
+# Temporary directory on remote server for file transfers
+RemoteTempPath=C:\temp
+
+# Local build directory
+LocalBuildPath=.\build
+
+# Additional Go build flags
+GoBuildFlags=-ldflags="-s -w"
+
+# Pre-deployment script to run locally (optional)
+PreDeployScript=
+
+# Post-deployment script to run on remote server (optional)
+PostDeployScript=
+
+# Environment variables to set during deployment (comma-separated)
+# Format: KEY1=VALUE1,KEY2=VALUE2
+EnvironmentVariables=
+
+# Custom service restart command (if service management is different)
+ServiceRestartCommand=
+
+# Health check URL to verify deployment success
+HealthCheckUrl=http://localhost:8080/health
+
+# Health check timeout in seconds
+HealthCheckTimeout=60

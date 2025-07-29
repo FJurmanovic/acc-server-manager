@@ -10,9 +10,11 @@ import (
 //	Args:
 //		*dig.Container: Dig Container
 func InitializeRepositories(c *dig.Container) {
-	c.Provide(NewApiRepository)
+	c.Provide(NewServiceControlRepository)
 	c.Provide(NewStateHistoryRepository)
 	c.Provide(NewServerRepository)
 	c.Provide(NewConfigRepository)
 	c.Provide(NewLookupRepository)
+	c.Provide(NewSteamCredentialsRepository)
+	c.Provide(NewMembershipRepository)
 }

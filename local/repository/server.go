@@ -13,11 +13,12 @@ type ServerRepository struct {
 }
 
 func NewServerRepository(db *gorm.DB) *ServerRepository {
-	return &ServerRepository{
+	repo := &ServerRepository{
 		BaseRepository: NewBaseRepository[model.Server, model.ServerFilter](db, model.Server{}),
 	}
-}
 
+	return repo
+}
 
 // GetFirstByServiceName
 // Gets first row from Server table.
