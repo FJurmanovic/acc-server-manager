@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"acc-server-manager/local/model"
 	"acc-server-manager/local/utl/configs"
 	"acc-server-manager/local/utl/logging"
 	"time"
@@ -17,7 +18,9 @@ type AccessKeyMiddleware struct {
 // NewAccessKeyMiddleware creates a new AccessKeyMiddleware.
 func NewAccessKeyMiddleware() *AccessKeyMiddleware {
 	auth := &AccessKeyMiddleware{
-		userInfo: CachedUserInfo{UserID: uuid.New().String(), Username: "access_key", RoleName: "Admin", Permissions: make(map[string]bool), CachedAt: time.Now()},
+		userInfo: CachedUserInfo{UserID: uuid.New().String(), Username: "access_key", RoleName: "Admin", Permissions: map[string]bool{
+			model.ServerView: true,
+		}, CachedAt: time.Now()},
 	}
 	return auth
 }
@@ -51,7 +54,7 @@ func (m *AccessKeyMiddleware) Authenticate(ctx *fiber.Ctx) error {
 	}
 
 	ctx.Locals("userID", m.userInfo.UserID)
-	ctx.Locals("userInfo", m.userInfo)
+	ctx.Locals("userInfo", &m.userInfo)
 	ctx.Locals("authTime", time.Now())
 
 	logging.InfoWithContext("AUTH", "User %s authenticated successfully from IP %s", m.userInfo.UserID, ip)
