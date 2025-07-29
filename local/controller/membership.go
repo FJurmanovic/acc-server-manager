@@ -51,6 +51,17 @@ func NewMembershipController(service *service.MembershipService, auth *middlewar
 }
 
 // Login handles user login.
+// @Summary User login
+// @Description Authenticate a user and receive a JWT token
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param credentials body object{username=string,password=string} true "Login credentials"
+// @Success 200 {object} object{token=string} "JWT token"
+// @Failure 400 {object} error_handler.ErrorResponse "Invalid request body"
+// @Failure 401 {object} error_handler.ErrorResponse "Invalid credentials"
+// @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
+// @Router /auth/login [post]
 func (c *MembershipController) Login(ctx *fiber.Ctx) error {
 	type request struct {
 		Username string `json:"username"`
@@ -72,6 +83,20 @@ func (c *MembershipController) Login(ctx *fiber.Ctx) error {
 }
 
 // CreateUser creates a new user.
+// @Summary Create a new user
+// @Description Create a new user account with specified role
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Param user body object{username=string,password=string,role=string} true "User details"
+// @Success 200 {object} model.User "Created user details"
+// @Failure 400 {object} error_handler.ErrorResponse "Invalid request body"
+// @Failure 401 {object} error_handler.ErrorResponse "Unauthorized"
+// @Failure 403 {object} error_handler.ErrorResponse "Insufficient permissions"
+// @Failure 409 {object} error_handler.ErrorResponse "User already exists"
+// @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
+// @Security BearerAuth
+// @Router /membership [post]
 func (mc *MembershipController) CreateUser(c *fiber.Ctx) error {
 	type request struct {
 		Username string `json:"username"`
@@ -93,6 +118,17 @@ func (mc *MembershipController) CreateUser(c *fiber.Ctx) error {
 }
 
 // ListUsers lists all users.
+// @Summary List all users
+// @Description Get a list of all registered users
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Success 200 {array} model.User "List of users"
+// @Failure 401 {object} error_handler.ErrorResponse "Unauthorized"
+// @Failure 403 {object} error_handler.ErrorResponse "Insufficient permissions"
+// @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
+// @Security BearerAuth
+// @Router /membership [get]
 func (mc *MembershipController) ListUsers(c *fiber.Ctx) error {
 	users, err := mc.service.ListUsers(c.UserContext())
 	if err != nil {

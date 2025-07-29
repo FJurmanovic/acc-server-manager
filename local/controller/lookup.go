@@ -37,10 +37,15 @@ func NewLookupController(as *service.LookupService, routeGroups *common.RouteGro
 
 // getTracks returns Tracks
 //
-//	@Summary		Return Tracks Lookup
-//	@Description	Return Tracks Lookup
-//	@Tags			Lookup
-//	@Success		200	{array}	string
+//	@Summary		Get available tracks
+//	@Description	Get a list of all available ACC tracks with their identifiers
+//	@Tags			Lookups
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}	object{id=string,name=string} "List of tracks"
+//	@Failure		401	{object} error_handler.ErrorResponse "Unauthorized"
+//	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
+//	@Security		BearerAuth
 //	@Router			/v1/lookup/tracks [get]
 func (ac *LookupController) GetTracks(c *fiber.Ctx) error {
 	result, err := ac.service.GetTracks(c)
@@ -52,10 +57,15 @@ func (ac *LookupController) GetTracks(c *fiber.Ctx) error {
 
 // getCarModels returns CarModels
 //
-//	@Summary		Return CarModels Lookup
-//	@Description	Return CarModels Lookup
-//	@Tags			Lookup
-//	@Success		200	{array}	string
+//	@Summary		Get available car models
+//	@Description	Get a list of all available ACC car models with their identifiers
+//	@Tags			Lookups
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}	object{id=string,name=string,class=string} "List of car models"
+//	@Failure		401	{object} error_handler.ErrorResponse "Unauthorized"
+//	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
+//	@Security		BearerAuth
 //	@Router			/v1/lookup/car-models [get]
 func (ac *LookupController) GetCarModels(c *fiber.Ctx) error {
 	result, err := ac.service.GetCarModels(c)
@@ -67,10 +77,15 @@ func (ac *LookupController) GetCarModels(c *fiber.Ctx) error {
 
 // getDriverCategories returns DriverCategories
 //
-//	@Summary		Return DriverCategories Lookup
-//	@Description	Return DriverCategories Lookup
-//	@Tags			Lookup
-//	@Success		200	{array}	string
+//	@Summary		Get driver categories
+//	@Description	Get a list of all driver categories (Bronze, Silver, Gold, Platinum)
+//	@Tags			Lookups
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}	object{id=number,name=string,description=string} "List of driver categories"
+//	@Failure		401	{object} error_handler.ErrorResponse "Unauthorized"
+//	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
+//	@Security		BearerAuth
 //	@Router			/v1/lookup/driver-categories [get]
 func (ac *LookupController) GetDriverCategories(c *fiber.Ctx) error {
 	result, err := ac.service.GetDriverCategories(c)
@@ -82,10 +97,15 @@ func (ac *LookupController) GetDriverCategories(c *fiber.Ctx) error {
 
 // getCupCategories returns CupCategories
 //
-//	@Summary		Return CupCategories Lookup
-//	@Description	Return CupCategories Lookup
-//	@Tags			Lookup
-//	@Success		200	{array}	string
+//	@Summary		Get cup categories
+//	@Description	Get a list of all available racing cup categories
+//	@Tags			Lookups
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}	object{id=number,name=string} "List of cup categories"
+//	@Failure		401	{object} error_handler.ErrorResponse "Unauthorized"
+//	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
+//	@Security		BearerAuth
 //	@Router			/v1/lookup/cup-categories [get]
 func (ac *LookupController) GetCupCategories(c *fiber.Ctx) error {
 	result, err := ac.service.GetCupCategories(c)
@@ -97,10 +117,15 @@ func (ac *LookupController) GetCupCategories(c *fiber.Ctx) error {
 
 // getSessionTypes returns SessionTypes
 //
-//	@Summary		Return SessionTypes Lookup
-//	@Description	Return SessionTypes Lookup
-//	@Tags			Lookup
-//	@Success		200	{array}	string
+//	@Summary		Get session types
+//	@Description	Get a list of all available session types (Practice, Qualifying, Race)
+//	@Tags			Lookups
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}	object{id=string,name=string,code=string} "List of session types"
+//	@Failure		401	{object} error_handler.ErrorResponse "Unauthorized"
+//	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
+//	@Security		BearerAuth
 //	@Router			/v1/lookup/session-types [get]
 func (ac *LookupController) GetSessionTypes(c *fiber.Ctx) error {
 	result, err := ac.service.GetSessionTypes(c)

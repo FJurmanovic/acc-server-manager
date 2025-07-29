@@ -72,7 +72,7 @@ type State struct {
 }
 
 type ServerState struct {
-	sync.RWMutex
+	sync.RWMutex           `swaggerignore:"-" json:"-"`
 	Session                string    `json:"session"`
 	SessionStart           time.Time `json:"sessionStart"`
 	PlayerCount            int       `json:"playerCount"`

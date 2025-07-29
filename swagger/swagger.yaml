@@ -1,0 +1,1045 @@
+basePath: /api/v1
+definitions:
+  error_handler.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      details:
+        additionalProperties:
+          type: string
+        type: object
+      error:
+        type: string
+    type: object
+  model.Permission:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  model.Role:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/model.Permission'
+        type: array
+    type: object
+  model.Server:
+    properties:
+      dateCreated:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      path:
+        description: e.g. "/acc/servers/server1/"
+        type: string
+      serviceName:
+        description: Windows service name
+        type: string
+      state:
+        $ref: '#/definitions/model.ServerState'
+      status:
+        $ref: '#/definitions/model.ServiceStatus'
+    type: object
+  model.ServerAPI:
+    properties:
+      name:
+        type: string
+      playerCount:
+        type: integer
+      state:
+        $ref: '#/definitions/model.ServerState'
+      status:
+        $ref: '#/definitions/model.ServiceStatus'
+      track:
+        type: string
+    type: object
+  model.ServerState:
+    properties:
+      maxConnections:
+        type: integer
+      playerCount:
+        type: integer
+      session:
+        type: string
+      sessionDurationMinutes:
+        type: integer
+      sessionStart:
+        type: string
+      track:
+        type: string
+    type: object
+  model.ServiceStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    type: integer
+    x-enum-varnames:
+    - StatusUnknown
+    - StatusStopped
+    - StatusStopping
+    - StatusRestarting
+    - StatusStarting
+    - StatusRunning
+  model.User:
+    properties:
+      id:
+        type: string
+      role:
+        $ref: '#/definitions/model.Role'
+      role_id:
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact:
+    name: ACC Server Manager Support
+    url: https://github.com/yourusername/acc-server-manager
+  description: API for managing Assetto Corsa Competizione dedicated servers
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: ACC Server Manager API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user and receive a JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          properties:
+            password:
+              type: string
+            username:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token
+          schema:
+            properties:
+              token:
+                type: string
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      summary: User login
+      tags:
+      - Authentication
+  /membership:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all registered users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users
+          schema:
+            items:
+              $ref: '#/definitions/model.User'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - User Management
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with specified role
+      parameters:
+      - description: User details
+        in: body
+        name: user
+        required: true
+        schema:
+          properties:
+            password:
+              type: string
+            role:
+              type: string
+            username:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Created user details
+          schema:
+            $ref: '#/definitions/model.User'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new user
+      tags:
+      - User Management
+  /server:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all ACC servers with filtering options
+      parameters:
+      - in: query
+        name: name
+        type: string
+      - in: query
+        name: page
+        type: integer
+      - in: query
+        name: pageSize
+        type: integer
+      - in: query
+        name: serverID
+        type: string
+      - in: query
+        name: serviceName
+        type: string
+      - in: query
+        name: sortBy
+        type: string
+      - in: query
+        name: sortDesc
+        type: boolean
+      - in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of servers
+          schema:
+            items:
+              $ref: '#/definitions/model.ServerAPI'
+            type: array
+        "400":
+          description: Invalid filter parameters
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all servers (API format)
+      tags:
+      - Server
+  /v1/lookup/car-models:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available ACC car models with their identifiers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of car models
+          schema:
+            items:
+              properties:
+                class:
+                  type: string
+                id:
+                  type: string
+                name:
+                  type: string
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get available car models
+      tags:
+      - Lookups
+  /v1/lookup/cup-categories:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available racing cup categories
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of cup categories
+          schema:
+            items:
+              properties:
+                id:
+                  type: number
+                name:
+                  type: string
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get cup categories
+      tags:
+      - Lookups
+  /v1/lookup/driver-categories:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all driver categories (Bronze, Silver, Gold, Platinum)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of driver categories
+          schema:
+            items:
+              properties:
+                description:
+                  type: string
+                id:
+                  type: number
+                name:
+                  type: string
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get driver categories
+      tags:
+      - Lookups
+  /v1/lookup/session-types:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available session types (Practice, Qualifying,
+        Race)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of session types
+          schema:
+            items:
+              properties:
+                code:
+                  type: string
+                id:
+                  type: string
+                name:
+                  type: string
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get session types
+      tags:
+      - Lookups
+  /v1/lookup/tracks:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available ACC tracks with their identifiers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of tracks
+          schema:
+            items:
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get available tracks
+      tags:
+      - Lookups
+  /v1/server:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all ACC servers with detailed information
+      parameters:
+      - in: query
+        name: name
+        type: string
+      - in: query
+        name: page
+        type: integer
+      - in: query
+        name: pageSize
+        type: integer
+      - in: query
+        name: serverID
+        type: string
+      - in: query
+        name: serviceName
+        type: string
+      - in: query
+        name: sortBy
+        type: string
+      - in: query
+        name: sortDesc
+        type: boolean
+      - in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of servers with full details
+          schema:
+            items:
+              $ref: '#/definitions/model.Server'
+            type: array
+        "400":
+          description: Invalid filter parameters
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all servers
+      tags:
+      - Server
+    post:
+      consumes:
+      - application/json
+      description: Create a new ACC server instance with the provided configuration
+      parameters:
+      - description: Server configuration
+        in: body
+        name: server
+        required: true
+        schema:
+          $ref: '#/definitions/model.Server'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Created server details
+          schema:
+            type: object
+        "400":
+          description: Invalid server data
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new ACC server
+      tags:
+      - Server
+  /v1/server/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific ACC server
+      parameters:
+      - description: Server ID (UUID format)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server details
+          schema:
+            $ref: '#/definitions/model.Server'
+        "400":
+          description: Invalid server ID format
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Server not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get server by ID
+      tags:
+      - Server
+    put:
+      consumes:
+      - application/json
+      description: Update configuration for an existing ACC server
+      parameters:
+      - description: Server ID (UUID format)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated server configuration
+        in: body
+        name: server
+        required: true
+        schema:
+          $ref: '#/definitions/model.Server'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated server details
+          schema:
+            type: object
+        "400":
+          description: Invalid server data or ID
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Server not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an ACC server
+      tags:
+      - Server
+  /v1/server/{id}/config:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available configuration files for an ACC server
+      parameters:
+      - description: Server ID (UUID format)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of available configuration files
+          schema:
+            items:
+              type: string
+            type: array
+        "400":
+          description: Invalid server ID
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Server not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List available configuration files
+      tags:
+      - Server Configuration
+  /v1/server/{id}/config/{file}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific configuration file for an ACC server
+      parameters:
+      - description: Server ID (UUID format)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Config file name (e.g., configuration.json, settings.json, event.json)
+        in: path
+        name: file
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Configuration file content as JSON
+          schema:
+            type: object
+        "400":
+          description: Invalid server ID
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Server or config file not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get server configuration file
+      tags:
+      - Server Configuration
+    put:
+      consumes:
+      - application/json
+      description: Update a specific configuration file for an ACC server
+      parameters:
+      - description: Server ID (UUID format)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Config file name (e.g., configuration.json, settings.json, event.json)
+        in: path
+        name: file
+        required: true
+        type: string
+      - description: Configuration file content as JSON
+        in: body
+        name: content
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Update successful
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Invalid request or JSON format
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Server or config file not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update server configuration file
+      tags:
+      - Server Configuration
+  /v1/service-control:
+    get:
+      description: Return service control status
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      summary: Return service control status
+      tags:
+      - service-control
+  /v1/service-control/{service}:
+    get:
+      consumes:
+      - application/json
+      description: Get the current status of a Windows service
+      parameters:
+      - description: Service name
+        in: path
+        name: service
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service status information
+          schema:
+            properties:
+              state:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Invalid service name
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Service not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get service status
+      tags:
+      - Service Control
+  /v1/service-control/restart:
+    post:
+      consumes:
+      - application/json
+      description: Stop and start a Windows service for an ACC server
+      parameters:
+      - description: Service name to restart
+        in: body
+        name: service
+        required: true
+        schema:
+          properties:
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service restarted successfully
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Service not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Restart a Windows service
+      tags:
+      - Service Control
+  /v1/service-control/start:
+    post:
+      consumes:
+      - application/json
+      description: Start a stopped Windows service for an ACC server
+      parameters:
+      - description: Service name to start
+        in: body
+        name: service
+        required: true
+        schema:
+          properties:
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service started successfully
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Service not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "409":
+          description: Service already running
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Start a Windows service
+      tags:
+      - Service Control
+  /v1/service-control/stop:
+    post:
+      consumes:
+      - application/json
+      description: Stop a running Windows service for an ACC server
+      parameters:
+      - description: Service name to stop
+        in: body
+        name: service
+        required: true
+        schema:
+          properties:
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service stopped successfully
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Service not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "409":
+          description: Service already stopped
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Stop a Windows service
+      tags:
+      - Service Control
+  /v1/state-history:
+    get:
+      description: Return StateHistorys
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      summary: Return StateHistorys
+      tags:
+      - StateHistory
+  /v1/state-history/statistics:
+    get:
+      description: Return StateHistorys
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      summary: Return StateHistorys
+      tags:
+      - StateHistory
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
