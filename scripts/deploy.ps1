@@ -158,7 +158,7 @@ if (`$service) {
 }
 
 # Create backup of current deployment
-`$backupPath = "$DeployPath\backup_`$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+`$backupPath = "$DeployPath_backups\backup_`$(Get-Date -Format 'yyyyMMdd_HHmmss')"
 if (Test-Path "$DeployPath\$BinaryName.exe") {
     Write-Host "Creating backup at: `$backupPath" -ForegroundColor Yellow
     New-Item -ItemType Directory -Path `$backupPath -Force | Out-Null

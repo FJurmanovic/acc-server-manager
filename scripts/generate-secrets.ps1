@@ -32,6 +32,7 @@ Write-Host ""
 $jwtSecret = Generate-Base64String -Length 64
 $appSecret = Generate-HexString -Length 32
 $appSecretCode = Generate-HexString -Length 32
+$accessKey = Generate-HexString -Length 32
 $encryptionKey = Generate-HexString -Length 16
 
 # Display generated secrets
@@ -49,6 +50,9 @@ Write-Host $appSecretCode -ForegroundColor Yellow
 Write-Host ""
 Write-Host "ENCRYPTION_KEY=" -NoNewline -ForegroundColor White
 Write-Host $encryptionKey -ForegroundColor Yellow
+Write-Host ""
+Write-Host "ACCESS_KEY=" -NoNewline -ForegroundColor White
+Write-Host $accessKey -ForegroundColor Yellow
 Write-Host ""
 
 # Check if .env file exists
@@ -95,6 +99,8 @@ if ($updateFile) {
                 $newContent += "APP_SECRET_CODE=$appSecretCode"
             } elseif ($line -match "^ENCRYPTION_KEY=") {
                 $newContent += "ENCRYPTION_KEY=$encryptionKey"
+            } elseif ($line -match "^ACCESS_KEY=") {
+                $newContent += "ACCESS_KEY=$accessKey"
             } else {
                 $newContent += $line
             }
@@ -117,6 +123,8 @@ if ($updateFile) {
                     $newContent += "APP_SECRET_CODE=$appSecretCode"
                 } elseif ($line -match "^ENCRYPTION_KEY=") {
                     $newContent += "ENCRYPTION_KEY=$encryptionKey"
+                } elseif ($line -match "^ACCESS_KEY=") {
+                    $newContent += "ACCESS_KEY=$accessKey"
                 } else {
                     $newContent += $line
                 }
@@ -135,6 +143,7 @@ if ($updateFile) {
                 "APP_SECRET=$appSecret",
                 "APP_SECRET_CODE=$appSecretCode",
                 "ENCRYPTION_KEY=$encryptionKey",
+                "ACCESS_KEY=$accessKey",
                 "",
                 "# CORE APPLICATION SETTINGS",
                 "DB_NAME=acc.db",

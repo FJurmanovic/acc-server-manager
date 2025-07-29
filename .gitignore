@@ -35,3 +35,5 @@ _testmain.go
 # .Dockerfile
 
 .zed
+
+deploy.config
