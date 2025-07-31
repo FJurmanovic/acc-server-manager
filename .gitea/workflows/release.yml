@@ -8,7 +8,6 @@ env:
   GO_VERSION: "1.21"
   BINARY_NAME: "acc-server-manager"
   MIGRATE_BINARY: "acc-server-migration"
-  API_BINARY: "api"
   DEPLOY_PATH: 'C:\acc-server-manager'
   SERVICE_NAME: "ACC Server Manager"
 
@@ -36,29 +35,8 @@ jobs:
           CGO_ENABLED: 1
         run: |
           mkdir -p build
-          go build -v -o ./build/${{ env.MIGRATE_BINARY }}.exe ./cmd/migration
+          go build -v -o ./build/${{ env.MIGRATE_BINARY }}.exe ./cmd/migrate
           go build -v -o ./build/${{ env.BINARY_NAME }}.exe ./cmd/api
-
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
-      - name: Upload release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./build/
-          asset_name: acc-server-manager-${{ github.ref_name }}.zip
-          asset_content_type: application/zip
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
