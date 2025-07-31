@@ -94,7 +94,8 @@ jobs:
           # Run database migrations
           Write-Host "Running database migrations..."
           try {
-            & "${{ env.DEPLOY_PATH }}\${{ env.MIGRATE_BINARY }}.exe"
+            cd "${{ env.DEPLOY_PATH }}"
+            & "${{ env.MIGRATE_BINARY }}.exe"
           } catch {
             Write-Warning "Migration failed: $_"
             throw "Migration failed"
