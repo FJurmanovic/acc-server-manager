@@ -10,7 +10,7 @@ env:
   MIGRATE_BINARY: "acc-server-migration"
   DEPLOY_PATH: 'C:\acc-server-manager'
   SERVICE_NAME: "ACC Server Manager"
-  PORT: "4000"
+  HEALTH_URL: "http://localhost:4000/v1/system/health"
 
 jobs:
   build:
@@ -136,7 +136,7 @@ jobs:
 
           while ($attempt -le $maxAttempts -and -not $success) {
             try {
-              $response = Invoke-WebRequest -Uri "http://localhost:{{ env.PORT }}/system/health" -TimeoutSec 5
+              $response = Invoke-WebRequest -Uri "{{ env.HEALTH_URL }}" -TimeoutSec 5
               if ($response.StatusCode -eq 200) {
                 Write-Host "Health check passed!"
                 $success = $true
