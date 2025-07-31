@@ -20,7 +20,12 @@ func InitializeControllers(c *dig.Container) {
 		logging.Panic("unable to initialize auth middleware")
 	}
 
-	err := c.Invoke(NewServiceControlController)
+	err := c.Invoke(NewSystemController)
+	if err != nil {
+		logging.Panic("unable to initialize system controller")
+	}
+
+	err = c.Invoke(NewServiceControlController)
 	if err != nil {
 		logging.Panic("unable to initialize service control controller")
 	}

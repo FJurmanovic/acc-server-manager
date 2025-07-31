@@ -10,6 +10,7 @@ env:
   MIGRATE_BINARY: "acc-server-migration"
   DEPLOY_PATH: 'C:\acc-server-manager'
   SERVICE_NAME: "ACC Server Manager"
+  PORT: "4000"
 
 jobs:
   build:
@@ -135,7 +136,7 @@ jobs:
 
           while ($attempt -le $maxAttempts -and -not $success) {
             try {
-              $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 5
+              $response = Invoke-WebRequest -Uri "http://localhost:{{ env.PORT }}/system/health" -TimeoutSec 5
               if ($response.StatusCode -eq 200) {
                 Write-Host "Health check passed!"
                 $success = $true
@@ -150,31 +151,3 @@ jobs:
           if (-not $success) {
             throw "Health check failed after $maxAttempts attempts"
           }
-
-      - name: Notify on success
-        if: success()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { repo, owner } = context.repo;
-            const release = context.ref.replace('refs/tags/', '');
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: context.issue.number,
-              body: `✅ Successfully deployed ${release} to production!`
-            });
-
-      - name: Notify on failure
-        if: failure()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { repo, owner } = context.repo;
-            const release = context.ref.replace('refs/tags/', '');
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: context.issue.number,
-              body: `❌ Failed to deploy ${release} to production. Check the workflow logs for details.`
-            });

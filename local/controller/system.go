@@ -2,6 +2,7 @@ package controller
 
 import (
 	"acc-server-manager/local/utl/common"
+	"acc-server-manager/local/utl/configs"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -34,5 +35,5 @@ func NewSystemController(routeGroups *common.RouteGroups) *SystemController {
 //	@Success		200	{array}	string
 //	@Router			/v1/service-control [get]
 func (ac *SystemController) getFirst(c *fiber.Ctx) error {
-	return c.SendStatus(fiber.StatusOK)
+	return c.SendString(configs.Version)
 }
