@@ -10,7 +10,7 @@
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 //
-// @host https://acc.jurmanovic.com
+// @host acc.jurmanovic.com
 // @BasePath /v1
 // @schemes http https
 //

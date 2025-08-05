@@ -112,7 +112,7 @@ definitions:
       username:
         type: string
     type: object
-host: https://acc.jurmanovic.com
+host: acc.jurmanovic.com
 info:
   contact:
     name: ACC Server Manager Support
