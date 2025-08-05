@@ -10,9 +10,9 @@
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 //
-// @host acc.jurmanovic.com
+// @host acc-api.jurmanovic.com
 // @BasePath /v1
-// @schemes http https
+// @schemes https
 //
 // @securityDefinitions.apikey BearerAuth
 // @in header
