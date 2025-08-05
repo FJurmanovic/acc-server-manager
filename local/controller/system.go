@@ -31,9 +31,9 @@ func NewSystemController(routeGroups *common.RouteGroups) *SystemController {
 //
 //	@Summary		Return service control status
 //	@Description	Return service control status
-//	@Tags			service-control
+//	@Tags			system
 //	@Success		200	{array}	string
-//	@Router			/v1/service-control [get]
+//	@Router			/v1/system/health [get]
 func (ac *SystemController) getFirst(c *fiber.Ctx) error {
 	return c.SendString(configs.Version)
 }

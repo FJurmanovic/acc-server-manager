@@ -5,12 +5,12 @@
 // @description API for managing Assetto Corsa Competizione dedicated servers
 //
 // @contact.name ACC Server Manager Support
-// @contact.url https://github.com/yourusername/acc-server-manager
+// @contact.url https://github.com/FJurmanovic/acc-server-manager
 //
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 //
-// @host localhost:3000
+// @host https://acc.jurmanovic.com
 // @BasePath /api/v1
 // @schemes http https
 //

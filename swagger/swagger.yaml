@@ -103,11 +103,20 @@ definitions:
       username:
         type: string
     type: object
-host: localhost:3000
+  service.UpdateUserRequest:
+    properties:
+      password:
+        type: string
+      roleId:
+        type: string
+      username:
+        type: string
+    type: object
+host: https://acc.jurmanovic.com
 info:
   contact:
     name: ACC Server Manager Support
-    url: https://github.com/yourusername/acc-server-manager
+    url: https://github.com/FJurmanovic/acc-server-manager
   description: API for managing Assetto Corsa Competizione dedicated servers
   license:
     name: MIT
@@ -115,130 +124,7 @@ info:
   title: ACC Server Manager API
   version: "1.0"
 paths:
-  /auth/login:
-    post:
-      consumes:
-      - application/json
-      description: Authenticate a user and receive a JWT token
-      parameters:
-      - description: Login credentials
-        in: body
-        name: credentials
-        required: true
-        schema:
-          properties:
-            password:
-              type: string
-            username:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: JWT token
-          schema:
-            properties:
-              token:
-                type: string
-            type: object
-        "400":
-          description: Invalid request body
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-        "401":
-          description: Invalid credentials
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-      summary: User login
-      tags:
-      - Authentication
-  /membership:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of all registered users
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: List of users
-          schema:
-            items:
-              $ref: '#/definitions/model.User'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-        "403":
-          description: Insufficient permissions
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: List all users
-      tags:
-      - User Management
-    post:
-      consumes:
-      - application/json
-      description: Create a new user account with specified role
-      parameters:
-      - description: User details
-        in: body
-        name: user
-        required: true
-        schema:
-          properties:
-            password:
-              type: string
-            role:
-              type: string
-            username:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Created user details
-          schema:
-            $ref: '#/definitions/model.User'
-        "400":
-          description: Invalid request body
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-        "403":
-          description: Insufficient permissions
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-        "409":
-          description: User already exists
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/error_handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Create a new user
-      tags:
-      - User Management
-  /server:
+  /v1/api/server:
     get:
       consumes:
       - application/json
@@ -294,6 +180,73 @@ paths:
       summary: List all servers (API format)
       tags:
       - Server
+  /v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user and receive a JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          properties:
+            password:
+              type: string
+            username:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token
+          schema:
+            properties:
+              token:
+                type: string
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      summary: User login
+      tags:
+      - Authentication
+  /v1/auth/me:
+    get:
+      consumes:
+      - application/json
+      description: Get details of the currently authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Current user details
+          schema:
+            $ref: '#/definitions/model.User'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user details
+      tags:
+      - Authentication
   /v1/lookup/car-models:
     get:
       consumes:
@@ -461,6 +414,233 @@ paths:
       summary: Get available tracks
       tags:
       - Lookups
+  /v1/membership:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all registered users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users
+          schema:
+            items:
+              $ref: '#/definitions/model.User'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - User Management
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with specified role
+      parameters:
+      - description: User details
+        in: body
+        name: user
+        required: true
+        schema:
+          properties:
+            password:
+              type: string
+            role:
+              type: string
+            username:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Created user details
+          schema:
+            $ref: '#/definitions/model.User'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new user
+      tags:
+      - User Management
+  /v1/membership/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a specific user by ID
+      parameters:
+      - description: User ID (UUID format)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: User successfully deleted
+        "400":
+          description: Invalid user ID format
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - User Management
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific user
+      parameters:
+      - description: User ID (UUID format)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User details
+          schema:
+            $ref: '#/definitions/model.User'
+        "400":
+          description: Invalid user ID format
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - User Management
+    put:
+      consumes:
+      - application/json
+      description: Update user details by ID
+      parameters:
+      - description: User ID (UUID format)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated user details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated user details
+          schema:
+            $ref: '#/definitions/model.User'
+        "400":
+          description: Invalid request body or ID format
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user
+      tags:
+      - User Management
+  /v1/membership/roles:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available user roles
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of roles
+          schema:
+            items:
+              $ref: '#/definitions/model.Role'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all roles
+      tags:
+      - User Management
   /v1/server:
     get:
       consumes:
@@ -557,6 +737,48 @@ paths:
       tags:
       - Server
   /v1/server/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an existing ACC server
+      parameters:
+      - description: Server ID (UUID format)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deleted server details
+          schema:
+            type: object
+        "400":
+          description: Invalid server data or ID
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Server not found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete an ACC server
+      tags:
+      - Server
     get:
       consumes:
       - application/json
@@ -792,20 +1014,7 @@ paths:
       summary: Update server configuration file
       tags:
       - Server Configuration
-  /v1/service-control:
-    get:
-      description: Return service control status
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              type: string
-            type: array
-      summary: Return service control status
-      tags:
-      - service-control
-  /v1/service-control/{service}:
+  /v1/server/{id}/service/{service}:
     get:
       consumes:
       - application/json
@@ -849,7 +1058,7 @@ paths:
       summary: Get service status
       tags:
       - Service Control
-  /v1/service-control/restart:
+  /v1/server/{id}/service/restart:
     post:
       consumes:
       - application/json
@@ -899,7 +1108,7 @@ paths:
       summary: Restart a Windows service
       tags:
       - Service Control
-  /v1/service-control/start:
+  /v1/server/{id}/service/start:
     post:
       consumes:
       - application/json
@@ -953,7 +1162,7 @@ paths:
       summary: Start a Windows service
       tags:
       - Service Control
-  /v1/service-control/stop:
+  /v1/server/{id}/service/stop:
     post:
       consumes:
       - application/json
@@ -1033,6 +1242,19 @@ paths:
       summary: Return StateHistorys
       tags:
       - StateHistory
+  /v1/system/health:
+    get:
+      description: Return service control status
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      summary: Return service control status
+      tags:
+      - system
 schemes:
 - http
 - https

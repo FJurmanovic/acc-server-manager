@@ -50,7 +50,7 @@ func NewServerController(ss *service.ServerService, routeGroups *common.RouteGro
 // @Failure 401 {object} error_handler.ErrorResponse "Unauthorized"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /server [get]
+// @Router /v1/api/server [get]
 func (ac *ServerController) GetAllApi(c *fiber.Ctx) error {
 	var filter model.ServerFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {
@@ -181,7 +181,21 @@ func (ac *ServerController) UpdateServer(c *fiber.Ctx) error {
 	return c.JSON(server)
 }
 
-// DeleteServer deletes a server
+// DeleteServer deletes an existing server
+// @Summary Delete an ACC server
+// @Description Delete an existing ACC server
+// @Tags Server
+// @Accept json
+// @Produce json
+// @Param id path string true "Server ID (UUID format)"
+// @Success 200 {object} object "Deleted server details"
+// @Failure 400 {object} error_handler.ErrorResponse "Invalid server data or ID"
+// @Failure 401 {object} error_handler.ErrorResponse "Unauthorized"
+// @Failure 403 {object} error_handler.ErrorResponse "Insufficient permissions"
+// @Failure 404 {object} error_handler.ErrorResponse "Server not found"
+// @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
+// @Security BearerAuth
+// @Router /v1/server/{id} [delete]
 func (ac *ServerController) DeleteServer(c *fiber.Ctx) error {
 	serverIDStr := c.Params("id")
 	serverID, err := uuid.Parse(serverIDStr)
