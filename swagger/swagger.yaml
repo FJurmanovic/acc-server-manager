@@ -1,4 +1,4 @@
-basePath: /api/v1
+basePath: /v1
 definitions:
   error_handler.ErrorResponse:
     properties:
@@ -124,7 +124,7 @@ info:
   title: ACC Server Manager API
   version: "1.0"
 paths:
-  /v1/api/server:
+  /api/server:
     get:
       consumes:
       - application/json
@@ -180,7 +180,7 @@ paths:
       summary: List all servers (API format)
       tags:
       - Server
-  /v1/auth/login:
+  /auth/login:
     post:
       consumes:
       - application/json
@@ -222,7 +222,7 @@ paths:
       summary: User login
       tags:
       - Authentication
-  /v1/auth/me:
+  /auth/me:
     get:
       consumes:
       - application/json
@@ -247,7 +247,7 @@ paths:
       summary: Get current user details
       tags:
       - Authentication
-  /v1/lookup/car-models:
+  /lookup/car-models:
     get:
       consumes:
       - application/json
@@ -281,7 +281,7 @@ paths:
       summary: Get available car models
       tags:
       - Lookups
-  /v1/lookup/cup-categories:
+  /lookup/cup-categories:
     get:
       consumes:
       - application/json
@@ -313,7 +313,7 @@ paths:
       summary: Get cup categories
       tags:
       - Lookups
-  /v1/lookup/driver-categories:
+  /lookup/driver-categories:
     get:
       consumes:
       - application/json
@@ -347,7 +347,7 @@ paths:
       summary: Get driver categories
       tags:
       - Lookups
-  /v1/lookup/session-types:
+  /lookup/session-types:
     get:
       consumes:
       - application/json
@@ -382,7 +382,7 @@ paths:
       summary: Get session types
       tags:
       - Lookups
-  /v1/lookup/tracks:
+  /lookup/tracks:
     get:
       consumes:
       - application/json
@@ -414,7 +414,7 @@ paths:
       summary: Get available tracks
       tags:
       - Lookups
-  /v1/membership:
+  /membership:
     get:
       consumes:
       - application/json
@@ -495,7 +495,7 @@ paths:
       summary: Create a new user
       tags:
       - User Management
-  /v1/membership/{id}:
+  /membership/{id}:
     delete:
       consumes:
       - application/json
@@ -610,7 +610,7 @@ paths:
       summary: Update user
       tags:
       - User Management
-  /v1/membership/roles:
+  /membership/roles:
     get:
       consumes:
       - application/json
@@ -641,7 +641,7 @@ paths:
       summary: Get all roles
       tags:
       - User Management
-  /v1/server:
+  /server:
     get:
       consumes:
       - application/json
@@ -736,7 +736,7 @@ paths:
       summary: Create a new ACC server
       tags:
       - Server
-  /v1/server/{id}:
+  /server/{id}:
     delete:
       consumes:
       - application/json
@@ -865,7 +865,7 @@ paths:
       summary: Update an ACC server
       tags:
       - Server
-  /v1/server/{id}/config:
+  /server/{id}/config:
     get:
       consumes:
       - application/json
@@ -910,7 +910,7 @@ paths:
       summary: List available configuration files
       tags:
       - Server Configuration
-  /v1/server/{id}/config/{file}:
+  /server/{id}/config/{file}:
     get:
       consumes:
       - application/json
@@ -1014,7 +1014,7 @@ paths:
       summary: Update server configuration file
       tags:
       - Server Configuration
-  /v1/server/{id}/service/{service}:
+  /server/{id}/service/{service}:
     get:
       consumes:
       - application/json
@@ -1058,7 +1058,7 @@ paths:
       summary: Get service status
       tags:
       - Service Control
-  /v1/server/{id}/service/restart:
+  /server/{id}/service/restart:
     post:
       consumes:
       - application/json
@@ -1108,7 +1108,7 @@ paths:
       summary: Restart a Windows service
       tags:
       - Service Control
-  /v1/server/{id}/service/start:
+  /server/{id}/service/start:
     post:
       consumes:
       - application/json
@@ -1162,7 +1162,7 @@ paths:
       summary: Start a Windows service
       tags:
       - Service Control
-  /v1/server/{id}/service/stop:
+  /server/{id}/service/stop:
     post:
       consumes:
       - application/json
@@ -1216,7 +1216,7 @@ paths:
       summary: Stop a Windows service
       tags:
       - Service Control
-  /v1/state-history:
+  /state-history:
     get:
       description: Return StateHistorys
       responses:
@@ -1229,7 +1229,7 @@ paths:
       summary: Return StateHistorys
       tags:
       - StateHistory
-  /v1/state-history/statistics:
+  /state-history/statistics:
     get:
       description: Return StateHistorys
       responses:
@@ -1242,7 +1242,7 @@ paths:
       summary: Return StateHistorys
       tags:
       - StateHistory
-  /v1/system/health:
+  /system/health:
     get:
       description: Return service control status
       responses:

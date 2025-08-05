@@ -58,7 +58,7 @@ func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGro
 //	@Failure		404	{object} error_handler.ErrorResponse "Server or config file not found"
 //	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
 //	@Security		BearerAuth
-//	@Router			/v1/server/{id}/config/{file} [put]
+//	@Router			/server/{id}/config/{file} [put]
 func (ac *ConfigController) UpdateConfig(c *fiber.Ctx) error {
 	restart := c.QueryBool("restart")
 	serverID := c.Params("id")
@@ -106,7 +106,7 @@ func (ac *ConfigController) UpdateConfig(c *fiber.Ctx) error {
 //	@Failure		404	{object} error_handler.ErrorResponse "Server or config file not found"
 //	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
 //	@Security		BearerAuth
-//	@Router			/v1/server/{id}/config/{file} [get]
+//	@Router			/server/{id}/config/{file} [get]
 func (ac *ConfigController) GetConfig(c *fiber.Ctx) error {
 	Model, err := ac.service.GetConfig(c)
 	if err != nil {
@@ -130,7 +130,7 @@ func (ac *ConfigController) GetConfig(c *fiber.Ctx) error {
 //	@Failure		404	{object} error_handler.ErrorResponse "Server not found"
 //	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
 //	@Security		BearerAuth
-//	@Router			/v1/server/{id}/config [get]
+//	@Router			/server/{id}/config [get]
 func (ac *ConfigController) GetConfigs(c *fiber.Ctx) error {
 	Model, err := ac.service.GetConfigs(c)
 	if err != nil {

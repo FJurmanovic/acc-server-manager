@@ -61,7 +61,7 @@ func NewMembershipController(service *service.MembershipService, auth *middlewar
 // @Failure 400 {object} error_handler.ErrorResponse "Invalid request body"
 // @Failure 401 {object} error_handler.ErrorResponse "Invalid credentials"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
-// @Router /v1/auth/login [post]
+// @Router /auth/login [post]
 func (c *MembershipController) Login(ctx *fiber.Ctx) error {
 	type request struct {
 		Username string `json:"username"`
@@ -96,7 +96,7 @@ func (c *MembershipController) Login(ctx *fiber.Ctx) error {
 // @Failure 409 {object} error_handler.ErrorResponse "User already exists"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /v1/membership [post]
+// @Router /membership [post]
 func (mc *MembershipController) CreateUser(c *fiber.Ctx) error {
 	type request struct {
 		Username string `json:"username"`
@@ -128,7 +128,7 @@ func (mc *MembershipController) CreateUser(c *fiber.Ctx) error {
 // @Failure 403 {object} error_handler.ErrorResponse "Insufficient permissions"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /v1/membership [get]
+// @Router /membership [get]
 func (mc *MembershipController) ListUsers(c *fiber.Ctx) error {
 	users, err := mc.service.ListUsers(c.UserContext())
 	if err != nil {
@@ -150,7 +150,7 @@ func (mc *MembershipController) ListUsers(c *fiber.Ctx) error {
 // @Failure 401 {object} error_handler.ErrorResponse "Unauthorized"
 // @Failure 404 {object} error_handler.ErrorResponse "User not found"
 // @Security BearerAuth
-// @Router /v1/membership/{id} [get]
+// @Router /membership/{id} [get]
 func (mc *MembershipController) GetUser(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
@@ -175,7 +175,7 @@ func (mc *MembershipController) GetUser(c *fiber.Ctx) error {
 // @Failure 401 {object} error_handler.ErrorResponse "Unauthorized"
 // @Failure 404 {object} error_handler.ErrorResponse "User not found"
 // @Security BearerAuth
-// @Router /v1/auth/me [get]
+// @Router /auth/me [get]
 func (mc *MembershipController) GetMe(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(string)
 	if !ok || userID == "" {
@@ -206,7 +206,7 @@ func (mc *MembershipController) GetMe(c *fiber.Ctx) error {
 // @Failure 403 {object} error_handler.ErrorResponse "Insufficient permissions"
 // @Failure 404 {object} error_handler.ErrorResponse "User not found"
 // @Security BearerAuth
-// @Router /v1/membership/{id} [delete]
+// @Router /membership/{id} [delete]
 func (mc *MembershipController) DeleteUser(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
@@ -235,7 +235,7 @@ func (mc *MembershipController) DeleteUser(c *fiber.Ctx) error {
 // @Failure 403 {object} error_handler.ErrorResponse "Insufficient permissions"
 // @Failure 404 {object} error_handler.ErrorResponse "User not found"
 // @Security BearerAuth
-// @Router /v1/membership/{id} [put]
+// @Router /membership/{id} [put]
 func (mc *MembershipController) UpdateUser(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
@@ -266,7 +266,7 @@ func (mc *MembershipController) UpdateUser(c *fiber.Ctx) error {
 // @Failure 403 {object} error_handler.ErrorResponse "Insufficient permissions"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /v1/membership/roles [get]
+// @Router /membership/roles [get]
 func (mc *MembershipController) GetRoles(c *fiber.Ctx) error {
 	roles, err := mc.service.GetAllRoles(c.UserContext())
 	if err != nil {

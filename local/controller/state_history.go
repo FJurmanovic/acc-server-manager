@@ -42,7 +42,7 @@ func NewStateHistoryController(as *service.StateHistoryService, routeGroups *com
 //	@Description	Return StateHistorys
 //	@Tags			StateHistory
 //	@Success		200	{array}	string
-//	@Router			/v1/state-history [get]
+//	@Router			/state-history [get]
 func (ac *StateHistoryController) GetAll(c *fiber.Ctx) error {
 	var filter model.StateHistoryFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {
@@ -63,7 +63,7 @@ func (ac *StateHistoryController) GetAll(c *fiber.Ctx) error {
 //	@Description	Return StateHistorys
 //	@Tags			StateHistory
 //	@Success		200	{array}	string
-//	@Router			/v1/state-history/statistics [get]
+//	@Router			/state-history/statistics [get]
 func (ac *StateHistoryController) GetStatistics(c *fiber.Ctx) error {
 	var filter model.StateHistoryFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {

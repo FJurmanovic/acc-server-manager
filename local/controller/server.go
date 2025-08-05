@@ -50,7 +50,7 @@ func NewServerController(ss *service.ServerService, routeGroups *common.RouteGro
 // @Failure 401 {object} error_handler.ErrorResponse "Unauthorized"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /v1/api/server [get]
+// @Router /api/server [get]
 func (ac *ServerController) GetAllApi(c *fiber.Ctx) error {
 	var filter model.ServerFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {
@@ -79,7 +79,7 @@ func (ac *ServerController) GetAllApi(c *fiber.Ctx) error {
 // @Failure 401 {object} error_handler.ErrorResponse "Unauthorized"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /v1/server [get]
+// @Router /server [get]
 func (ac *ServerController) GetAll(c *fiber.Ctx) error {
 	var filter model.ServerFilter
 	if err := common.ParseQueryFilter(c, &filter); err != nil {
@@ -105,7 +105,7 @@ func (ac *ServerController) GetAll(c *fiber.Ctx) error {
 // @Failure 404 {object} error_handler.ErrorResponse "Server not found"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /v1/server/{id} [get]
+// @Router /server/{id} [get]
 func (ac *ServerController) GetById(c *fiber.Ctx) error {
 	serverIDStr := c.Params("id")
 	serverID, err := uuid.Parse(serverIDStr)
@@ -133,7 +133,7 @@ func (ac *ServerController) GetById(c *fiber.Ctx) error {
 // @Failure 403 {object} error_handler.ErrorResponse "Insufficient permissions"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /v1/server [post]
+// @Router /server [post]
 func (ac *ServerController) CreateServer(c *fiber.Ctx) error {
 	server := new(model.Server)
 	if err := c.BodyParser(server); err != nil {
@@ -161,7 +161,7 @@ func (ac *ServerController) CreateServer(c *fiber.Ctx) error {
 // @Failure 404 {object} error_handler.ErrorResponse "Server not found"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /v1/server/{id} [put]
+// @Router /server/{id} [put]
 func (ac *ServerController) UpdateServer(c *fiber.Ctx) error {
 	serverIDStr := c.Params("id")
 	serverID, err := uuid.Parse(serverIDStr)
@@ -195,7 +195,7 @@ func (ac *ServerController) UpdateServer(c *fiber.Ctx) error {
 // @Failure 404 {object} error_handler.ErrorResponse "Server not found"
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Security BearerAuth
-// @Router /v1/server/{id} [delete]
+// @Router /server/{id} [delete]
 func (ac *ServerController) DeleteServer(c *fiber.Ctx) error {
 	serverIDStr := c.Params("id")
 	serverID, err := uuid.Parse(serverIDStr)

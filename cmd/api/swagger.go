@@ -11,7 +11,7 @@
 // @license.url https://opensource.org/licenses/MIT
 //
 // @host https://acc.jurmanovic.com
-// @BasePath /api/v1
+// @BasePath /v1
 // @schemes http https
 //
 // @securityDefinitions.apikey BearerAuth

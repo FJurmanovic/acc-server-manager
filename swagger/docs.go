@@ -22,7 +22,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/v1/api/server": {
+        "/api/server": {
             "get": {
                 "security": [
                     {
@@ -113,7 +113,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/auth/login": {
+        "/auth/login": {
             "post": {
                 "description": "Authenticate a user and receive a JWT token",
                 "consumes": [
@@ -178,7 +178,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/auth/me": {
+        "/auth/me": {
             "get": {
                 "security": [
                     {
@@ -218,7 +218,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/lookup/car-models": {
+        "/lookup/car-models": {
             "get": {
                 "security": [
                     {
@@ -272,7 +272,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/lookup/cup-categories": {
+        "/lookup/cup-categories": {
             "get": {
                 "security": [
                     {
@@ -323,7 +323,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/lookup/driver-categories": {
+        "/lookup/driver-categories": {
             "get": {
                 "security": [
                     {
@@ -377,7 +377,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/lookup/session-types": {
+        "/lookup/session-types": {
             "get": {
                 "security": [
                     {
@@ -431,7 +431,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/lookup/tracks": {
+        "/lookup/tracks": {
             "get": {
                 "security": [
                     {
@@ -482,7 +482,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/membership": {
+        "/membership": {
             "get": {
                 "security": [
                     {
@@ -609,7 +609,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/membership/roles": {
+        "/membership/roles": {
             "get": {
                 "security": [
                     {
@@ -658,7 +658,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/membership/{id}": {
+        "/membership/{id}": {
             "get": {
                 "security": [
                     {
@@ -837,7 +837,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/server": {
+        "/server": {
             "get": {
                 "security": [
                     {
@@ -989,7 +989,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/server/{id}": {
+        "/server/{id}": {
             "get": {
                 "security": [
                     {
@@ -1189,7 +1189,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/server/{id}/config": {
+        "/server/{id}/config": {
             "get": {
                 "security": [
                     {
@@ -1259,7 +1259,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/server/{id}/config/{file}": {
+        "/server/{id}/config/{file}": {
             "get": {
                 "security": [
                     {
@@ -1419,7 +1419,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/server/{id}/service/restart": {
+        "/server/{id}/service/restart": {
             "post": {
                 "security": [
                     {
@@ -1498,7 +1498,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/server/{id}/service/start": {
+        "/server/{id}/service/start": {
             "post": {
                 "security": [
                     {
@@ -1583,7 +1583,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/server/{id}/service/stop": {
+        "/server/{id}/service/stop": {
             "post": {
                 "security": [
                     {
@@ -1668,7 +1668,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/server/{id}/service/{service}": {
+        "/server/{id}/service/{service}": {
             "get": {
                 "security": [
                     {
@@ -1737,7 +1737,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/state-history": {
+        "/state-history": {
             "get": {
                 "description": "Return StateHistorys",
                 "tags": [
@@ -1757,7 +1757,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/state-history/statistics": {
+        "/state-history/statistics": {
             "get": {
                 "description": "Return StateHistorys",
                 "tags": [
@@ -1777,7 +1777,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/system/health": {
+        "/system/health": {
             "get": {
                 "description": "Return service control status",
                 "tags": [
@@ -1980,7 +1980,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "https://acc.jurmanovic.com",
-	BasePath:         "/api/v1",
+	BasePath:         "/v1",
 	Schemes:          []string{"http", "https"},
 	Title:            "ACC Server Manager API",
 	Description:      "API for managing Assetto Corsa Competizione dedicated servers",

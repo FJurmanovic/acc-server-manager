@@ -51,7 +51,7 @@ func NewServiceControlController(as *service.ServiceControlService, routeGroups 
 //	@Failure		404	{object} error_handler.ErrorResponse "Service not found"
 //	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
 //	@Security		BearerAuth
-//	@Router			/v1/server/{id}/service/{service} [get]
+//	@Router			/server/{id}/service/{service} [get]
 func (ac *ServiceControlController) getStatus(c *fiber.Ctx) error {
 	id := c.Params("id")
 	c.Locals("serverId", id)
@@ -78,7 +78,7 @@ func (ac *ServiceControlController) getStatus(c *fiber.Ctx) error {
 //	@Failure		409	{object} error_handler.ErrorResponse "Service already running"
 //	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
 //	@Security		BearerAuth
-//	@Router			/v1/server/{id}/service/start [post]
+//	@Router			/server/{id}/service/start [post]
 func (ac *ServiceControlController) startServer(c *fiber.Ctx) error {
 	id := c.Params("id")
 	c.Locals("serverId", id)
@@ -105,7 +105,7 @@ func (ac *ServiceControlController) startServer(c *fiber.Ctx) error {
 //	@Failure		409	{object} error_handler.ErrorResponse "Service already stopped"
 //	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
 //	@Security		BearerAuth
-//	@Router			/v1/server/{id}/service/stop [post]
+//	@Router			/server/{id}/service/stop [post]
 func (ac *ServiceControlController) stopServer(c *fiber.Ctx) error {
 	id := c.Params("id")
 	c.Locals("serverId", id)
@@ -131,7 +131,7 @@ func (ac *ServiceControlController) stopServer(c *fiber.Ctx) error {
 //	@Failure		404	{object} error_handler.ErrorResponse "Service not found"
 //	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
 //	@Security		BearerAuth
-//	@Router			/v1/server/{id}/service/restart [post]
+//	@Router			/server/{id}/service/restart [post]
 func (ac *ServiceControlController) restartServer(c *fiber.Ctx) error {
 	id := c.Params("id")
 	c.Locals("serverId", id)

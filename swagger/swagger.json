@@ -18,9 +18,9 @@
         "version": "1.0"
     },
     "host": "https://acc.jurmanovic.com",
-    "basePath": "/api/v1",
+    "basePath": "/v1",
     "paths": {
-        "/v1/api/server": {
+        "/api/server": {
             "get": {
                 "security": [
                     {
@@ -111,7 +111,7 @@
                 }
             }
         },
-        "/v1/auth/login": {
+        "/auth/login": {
             "post": {
                 "description": "Authenticate a user and receive a JWT token",
                 "consumes": [
@@ -176,7 +176,7 @@
                 }
             }
         },
-        "/v1/auth/me": {
+        "/auth/me": {
             "get": {
                 "security": [
                     {
@@ -216,7 +216,7 @@
                 }
             }
         },
-        "/v1/lookup/car-models": {
+        "/lookup/car-models": {
             "get": {
                 "security": [
                     {
@@ -270,7 +270,7 @@
                 }
             }
         },
-        "/v1/lookup/cup-categories": {
+        "/lookup/cup-categories": {
             "get": {
                 "security": [
                     {
@@ -321,7 +321,7 @@
                 }
             }
         },
-        "/v1/lookup/driver-categories": {
+        "/lookup/driver-categories": {
             "get": {
                 "security": [
                     {
@@ -375,7 +375,7 @@
                 }
             }
         },
-        "/v1/lookup/session-types": {
+        "/lookup/session-types": {
             "get": {
                 "security": [
                     {
@@ -429,7 +429,7 @@
                 }
             }
         },
-        "/v1/lookup/tracks": {
+        "/lookup/tracks": {
             "get": {
                 "security": [
                     {
@@ -480,7 +480,7 @@
                 }
             }
         },
-        "/v1/membership": {
+        "/membership": {
             "get": {
                 "security": [
                     {
@@ -607,7 +607,7 @@
                 }
             }
         },
-        "/v1/membership/roles": {
+        "/membership/roles": {
             "get": {
                 "security": [
                     {
@@ -656,7 +656,7 @@
                 }
             }
         },
-        "/v1/membership/{id}": {
+        "/membership/{id}": {
             "get": {
                 "security": [
                     {
@@ -835,7 +835,7 @@
                 }
             }
         },
-        "/v1/server": {
+        "/server": {
             "get": {
                 "security": [
                     {
@@ -987,7 +987,7 @@
                 }
             }
         },
-        "/v1/server/{id}": {
+        "/server/{id}": {
             "get": {
                 "security": [
                     {
@@ -1187,7 +1187,7 @@
                 }
             }
         },
-        "/v1/server/{id}/config": {
+        "/server/{id}/config": {
             "get": {
                 "security": [
                     {
@@ -1257,7 +1257,7 @@
                 }
             }
         },
-        "/v1/server/{id}/config/{file}": {
+        "/server/{id}/config/{file}": {
             "get": {
                 "security": [
                     {
@@ -1417,7 +1417,7 @@
                 }
             }
         },
-        "/v1/server/{id}/service/restart": {
+        "/server/{id}/service/restart": {
             "post": {
                 "security": [
                     {
@@ -1496,7 +1496,7 @@
                 }
             }
         },
-        "/v1/server/{id}/service/start": {
+        "/server/{id}/service/start": {
             "post": {
                 "security": [
                     {
@@ -1581,7 +1581,7 @@
                 }
             }
         },
-        "/v1/server/{id}/service/stop": {
+        "/server/{id}/service/stop": {
             "post": {
                 "security": [
                     {
@@ -1666,7 +1666,7 @@
                 }
             }
         },
-        "/v1/server/{id}/service/{service}": {
+        "/server/{id}/service/{service}": {
             "get": {
                 "security": [
                     {
@@ -1735,7 +1735,7 @@
                 }
             }
         },
-        "/v1/state-history": {
+        "/state-history": {
             "get": {
                 "description": "Return StateHistorys",
                 "tags": [
@@ -1755,7 +1755,7 @@
                 }
             }
         },
-        "/v1/state-history/statistics": {
+        "/state-history/statistics": {
             "get": {
                 "description": "Return StateHistorys",
                 "tags": [
@@ -1775,7 +1775,7 @@
                 }
             }
         },
-        "/v1/system/health": {
+        "/system/health": {
             "get": {
                 "description": "Return service control status",
                 "tags": [
