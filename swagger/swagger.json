@@ -1,6 +1,5 @@
 {
     "schemes": [
-        "http",
         "https"
     ],
     "swagger": "2.0",
@@ -17,7 +16,7 @@
         },
         "version": "1.0"
     },
-    "host": "acc.jurmanovic.com",
+    "host": "acc-api.jurmanovic.com",
     "basePath": "/v1",
     "paths": {
         "/api/server": {

@@ -1979,9 +1979,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "acc.jurmanovic.com",
+	Host:             "acc-api.jurmanovic.com",
 	BasePath:         "/v1",
-	Schemes:          []string{"http", "https"},
+	Schemes:          []string{"https"},
 	Title:            "ACC Server Manager API",
 	Description:      "API for managing Assetto Corsa Competizione dedicated servers",
 	InfoInstanceName: "swagger",
