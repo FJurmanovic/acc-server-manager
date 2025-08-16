@@ -92,6 +92,35 @@ definitions:
     - StatusRestarting
     - StatusStarting
     - StatusRunning
+  model.Steam2FARequest:
+    properties:
+      completedAt:
+        type: string
+      errorMsg:
+        type: string
+      id:
+        type: string
+      message:
+        type: string
+      requestTime:
+        type: string
+      serverId:
+        type: string
+      status:
+        $ref: '#/definitions/model.Steam2FAStatus'
+    type: object
+  model.Steam2FAStatus:
+    enum:
+    - idle
+    - pending
+    - complete
+    - error
+    type: string
+    x-enum-varnames:
+    - Steam2FAStatusIdle
+    - Steam2FAStatusPending
+    - Steam2FAStatusComplete
+    - Steam2FAStatusError
   model.User:
     properties:
       id:
@@ -245,6 +274,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Get current user details
+      tags:
+      - Authentication
+  /auth/open-token:
+    post:
+      consumes:
+      - application/json
+      description: Generate an open token for a user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token
+          schema:
+            properties:
+              token:
+                type: string
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      summary: Generate an open token
       tags:
       - Authentication
   /lookup/car-models:
@@ -1242,6 +1301,122 @@ paths:
       summary: Return StateHistorys
       tags:
       - StateHistory
+  /steam2fa/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific Steam 2FA authentication request by ID
+      parameters:
+      - description: 2FA Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Steam2FARequest'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      summary: Get 2FA request
+      tags:
+      - Steam 2FA
+  /steam2fa/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: Cancel a Steam 2FA authentication request
+      parameters:
+      - description: 2FA Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Steam2FARequest'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      summary: Cancel 2FA request
+      tags:
+      - Steam 2FA
+  /steam2fa/{id}/complete:
+    post:
+      consumes:
+      - application/json
+      description: Mark a Steam 2FA authentication request as completed
+      parameters:
+      - description: 2FA Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Steam2FARequest'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      summary: Complete 2FA request
+      tags:
+      - Steam 2FA
+  /steam2fa/pending:
+    get:
+      consumes:
+      - application/json
+      description: Get all pending Steam 2FA authentication requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Steam2FARequest'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/error_handler.ErrorResponse'
+      summary: Get pending 2FA requests
+      tags:
+      - Steam 2FA
   /system/health:
     get:
       description: Return service control status

@@ -4,6 +4,7 @@ import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/utl/jwt"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,8 +19,16 @@ func GenerateTestToken() (string, error) {
 		RoleID:   uuid.New(),
 	}
 
+	// Use the environment JWT_SECRET for consistency with middleware
+	testSecret := os.Getenv("JWT_SECRET")
+	if testSecret == "" {
+		// Fallback to a test secret if env var is not set
+		testSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(testSecret)
+
 	// Generate JWT token
-	token, err := jwt.GenerateToken(user)
+	token, err := jwtHandler.GenerateToken(user)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate test token: %w", err)
 	}
@@ -39,6 +48,14 @@ func MustGenerateTestToken() string {
 
 // GenerateTestTokenWithExpiry creates a JWT token with a specific expiry time
 func GenerateTestTokenWithExpiry(expiryTime time.Time) (string, error) {
+	// Use the environment JWT_SECRET for consistency with middleware
+	testSecret := os.Getenv("JWT_SECRET")
+	if testSecret == "" {
+		// Fallback to a test secret if env var is not set
+		testSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(testSecret)
+	
 	// Create test user
 	user := &model.User{
 		ID:       uuid.New(),
@@ -47,7 +64,7 @@ func GenerateTestTokenWithExpiry(expiryTime time.Time) (string, error) {
 	}
 
 	// Generate JWT token with custom expiry
-	token, err := jwt.GenerateTokenWithExpiry(user, expiryTime)
+	token, err := jwtHandler.GenerateTokenWithExpiry(user, expiryTime)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate test token with expiry: %w", err)
 	}

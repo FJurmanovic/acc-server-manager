@@ -22,13 +22,17 @@ type CacheInvalidator interface {
 type MembershipService struct {
 	repo             *repository.MembershipRepository
 	cacheInvalidator CacheInvalidator
+	jwtHandler       *jwt.JWTHandler
+	openJwtHandler   *jwt.OpenJWTHandler
 }
 
 // NewMembershipService creates a new MembershipService.
-func NewMembershipService(repo *repository.MembershipRepository) *MembershipService {
+func NewMembershipService(repo *repository.MembershipRepository, jwtHandler *jwt.JWTHandler, openJwtHandler *jwt.OpenJWTHandler) *MembershipService {
 	return &MembershipService{
 		repo:             repo,
 		cacheInvalidator: nil, // Will be set later via SetCacheInvalidator
+		jwtHandler:       jwtHandler,
+		openJwtHandler:   openJwtHandler,
 	}
 }
 
@@ -38,18 +42,37 @@ func (s *MembershipService) SetCacheInvalidator(invalidator CacheInvalidator) {
 }
 
 // Login authenticates a user and returns a JWT.
-func (s *MembershipService) Login(ctx context.Context, username, password string) (string, error) {
+func (s *MembershipService) HandleLogin(ctx context.Context, username, password string) (*model.User, error) {
 	user, err := s.repo.FindUserByUsername(ctx, username)
 	if err != nil {
-		return "", errors.New("invalid credentials")
+		return nil, errors.New("invalid credentials")
 	}
 
 	// Use secure password verification with constant-time comparison
 	if err := user.VerifyPassword(password); err != nil {
-		return "", errors.New("invalid credentials")
+		return nil, errors.New("invalid credentials")
 	}
 
-	return jwt.GenerateToken(user)
+	return user, nil
+}
+
+// Login authenticates a user and returns a JWT.
+func (s *MembershipService) Login(ctx context.Context, username, password string) (string, error) {
+	user, err := s.HandleLogin(ctx, username, password)
+	if err != nil {
+		return "", err
+	}
+
+	return s.jwtHandler.GenerateToken(user)
+}
+
+func (s *MembershipService) GenerateOpenToken(ctx context.Context, userId string) (string, error) {
+	user, err := s.repo.GetByID(ctx, userId)
+	if err != nil {
+		return "", err
+	}
+
+	return s.openJwtHandler.GenerateToken(user)
 }
 
 // CreateUser creates a new user.

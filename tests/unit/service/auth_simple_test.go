@@ -5,6 +5,7 @@ import (
 	"acc-server-manager/local/utl/jwt"
 	"acc-server-manager/local/utl/password"
 	"acc-server-manager/tests"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
@@ -15,6 +16,8 @@ func TestJWT_GenerateAndValidateToken(t *testing.T) {
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
+	jwtHandler := jwt.NewJWTHandler(os.Getenv("JWT_SECRET"))
+
 	// Create test user
 	user := &model.User{
 		ID:       uuid.New(),
@@ -23,7 +26,7 @@ func TestJWT_GenerateAndValidateToken(t *testing.T) {
 	}
 
 	// Test JWT generation
-	token, err := jwt.GenerateToken(user)
+	token, err := jwtHandler.GenerateToken(user)
 	tests.AssertNoError(t, err)
 	tests.AssertNotNil(t, token)
 
@@ -33,7 +36,7 @@ func TestJWT_GenerateAndValidateToken(t *testing.T) {
 	}
 
 	// Test JWT validation
-	claims, err := jwt.ValidateToken(token)
+	claims, err := jwtHandler.ValidateToken(token)
 	tests.AssertNoError(t, err)
 	tests.AssertNotNil(t, claims)
 	tests.AssertEqual(t, user.ID.String(), claims.UserID)
@@ -43,9 +46,10 @@ func TestJWT_ValidateToken_InvalidToken(t *testing.T) {
 	// Setup
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
+	jwtHandler := jwt.NewJWTHandler(os.Getenv("JWT_SECRET"))
 
 	// Test with invalid token
-	claims, err := jwt.ValidateToken("invalid-token")
+	claims, err := jwtHandler.ValidateToken("invalid-token")
 	if err == nil {
 		t.Fatal("Expected error for invalid token, got nil")
 	}
@@ -59,9 +63,10 @@ func TestJWT_ValidateToken_EmptyToken(t *testing.T) {
 	// Setup
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
+	jwtHandler := jwt.NewJWTHandler(os.Getenv("JWT_SECRET"))
 
 	// Test with empty token
-	claims, err := jwt.ValidateToken("")
+	claims, err := jwtHandler.ValidateToken("")
 	if err == nil {
 		t.Fatal("Expected error for empty token, got nil")
 	}

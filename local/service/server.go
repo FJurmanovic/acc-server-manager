@@ -337,7 +337,7 @@ func (s *ServerService) CreateServer(ctx *fiber.Ctx, server *model.Server) error
 	}
 
 	// Install server using SteamCMD
-	if err := s.steamService.InstallServer(ctx.UserContext(), server.GetServerPath()); err != nil {
+	if err := s.steamService.InstallServer(ctx.UserContext(), server.GetServerPath(), &server.ID); err != nil {
 		return fmt.Errorf("failed to install server: %v", err)
 	}
 
@@ -450,7 +450,7 @@ func (s *ServerService) UpdateServer(ctx *fiber.Ctx, server *model.Server) error
 
 	// Update server files if path changed
 	if existingServer.Path != server.Path {
-		if err := s.steamService.InstallServer(ctx.UserContext(), server.Path); err != nil {
+		if err := s.steamService.InstallServer(ctx.UserContext(), server.Path, &server.ID); err != nil {
 			return fmt.Errorf("failed to install server to new location: %v", err)
 		}
 		// Clean up old installation

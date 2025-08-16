@@ -30,6 +30,7 @@ func Start(di *dig.Container) *fiber.App {
 	app.Use(securityMW.SecurityHeaders())
 	app.Use(securityMW.LogSecurityEvents())
 	app.Use(securityMW.TimeoutMiddleware(30 * time.Second))
+	app.Use(securityMW.RequestContextTimeout(60 * time.Second))
 	app.Use(securityMW.RequestSizeLimit(10 * 1024 * 1024)) // 10MB
 	app.Use(securityMW.ValidateUserAgent())
 	app.Use(securityMW.ValidateContentType("application/json", "application/x-www-form-urlencoded", "multipart/form-data"))

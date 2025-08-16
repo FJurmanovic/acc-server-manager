@@ -6,10 +6,14 @@ import (
 	"acc-server-manager/local/utl/command"
 	"acc-server-manager/local/utl/env"
 	"acc-server-manager/local/utl/logging"
+	"acc-server-manager/local/utl/security"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -17,17 +21,27 @@ const (
 )
 
 type SteamService struct {
-	executor   *command.CommandExecutor
-	repository *repository.SteamCredentialsRepository
+	executor            *command.CommandExecutor
+	interactiveExecutor *command.InteractiveCommandExecutor
+	repository          *repository.SteamCredentialsRepository
+	tfaManager          *model.Steam2FAManager
+	pathValidator       *security.PathValidator
+	downloadVerifier    *security.DownloadVerifier
 }
 
-func NewSteamService(repository *repository.SteamCredentialsRepository) *SteamService {
+func NewSteamService(repository *repository.SteamCredentialsRepository, tfaManager *model.Steam2FAManager) *SteamService {
+	baseExecutor := &command.CommandExecutor{
+		ExePath:   "powershell",
+		LogOutput: true,
+	}
+
 	return &SteamService{
-		executor: &command.CommandExecutor{
-			ExePath:   "powershell",
-			LogOutput: true,
-		},
-		repository: repository,
+		executor:            baseExecutor,
+		interactiveExecutor: command.NewInteractiveCommandExecutor(baseExecutor, tfaManager),
+		repository:          repository,
+		tfaManager:          tfaManager,
+		pathValidator:       security.NewPathValidator(),
+		downloadVerifier:    security.NewDownloadVerifier(),
 	}
 }
 
@@ -42,7 +56,7 @@ func (s *SteamService) SaveCredentials(ctx context.Context, creds *model.SteamCr
 	return s.repository.Save(ctx, creds)
 }
 
-func (s *SteamService) ensureSteamCMD(ctx context.Context) error {
+func (s *SteamService) ensureSteamCMD(_ context.Context) error {
 	// Get SteamCMD path from environment variable
 	steamCMDPath := env.GetSteamCMDPath()
 	steamCMDDir := filepath.Dir(steamCMDPath)
@@ -57,10 +71,13 @@ func (s *SteamService) ensureSteamCMD(ctx context.Context) error {
 		return fmt.Errorf("failed to create SteamCMD directory: %v", err)
 	}
 
-	// Download and install SteamCMD
+	// Download and install SteamCMD securely
 	logging.Info("Downloading SteamCMD...")
-	if err := s.executor.Execute("-Command",
-		"Invoke-WebRequest -Uri 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip' -OutFile 'steamcmd.zip'"); err != nil {
+	steamCMDZip := filepath.Join(steamCMDDir, "steamcmd.zip")
+	if err := s.downloadVerifier.VerifyAndDownload(
+		"https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip",
+		steamCMDZip,
+		""); err != nil {
 		return fmt.Errorf("failed to download SteamCMD: %v", err)
 	}
 
@@ -76,9 +93,14 @@ func (s *SteamService) ensureSteamCMD(ctx context.Context) error {
 	return nil
 }
 
-func (s *SteamService) InstallServer(ctx context.Context, installPath string) error {
+func (s *SteamService) InstallServer(ctx context.Context, installPath string, serverID *uuid.UUID) error {
 	if err := s.ensureSteamCMD(ctx); err != nil {
 		return err
+	}
+
+	// Validate installation path for security
+	if err := s.pathValidator.ValidateInstallPath(installPath); err != nil {
+		return fmt.Errorf("invalid installation path: %v", err)
 	}
 
 	// Convert to absolute path and ensure proper Windows path format
@@ -126,17 +148,15 @@ func (s *SteamService) InstallServer(ctx context.Context, installPath string) er
 		"+quit",
 	)
 
-	// Run SteamCMD
+	// Use interactive executor to handle potential 2FA prompts
 	logging.Info("Installing ACC server to %s...", absPath)
-	if err := s.executor.Execute(args...); err != nil {
+	if err := s.interactiveExecutor.ExecuteInteractive(ctx, serverID, args...); err != nil {
 		return fmt.Errorf("failed to run SteamCMD: %v", err)
 	}
 
 	// Add a delay to allow Steam to properly cleanup
 	logging.Info("Waiting for Steam operations to complete...")
-	if err := s.executor.Execute("-Command", "Start-Sleep -Seconds 5"); err != nil {
-		logging.Warn("Failed to wait after Steam operations: %v", err)
-	}
+	time.Sleep(5 * time.Second)
 
 	// Verify installation
 	exePath := filepath.Join(absPath, "server", "accServer.exe")
@@ -148,8 +168,8 @@ func (s *SteamService) InstallServer(ctx context.Context, installPath string) er
 	return nil
 }
 
-func (s *SteamService) UpdateServer(ctx context.Context, installPath string) error {
-	return s.InstallServer(ctx, installPath) // Same process as install
+func (s *SteamService) UpdateServer(ctx context.Context, installPath string, serverID *uuid.UUID) error {
+	return s.InstallServer(ctx, installPath, serverID) // Same process as install
 }
 
 func (s *SteamService) UninstallServer(installPath string) error {

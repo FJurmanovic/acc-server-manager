@@ -30,14 +30,18 @@ type AuthMiddleware struct {
 	membershipService *service.MembershipService
 	cache             *cache.InMemoryCache
 	securityMW        *security.SecurityMiddleware
+	jwtHandler        *jwt.JWTHandler
+	openJWTHandler    *jwt.OpenJWTHandler
 }
 
 // NewAuthMiddleware creates a new AuthMiddleware.
-func NewAuthMiddleware(ms *service.MembershipService, cache *cache.InMemoryCache) *AuthMiddleware {
+func NewAuthMiddleware(ms *service.MembershipService, cache *cache.InMemoryCache, jwtHandler *jwt.JWTHandler, openJWTHandler *jwt.OpenJWTHandler) *AuthMiddleware {
 	auth := &AuthMiddleware{
 		membershipService: ms,
 		cache:             cache,
 		securityMW:        security.NewSecurityMiddleware(),
+		jwtHandler:        jwtHandler,
+		openJWTHandler:    openJWTHandler,
 	}
 
 	// Set up bidirectional relationship for cache invalidation
@@ -47,7 +51,16 @@ func NewAuthMiddleware(ms *service.MembershipService, cache *cache.InMemoryCache
 }
 
 // Authenticate is a middleware for JWT authentication with enhanced security.
+func (m *AuthMiddleware) AuthenticateOpen(ctx *fiber.Ctx) error {
+	return m.AuthenticateWithHandler(m.openJWTHandler.JWTHandler, ctx)
+}
+
+// Authenticate is a middleware for JWT authentication with enhanced security.
 func (m *AuthMiddleware) Authenticate(ctx *fiber.Ctx) error {
+	return m.AuthenticateWithHandler(m.jwtHandler, ctx)
+}
+
+func (m *AuthMiddleware) AuthenticateWithHandler(jwtHandler *jwt.JWTHandler, ctx *fiber.Ctx) error {
 	// Log authentication attempt
 	ip := ctx.IP()
 	userAgent := ctx.Get("User-Agent")
@@ -77,7 +90,7 @@ func (m *AuthMiddleware) Authenticate(ctx *fiber.Ctx) error {
 		})
 	}
 
-	claims, err := jwt.ValidateToken(token)
+	claims, err := jwtHandler.ValidateToken(token)
 	if err != nil {
 		logging.Error("Authentication failed: invalid token from IP %s, User-Agent: %s, Error: %v", ip, userAgent, err)
 		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

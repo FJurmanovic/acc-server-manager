@@ -218,6 +218,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/open-token": {
+            "post": {
+                "description": "Generate an open token for a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Generate an open token",
+                "responses": {
+                    "200": {
+                        "description": "JWT token",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "token": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/lookup/car-models": {
             "get": {
                 "security": [
@@ -1777,6 +1823,182 @@ const docTemplate = `{
                 }
             }
         },
+        "/steam2fa/pending": {
+            "get": {
+                "description": "Get all pending Steam 2FA authentication requests",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Steam 2FA"
+                ],
+                "summary": "Get pending 2FA requests",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Steam2FARequest"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/steam2fa/{id}": {
+            "get": {
+                "description": "Get a specific Steam 2FA authentication request by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Steam 2FA"
+                ],
+                "summary": "Get 2FA request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "2FA Request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Steam2FARequest"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/steam2fa/{id}/cancel": {
+            "post": {
+                "description": "Cancel a Steam 2FA authentication request",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Steam 2FA"
+                ],
+                "summary": "Cancel 2FA request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "2FA Request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Steam2FARequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/steam2fa/{id}/complete": {
+            "post": {
+                "description": "Mark a Steam 2FA authentication request as completed",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Steam 2FA"
+                ],
+                "summary": "Complete 2FA request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "2FA Request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Steam2FARequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/error_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/system/health": {
             "get": {
                 "description": "Return service control status",
@@ -1932,6 +2154,47 @@ const docTemplate = `{
                 "StatusRestarting",
                 "StatusStarting",
                 "StatusRunning"
+            ]
+        },
+        "model.Steam2FARequest": {
+            "type": "object",
+            "properties": {
+                "completedAt": {
+                    "type": "string"
+                },
+                "errorMsg": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "requestTime": {
+                    "type": "string"
+                },
+                "serverId": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.Steam2FAStatus"
+                }
+            }
+        },
+        "model.Steam2FAStatus": {
+            "type": "string",
+            "enum": [
+                "idle",
+                "pending",
+                "complete",
+                "error"
+            ],
+            "x-enum-varnames": [
+                "Steam2FAStatusIdle",
+                "Steam2FAStatusPending",
+                "Steam2FAStatusComplete",
+                "Steam2FAStatusError"
             ]
         },
         "model.User": {

@@ -18,12 +18,12 @@ func InitializeServices(c *dig.Container) {
 
 	logging.Debug("Registering services")
 	// Provide services
+	c.Provide(NewSteamService)
 	c.Provide(NewServerService)
 	c.Provide(NewStateHistoryService)
 	c.Provide(NewServiceControlService)
 	c.Provide(NewConfigService)
 	c.Provide(NewLookupService)
-	c.Provide(NewSteamService)
 	c.Provide(NewWindowsService)
 	c.Provide(NewFirewallService)
 	c.Provide(NewMembershipService)

@@ -3,7 +3,6 @@ package tests
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/utl/configs"
-	"acc-server-manager/local/utl/jwt"
 	"bytes"
 	"context"
 	"errors"
@@ -52,7 +51,6 @@ func SetTestEnv() {
 	os.Setenv("TESTING_ENV", "true") // Used to bypass
 
 	configs.Init()
-	jwt.Init()
 }
 
 // NewTestHelper creates a new test helper with in-memory database

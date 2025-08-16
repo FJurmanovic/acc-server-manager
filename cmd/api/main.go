@@ -17,7 +17,6 @@ import (
 
 func main() {
 	configs.Init()
-	jwt.Init()
 	// Initialize new logging system
 	if err := logging.InitializeLogging(); err != nil {
 		fmt.Printf("Failed to initialize logging system: %v\n", err)
@@ -37,6 +36,8 @@ func main() {
 	logging.InfoStartup("APPLICATION", "ACC Server Manager starting up")
 
 	di := dig.New()
+	di.Provide(func() *jwt.JWTHandler { return jwt.NewJWTHandler(os.Getenv("JWT_SECRET")) })
+	di.Provide(func() *jwt.OpenJWTHandler { return jwt.NewOpenJWTHandler(os.Getenv("JWT_SECRET_OPEN")) })
 	cache.Start(di)
 	db.Start(di)
 	server.Start(di)

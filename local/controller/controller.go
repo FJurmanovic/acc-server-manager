@@ -54,4 +54,9 @@ func InitializeControllers(c *dig.Container) {
 	if err != nil {
 		logging.Panic("unable to initialize membership controller")
 	}
+
+	err = c.Invoke(NewSteam2FAController)
+	if err != nil {
+		logging.Panic("unable to initialize steam 2fa controller")
+	}
 }

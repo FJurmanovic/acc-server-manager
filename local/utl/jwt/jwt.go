@@ -2,18 +2,14 @@ package jwt
 
 import (
 	"acc-server-manager/local/model"
+	"acc-server-manager/local/utl/errors"
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
-	"log"
-	"os"
+	goerrors "errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 )
-
-// SecretKey holds the JWT signing key loaded from environment
-var SecretKey []byte
 
 // Claims represents the JWT claims.
 type Claims struct {
@@ -21,38 +17,58 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// init initializes the JWT secret key from environment variable
-func Init() {
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		log.Fatal("JWT_SECRET environment variable is required and cannot be empty")
+type JWTHandler struct {
+	SecretKey []byte
+}
+
+type OpenJWTHandler struct {
+	*JWTHandler
+}
+
+// NewJWTHandler creates a new JWTHandler instance with the provided secret key.
+func NewOpenJWTHandler(jwtSecret string) *OpenJWTHandler {
+	jwtHandler := NewJWTHandler(jwtSecret)
+	return &OpenJWTHandler{
+		JWTHandler: jwtHandler,
 	}
+}
+
+// NewJWTHandler creates a new JWTHandler instance with the provided secret key.
+func NewJWTHandler(jwtSecret string) *JWTHandler {
+	if jwtSecret == "" {
+		errors.SafeFatal("JWT_SECRET environment variable is required and cannot be empty")
+	}
+
+	var secretKey []byte
 
 	// Decode base64 secret if it looks like base64, otherwise use as-is
 	if decoded, err := base64.StdEncoding.DecodeString(jwtSecret); err == nil && len(decoded) >= 32 {
-		SecretKey = decoded
+		secretKey = decoded
 	} else {
-		SecretKey = []byte(jwtSecret)
+		secretKey = []byte(jwtSecret)
 	}
 
 	// Ensure minimum key length for security
-	if len(SecretKey) < 32 {
-		log.Fatal("JWT_SECRET must be at least 32 bytes long for security")
+	if len(secretKey) < 32 {
+		errors.SafeFatal("JWT_SECRET must be at least 32 bytes long for security")
+	}
+	return &JWTHandler{
+		SecretKey: secretKey,
 	}
 }
 
 // GenerateSecretKey generates a cryptographically secure random key for JWT signing
 // This is a utility function for generating new secrets, not used in normal operation
-func GenerateSecretKey() string {
+func (jh *JWTHandler) GenerateSecretKey() string {
 	key := make([]byte, 64) // 512 bits
 	if _, err := rand.Read(key); err != nil {
-		log.Fatal("Failed to generate random key: ", err)
+		errors.SafeFatal("Failed to generate random key: %v", err)
 	}
 	return base64.StdEncoding.EncodeToString(key)
 }
 
 // GenerateToken generates a new JWT for a given user.
-func GenerateToken(user *model.User) (string, error) {
+func (jh *JWTHandler) GenerateToken(user *model.User) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
 		UserID: user.ID.String(),
@@ -62,10 +78,10 @@ func GenerateToken(user *model.User) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(SecretKey)
+	return token.SignedString(jh.SecretKey)
 }
 
-func GenerateTokenWithExpiry(user *model.User, expiry time.Time) (string, error) {
+func (jh *JWTHandler) GenerateTokenWithExpiry(user *model.User, expiry time.Time) (string, error) {
 	expirationTime := expiry
 	claims := &Claims{
 		UserID: user.ID.String(),
@@ -75,15 +91,15 @@ func GenerateTokenWithExpiry(user *model.User, expiry time.Time) (string, error)
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(SecretKey)
+	return token.SignedString(jh.SecretKey)
 }
 
 // ValidateToken validates a JWT and returns the claims if the token is valid.
-func ValidateToken(tokenString string) (*Claims, error) {
+func (jh *JWTHandler) ValidateToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return SecretKey, nil
+		return jh.SecretKey, nil
 	})
 
 	if err != nil {
@@ -91,7 +107,7 @@ func ValidateToken(tokenString string) (*Claims, error) {
 	}
 
 	if !token.Valid {
-		return nil, errors.New("invalid token")
+		return nil, goerrors.New("invalid token")
 	}
 
 	return claims, nil

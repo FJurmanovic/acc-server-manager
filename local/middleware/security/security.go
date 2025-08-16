@@ -1,6 +1,7 @@
 package security
 
 import (
+	"acc-server-manager/local/utl/graceful"
 	"context"
 	"fmt"
 	"strings"
@@ -22,35 +23,42 @@ func NewRateLimiter() *RateLimiter {
 		requests: make(map[string][]time.Time),
 	}
 
-	// Clean up old entries every 5 minutes
-	go rl.cleanup()
+	// Use graceful shutdown for cleanup goroutine
+	shutdownManager := graceful.GetManager()
+	shutdownManager.RunGoroutine(func(ctx context.Context) {
+		rl.cleanupWithContext(ctx)
+	})
 
 	return rl
 }
 
 // cleanup removes old entries from the rate limiter
-func (rl *RateLimiter) cleanup() {
+func (rl *RateLimiter) cleanupWithContext(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		rl.mutex.Lock()
-		now := time.Now()
-		for key, times := range rl.requests {
-			// Remove entries older than 1 hour
-			filtered := make([]time.Time, 0, len(times))
-			for _, t := range times {
-				if now.Sub(t) < time.Hour {
-					filtered = append(filtered, t)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			rl.mutex.Lock()
+			now := time.Now()
+			for key, times := range rl.requests {
+				filtered := make([]time.Time, 0, len(times))
+				for _, t := range times {
+					if now.Sub(t) < time.Hour {
+						filtered = append(filtered, t)
+					}
+				}
+				if len(filtered) == 0 {
+					delete(rl.requests, key)
+				} else {
+					rl.requests[key] = filtered
 				}
 			}
-			if len(filtered) == 0 {
-				delete(rl.requests, key)
-			} else {
-				rl.requests[key] = filtered
-			}
+			rl.mutex.Unlock()
 		}
-		rl.mutex.Unlock()
 	}
 }
 
@@ -189,13 +197,13 @@ func (sm *SecurityMiddleware) InputSanitization() fiber.Handler {
 
 // sanitizeInput removes potentially dangerous patterns from input
 func sanitizeInput(input string) string {
-	// Remove common XSS patterns
 	dangerous := []string{
 		"<script",
 		"</script>",
 		"javascript:",
 		"vbscript:",
 		"data:text/html",
+		"data:application",
 		"onload=",
 		"onerror=",
 		"onclick=",
@@ -204,25 +212,46 @@ func sanitizeInput(input string) string {
 		"onblur=",
 		"onchange=",
 		"onsubmit=",
+		"onkeydown=",
+		"onkeyup=",
 		"<iframe",
 		"<object",
 		"<embed",
 		"<link",
 		"<meta",
 		"<style",
+		"<form",
+		"<input",
+		"<button",
+		"<svg",
+		"<math",
+		"expression(",
+		"@import",
+		"url(",
+		"\\x",
+		"\\u",
+		"&#x",
+		"&#",
 	}
 
-	result := strings.ToLower(input)
+	result := input
+	lowerInput := strings.ToLower(input)
+	
 	for _, pattern := range dangerous {
-		result = strings.ReplaceAll(result, pattern, "")
+		if strings.Contains(lowerInput, pattern) {
+			return ""
+		}
 	}
 
-	// If the sanitized version is very different, it might be malicious
-	if len(result) < len(input)/2 {
+	if strings.Contains(result, "\x00") {
 		return ""
 	}
 
-	return input
+	if len(strings.TrimSpace(result)) == 0 && len(input) > 0 {
+		return ""
+	}
+
+	return result
 }
 
 // ValidateContentType ensures only expected content types are accepted
@@ -347,5 +376,26 @@ func (sm *SecurityMiddleware) TimeoutMiddleware(timeout time.Duration) fiber.Han
 		c.SetUserContext(ctx)
 
 		return c.Next()
+	}
+}
+
+func (sm *SecurityMiddleware) RequestContextTimeout(timeout time.Duration) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		ctx, cancel := context.WithTimeout(c.UserContext(), timeout)
+		defer cancel()
+
+		done := make(chan error, 1)
+		go func() {
+			done <- c.Next()
+		}()
+
+		select {
+		case err := <-done:
+			return err
+		case <-ctx.Done():
+			return c.Status(fiber.StatusRequestTimeout).JSON(fiber.Map{
+				"error": "Request timeout",
+			})
+		}
 	}
 }

@@ -34,6 +34,7 @@ func NewMembershipController(service *service.MembershipService, auth *middlewar
 	}
 
 	routeGroups.Auth.Post("/login", mc.Login)
+	routeGroups.Auth.Post("/open-token", mc.GenerateOpenToken)
 
 	usersGroup := routeGroups.Membership
 	usersGroup.Use(mc.auth.Authenticate)
@@ -75,6 +76,26 @@ func (c *MembershipController) Login(ctx *fiber.Ctx) error {
 
 	logging.Debug("Login request received")
 	token, err := c.service.Login(ctx.UserContext(), req.Username, req.Password)
+	if err != nil {
+		return c.errorHandler.HandleAuthError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{"token": token})
+}
+
+// GenerateOpenToken generates an open token for a user.
+// @Summary Generate an open token
+// @Description Generate an open token for a user
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Success 200 {object} object{token=string} "JWT token"
+// @Failure 400 {object} error_handler.ErrorResponse "Invalid request body"
+// @Failure 401 {object} error_handler.ErrorResponse "Invalid credentials"
+// @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
+// @Router /auth/open-token [post]
+func (c *MembershipController) GenerateOpenToken(ctx *fiber.Ctx) error {
+	token, err := c.service.GenerateOpenToken(ctx.UserContext(), ctx.Locals("userId").(string))
 	if err != nil {
 		return c.errorHandler.HandleAuthError(ctx, err)
 	}

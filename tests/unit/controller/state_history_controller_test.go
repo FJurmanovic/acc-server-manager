@@ -7,6 +7,7 @@ import (
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/cache"
 	"acc-server-manager/local/utl/common"
+	"acc-server-manager/local/utl/jwt"
 	"acc-server-manager/tests"
 	"acc-server-manager/tests/testdata"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -32,7 +34,13 @@ func TestStateHistoryController_GetAll_Success(t *testing.T) {
 	stateHistoryService := service.NewStateHistoryService(repo)
 
 	membershipRepo := repository.NewMembershipRepository(helper.DB)
-	membershipService := service.NewMembershipService(membershipRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(jwtSecret)
+	openJWTHandler := jwt.NewOpenJWTHandler(jwtSecret)
+	membershipService := service.NewMembershipService(membershipRepo, jwtHandler, openJWTHandler)
 
 	inMemCache := cache.NewInMemoryCache()
 
@@ -86,7 +94,13 @@ func TestStateHistoryController_GetAll_WithSessionFilter(t *testing.T) {
 	stateHistoryService := service.NewStateHistoryService(repo)
 
 	membershipRepo := repository.NewMembershipRepository(helper.DB)
-	membershipService := service.NewMembershipService(membershipRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(jwtSecret)
+	openJWTHandler := jwt.NewOpenJWTHandler(jwtSecret)
+	membershipService := service.NewMembershipService(membershipRepo, jwtHandler, openJWTHandler)
 
 	inMemCache := cache.NewInMemoryCache()
 
@@ -145,7 +159,13 @@ func TestStateHistoryController_GetAll_EmptyResult(t *testing.T) {
 	stateHistoryService := service.NewStateHistoryService(repo)
 
 	membershipRepo := repository.NewMembershipRepository(helper.DB)
-	membershipService := service.NewMembershipService(membershipRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(jwtSecret)
+	openJWTHandler := jwt.NewOpenJWTHandler(jwtSecret)
+	membershipService := service.NewMembershipService(membershipRepo, jwtHandler, openJWTHandler)
 
 	inMemCache := cache.NewInMemoryCache()
 
@@ -185,7 +205,13 @@ func TestStateHistoryController_GetStatistics_Success(t *testing.T) {
 	stateHistoryService := service.NewStateHistoryService(repo)
 
 	membershipRepo := repository.NewMembershipRepository(helper.DB)
-	membershipService := service.NewMembershipService(membershipRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(jwtSecret)
+	openJWTHandler := jwt.NewOpenJWTHandler(jwtSecret)
+	membershipService := service.NewMembershipService(membershipRepo, jwtHandler, openJWTHandler)
 
 	inMemCache := cache.NewInMemoryCache()
 
@@ -262,7 +288,13 @@ func TestStateHistoryController_GetStatistics_NoData(t *testing.T) {
 	stateHistoryService := service.NewStateHistoryService(repo)
 
 	membershipRepo := repository.NewMembershipRepository(helper.DB)
-	membershipService := service.NewMembershipService(membershipRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(jwtSecret)
+	openJWTHandler := jwt.NewOpenJWTHandler(jwtSecret)
+	membershipService := service.NewMembershipService(membershipRepo, jwtHandler, openJWTHandler)
 
 	inMemCache := cache.NewInMemoryCache()
 
@@ -321,7 +353,13 @@ func TestStateHistoryController_GetStatistics_InvalidQueryParams(t *testing.T) {
 	stateHistoryService := service.NewStateHistoryService(repo)
 
 	membershipRepo := repository.NewMembershipRepository(helper.DB)
-	membershipService := service.NewMembershipService(membershipRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(jwtSecret)
+	openJWTHandler := jwt.NewOpenJWTHandler(jwtSecret)
+	membershipService := service.NewMembershipService(membershipRepo, jwtHandler, openJWTHandler)
 
 	inMemCache := cache.NewInMemoryCache()
 
@@ -365,7 +403,13 @@ func TestStateHistoryController_HTTPMethods(t *testing.T) {
 	stateHistoryService := service.NewStateHistoryService(repo)
 
 	membershipRepo := repository.NewMembershipRepository(helper.DB)
-	membershipService := service.NewMembershipService(membershipRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(jwtSecret)
+	openJWTHandler := jwt.NewOpenJWTHandler(jwtSecret)
+	membershipService := service.NewMembershipService(membershipRepo, jwtHandler, openJWTHandler)
 
 	inMemCache := cache.NewInMemoryCache()
 
@@ -419,7 +463,13 @@ func TestStateHistoryController_ContentType(t *testing.T) {
 	stateHistoryService := service.NewStateHistoryService(repo)
 
 	membershipRepo := repository.NewMembershipRepository(helper.DB)
-	membershipService := service.NewMembershipService(membershipRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(jwtSecret)
+	openJWTHandler := jwt.NewOpenJWTHandler(jwtSecret)
+	membershipService := service.NewMembershipService(membershipRepo, jwtHandler, openJWTHandler)
 
 	inMemCache := cache.NewInMemoryCache()
 
@@ -481,7 +531,13 @@ func TestStateHistoryController_ResponseStructure(t *testing.T) {
 	stateHistoryService := service.NewStateHistoryService(repo)
 
 	membershipRepo := repository.NewMembershipRepository(helper.DB)
-	membershipService := service.NewMembershipService(membershipRepo)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
+	}
+	jwtHandler := jwt.NewJWTHandler(jwtSecret)
+	openJWTHandler := jwt.NewOpenJWTHandler(jwtSecret)
+	membershipService := service.NewMembershipService(membershipRepo, jwtHandler, openJWTHandler)
 
 	inMemCache := cache.NewInMemoryCache()
 
