@@ -52,20 +52,28 @@ func NewAuthMiddleware(ms *service.MembershipService, cache *cache.InMemoryCache
 
 // Authenticate is a middleware for JWT authentication with enhanced security.
 func (m *AuthMiddleware) AuthenticateOpen(ctx *fiber.Ctx) error {
-	return m.AuthenticateWithHandler(m.openJWTHandler.JWTHandler, ctx)
+	return m.AuthenticateWithHandler(m.openJWTHandler.JWTHandler, true, ctx)
 }
 
 // Authenticate is a middleware for JWT authentication with enhanced security.
 func (m *AuthMiddleware) Authenticate(ctx *fiber.Ctx) error {
-	return m.AuthenticateWithHandler(m.jwtHandler, ctx)
+	return m.AuthenticateWithHandler(m.jwtHandler, false, ctx)
 }
 
-func (m *AuthMiddleware) AuthenticateWithHandler(jwtHandler *jwt.JWTHandler, ctx *fiber.Ctx) error {
+func (m *AuthMiddleware) AuthenticateWithHandler(jwtHandler *jwt.JWTHandler, isOpenToken bool, ctx *fiber.Ctx) error {
 	// Log authentication attempt
 	ip := ctx.IP()
 	userAgent := ctx.Get("User-Agent")
 
 	authHeader := ctx.Get("Authorization")
+
+	if jwtHandler.IsOpenToken && !isOpenToken {
+		logging.Error("Authentication failed: attempting to authenticate with open token")
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Wrong token type used",
+		})
+	}
+
 	if authHeader == "" {
 		logging.Error("Authentication failed: missing Authorization header from IP %s", ip)
 		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

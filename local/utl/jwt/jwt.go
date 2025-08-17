@@ -18,7 +18,8 @@ type Claims struct {
 }
 
 type JWTHandler struct {
-	SecretKey []byte
+	SecretKey   []byte
+	IsOpenToken bool
 }
 
 type OpenJWTHandler struct {
@@ -28,6 +29,7 @@ type OpenJWTHandler struct {
 // NewJWTHandler creates a new JWTHandler instance with the provided secret key.
 func NewOpenJWTHandler(jwtSecret string) *OpenJWTHandler {
 	jwtHandler := NewJWTHandler(jwtSecret)
+	jwtHandler.IsOpenToken = true
 	return &OpenJWTHandler{
 		JWTHandler: jwtHandler,
 	}

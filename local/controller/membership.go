@@ -34,7 +34,7 @@ func NewMembershipController(service *service.MembershipService, auth *middlewar
 	}
 
 	routeGroups.Auth.Post("/login", mc.Login)
-	routeGroups.Auth.Post("/open-token", mc.GenerateOpenToken)
+	routeGroups.Auth.Post("/open-token", mc.auth.Authenticate, mc.GenerateOpenToken)
 
 	usersGroup := routeGroups.Membership
 	usersGroup.Use(mc.auth.Authenticate)
