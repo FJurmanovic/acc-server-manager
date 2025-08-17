@@ -106,6 +106,13 @@ func (m *AuthMiddleware) AuthenticateWithHandler(jwtHandler *jwt.JWTHandler, isO
 		})
 	}
 
+	if !jwtHandler.IsOpenToken && claims.IsOpenToken {
+		logging.Error("Authentication failed: attempting to authenticate with open token")
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Wrong token type used",
+		})
+	}
+
 	// Additional security: validate user ID format
 	if claims.UserID == "" || len(claims.UserID) < 10 {
 		logging.Error("Authentication failed: invalid user ID in token from IP %s", ip)

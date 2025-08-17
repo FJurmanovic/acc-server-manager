@@ -63,16 +63,11 @@ func (s *MembershipService) Login(ctx context.Context, username, password string
 		return "", err
 	}
 
-	return s.jwtHandler.GenerateToken(user)
+	return s.jwtHandler.GenerateToken(user.ID.String())
 }
 
 func (s *MembershipService) GenerateOpenToken(ctx context.Context, userId string) (string, error) {
-	user, err := s.repo.GetByID(ctx, userId)
-	if err != nil {
-		return "", err
-	}
-
-	return s.openJwtHandler.GenerateToken(user)
+	return s.openJwtHandler.GenerateToken(userId)
 }
 
 // CreateUser creates a new user.

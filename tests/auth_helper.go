@@ -28,7 +28,7 @@ func GenerateTestToken() (string, error) {
 	jwtHandler := jwt.NewJWTHandler(testSecret)
 
 	// Generate JWT token
-	token, err := jwtHandler.GenerateToken(user)
+	token, err := jwtHandler.GenerateToken(user.ID.String())
 	if err != nil {
 		return "", fmt.Errorf("failed to generate test token: %w", err)
 	}
@@ -55,7 +55,7 @@ func GenerateTestTokenWithExpiry(expiryTime time.Time) (string, error) {
 		testSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
 	}
 	jwtHandler := jwt.NewJWTHandler(testSecret)
-	
+
 	// Create test user
 	user := &model.User{
 		ID:       uuid.New(),

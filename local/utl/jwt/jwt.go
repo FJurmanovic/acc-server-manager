@@ -13,7 +13,8 @@ import (
 
 // Claims represents the JWT claims.
 type Claims struct {
-	UserID string `json:"user_id"`
+	UserID      string `json:"user_id"`
+	IsOpenToken bool   `json:"is_open_token"`
 	jwt.RegisteredClaims
 }
 
@@ -70,13 +71,14 @@ func (jh *JWTHandler) GenerateSecretKey() string {
 }
 
 // GenerateToken generates a new JWT for a given user.
-func (jh *JWTHandler) GenerateToken(user *model.User) (string, error) {
+func (jh *JWTHandler) GenerateToken(userId string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
-		UserID: user.ID.String(),
+		UserID: userId,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
+		IsOpenToken: jh.IsOpenToken,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -90,6 +92,7 @@ func (jh *JWTHandler) GenerateTokenWithExpiry(user *model.User, expiry time.Time
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
+		IsOpenToken: jh.IsOpenToken,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

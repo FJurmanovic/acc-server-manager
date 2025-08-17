@@ -26,7 +26,7 @@ func TestJWT_GenerateAndValidateToken(t *testing.T) {
 	}
 
 	// Test JWT generation
-	token, err := jwtHandler.GenerateToken(user)
+	token, err := jwtHandler.GenerateToken(user.ID.String())
 	tests.AssertNoError(t, err)
 	tests.AssertNotNil(t, token)
 
