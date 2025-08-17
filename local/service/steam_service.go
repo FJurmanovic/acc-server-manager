@@ -35,9 +35,15 @@ func NewSteamService(repository *repository.SteamCredentialsRepository, tfaManag
 		LogOutput: true,
 	}
 
+	// Create a separate executor for SteamCMD that doesn't use PowerShell
+	steamCMDExecutor := &command.CommandExecutor{
+		ExePath:   env.GetSteamCMDPath(),
+		LogOutput: true,
+	}
+
 	return &SteamService{
 		executor:            baseExecutor,
-		interactiveExecutor: command.NewInteractiveCommandExecutor(baseExecutor, tfaManager),
+		interactiveExecutor: command.NewInteractiveCommandExecutor(steamCMDExecutor, tfaManager),
 		repository:          repository,
 		tfaManager:          tfaManager,
 		pathValidator:       security.NewPathValidator(),
@@ -121,14 +127,8 @@ func (s *SteamService) InstallServer(ctx context.Context, installPath string, se
 		return fmt.Errorf("failed to get Steam credentials: %v", err)
 	}
 
-	// Get SteamCMD path from environment variable
-	steamCMDPath := env.GetSteamCMDPath()
-
-	// Build SteamCMD command
+	// Build SteamCMD command (no PowerShell args needed since we call SteamCMD directly)
 	args := []string{
-		"-nologo",
-		"-noprofile",
-		steamCMDPath,
 		"+force_install_dir", absPath,
 		"+login",
 	}
@@ -148,9 +148,17 @@ func (s *SteamService) InstallServer(ctx context.Context, installPath string, se
 		"+quit",
 	)
 
-	// Use interactive executor to handle potential 2FA prompts
+	// Use interactive executor to handle potential 2FA prompts with timeout
 	logging.Info("Installing ACC server to %s...", absPath)
-	if err := s.interactiveExecutor.ExecuteInteractive(ctx, serverID, args...); err != nil {
+	
+	// Create a context with timeout to prevent hanging indefinitely
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+	
+	if err := s.interactiveExecutor.ExecuteInteractive(timeoutCtx, serverID, args...); err != nil {
+		if timeoutCtx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("SteamCMD operation timed out after 10 minutes")
+		}
 		return fmt.Errorf("failed to run SteamCMD: %v", err)
 	}
 
