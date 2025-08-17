@@ -95,7 +95,7 @@ func (c *MembershipController) Login(ctx *fiber.Ctx) error {
 // @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
 // @Router /auth/open-token [post]
 func (c *MembershipController) GenerateOpenToken(ctx *fiber.Ctx) error {
-	token, err := c.service.GenerateOpenToken(ctx.UserContext(), ctx.Locals("userId").(string))
+	token, err := c.service.GenerateOpenToken(ctx.UserContext(), ctx.Locals("userID").(string))
 	if err != nil {
 		return c.errorHandler.HandleAuthError(ctx, err)
 	}
