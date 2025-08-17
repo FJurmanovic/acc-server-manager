@@ -35,15 +35,9 @@ func NewSteamService(repository *repository.SteamCredentialsRepository, tfaManag
 		LogOutput: true,
 	}
 
-	// Create a separate executor for SteamCMD that doesn't use PowerShell
-	steamCMDExecutor := &command.CommandExecutor{
-		ExePath:   env.GetSteamCMDPath(),
-		LogOutput: true,
-	}
-
 	return &SteamService{
 		executor:            baseExecutor,
-		interactiveExecutor: command.NewInteractiveCommandExecutor(steamCMDExecutor, tfaManager),
+		interactiveExecutor: command.NewInteractiveCommandExecutor(baseExecutor, tfaManager),
 		repository:          repository,
 		tfaManager:          tfaManager,
 		pathValidator:       security.NewPathValidator(),
@@ -127,26 +121,35 @@ func (s *SteamService) InstallServer(ctx context.Context, installPath string, se
 		return fmt.Errorf("failed to get Steam credentials: %v", err)
 	}
 
-	// Build SteamCMD command (no PowerShell args needed since we call SteamCMD directly)
-	args := []string{
+	// Get SteamCMD path from environment variable
+	steamCMDPath := env.GetSteamCMDPath()
+
+	// Build SteamCMD command arguments
+	steamCMDArgs := []string{
 		"+force_install_dir", absPath,
 		"+login",
 	}
 
 	if creds != nil && creds.Username != "" {
-		args = append(args, creds.Username)
+		steamCMDArgs = append(steamCMDArgs, creds.Username)
 		if creds.Password != "" {
-			args = append(args, creds.Password)
+			steamCMDArgs = append(steamCMDArgs, creds.Password)
 		}
 	} else {
-		args = append(args, "anonymous")
+		steamCMDArgs = append(steamCMDArgs, "anonymous")
 	}
 
-	args = append(args,
+	steamCMDArgs = append(steamCMDArgs,
 		"+app_update", ACCServerAppID,
 		"validate",
 		"+quit",
 	)
+
+	// Build PowerShell arguments to execute SteamCMD directly
+	// This matches the format: powershell -nologo -noprofile c:\steamcmd\steamcmd.exe +args...
+	args := []string{"-nologo", "-noprofile"}
+	args = append(args, steamCMDPath)
+	args = append(args, steamCMDArgs...)
 
 	// Use interactive executor to handle potential 2FA prompts with timeout
 	logging.Info("Installing ACC server to %s...", absPath)
