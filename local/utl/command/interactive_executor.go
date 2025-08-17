@@ -61,14 +61,33 @@ func (e *InteractiveCommandExecutor) ExecuteInteractive(ctx context.Context, ser
 	}
 
 	// Create channels for output monitoring
-	outputDone := make(chan error)
+	outputDone := make(chan error, 1)
+	cmdDone := make(chan error, 1)
 
 	// Monitor stdout and stderr for 2FA prompts
 	go e.monitorOutput(ctx, stdout, stderr, serverID, outputDone)
 
-	// Wait for either the command to finish or output monitoring to complete
-	cmdErr := cmd.Wait()
-	outputErr := <-outputDone
+	// Wait for the command to finish in a separate goroutine
+	go func() {
+		cmdDone <- cmd.Wait()
+	}()
+
+	// Wait for both command and output monitoring to complete
+	var cmdErr, outputErr error
+	completedCount := 0
+
+	for completedCount < 2 {
+		select {
+		case cmdErr = <-cmdDone:
+			completedCount++
+			logging.Info("Command execution completed")
+		case outputErr = <-outputDone:
+			completedCount++
+			logging.Info("Output monitoring completed")
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 
 	if outputErr != nil {
 		logging.Warn("Output monitoring error: %v", outputErr)
@@ -78,45 +97,85 @@ func (e *InteractiveCommandExecutor) ExecuteInteractive(ctx context.Context, ser
 }
 
 func (e *InteractiveCommandExecutor) monitorOutput(ctx context.Context, stdout, stderr io.Reader, serverID *uuid.UUID, done chan error) {
-	defer close(done)
+	defer func() {
+		select {
+		case done <- nil:
+		default:
+		}
+	}()
 
 	// Create scanners for both outputs
 	stdoutScanner := bufio.NewScanner(stdout)
 	stderrScanner := bufio.NewScanner(stderr)
 
-	outputChan := make(chan string)
+	outputChan := make(chan string, 100) // Buffered channel to prevent blocking
+	readersDone := make(chan struct{}, 2)
 
 	// Read from stdout
 	go func() {
+		defer func() { readersDone <- struct{}{} }()
 		for stdoutScanner.Scan() {
 			line := stdoutScanner.Text()
 			if e.LogOutput {
 				logging.Info("STDOUT: %s", line)
 			}
-			outputChan <- line
+			select {
+			case outputChan <- line:
+			case <-ctx.Done():
+				return
+			}
+		}
+		if err := stdoutScanner.Err(); err != nil {
+			logging.Warn("Stdout scanner error: %v", err)
 		}
 	}()
 
 	// Read from stderr
 	go func() {
+		defer func() { readersDone <- struct{}{} }()
 		for stderrScanner.Scan() {
 			line := stderrScanner.Text()
 			if e.LogOutput {
 				logging.Info("STDERR: %s", line)
 			}
-			outputChan <- line
+			select {
+			case outputChan <- line:
+			case <-ctx.Done():
+				return
+			}
+		}
+		if err := stderrScanner.Err(); err != nil {
+			logging.Warn("Stderr scanner error: %v", err)
 		}
 	}()
 
-	// Monitor for 2FA prompts
+	// Monitor for completion and 2FA prompts
+	readersFinished := 0
 	for {
 		select {
 		case <-ctx.Done():
 			done <- ctx.Err()
 			return
+		case <-readersDone:
+			readersFinished++
+			if readersFinished == 2 {
+				// Both readers are done, close output channel and finish monitoring
+				close(outputChan)
+				// Drain any remaining output
+				for line := range outputChan {
+					if e.is2FAPrompt(line) {
+						if err := e.handle2FAPrompt(ctx, line, serverID); err != nil {
+							logging.Error("Failed to handle 2FA prompt: %v", err)
+							done <- err
+							return
+						}
+					}
+				}
+				return
+			}
 		case line, ok := <-outputChan:
 			if !ok {
-				done <- nil
+				// Channel closed, we're done
 				return
 			}
 
