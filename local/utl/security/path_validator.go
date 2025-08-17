@@ -16,7 +16,6 @@ type PathValidator struct {
 func NewPathValidator() *PathValidator {
 	blockedPatterns := []*regexp.Regexp{
 		regexp.MustCompile(`\.\.`),
-		regexp.MustCompile(`[<>:"|?*]`),
 		regexp.MustCompile(`^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$`),
 		regexp.MustCompile(`\x00`),
 		regexp.MustCompile(`^\\\\`),
