@@ -187,7 +187,7 @@ func (r *StateHistoryRepository) GetRecentSessions(ctx context.Context, filter *
 		FROM state_histories
 		WHERE server_id = ? AND date_created BETWEEN ? AND ?
 		GROUP BY session_id
-		HAVING COUNT(*) > 1 AND MAX(player_count) > 0
+		HAVING MAX(player_count) > 0
 		ORDER BY date DESC
 		LIMIT 10
 	`
