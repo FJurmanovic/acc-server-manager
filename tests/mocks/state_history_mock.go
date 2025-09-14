@@ -360,7 +360,7 @@ func (m *MockStateHistoryRepository) GetRecentSessions(ctx context.Context, filt
 			if maxPlayers > 0 {
 				duration := int(maxDate.Sub(minDate).Minutes())
 				recentSessions = append(recentSessions, model.RecentSession{
-					ID:       uint(count + 1),
+					ID:       entries[0].SessionID,
 					Date:     minDate.Format("2006-01-02 15:04:05"),
 					Type:     entries[0].Session,
 					Track:    entries[0].Track,
