@@ -1,5 +1,7 @@
 package model
 
+import "github.com/google/uuid"
+
 type SessionCount struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
@@ -7,27 +9,27 @@ type SessionCount struct {
 
 type DailyActivity struct {
 	Date          string `json:"date"`
-	SessionsCount int       `json:"sessionsCount"`
+	SessionsCount int    `json:"sessionsCount"`
 }
 
 type PlayerCountPoint struct {
-	Timestamp string    `json:"timestamp"`
-	Count     float64   `json:"count"`
+	Timestamp string  `json:"timestamp"`
+	Count     float64 `json:"count"`
 }
 
 type StateHistoryStats struct {
-	AveragePlayers      float64           `json:"averagePlayers"`
-	PeakPlayers         int               `json:"peakPlayers"`
-	TotalSessions       int               `json:"totalSessions"`
-	TotalPlaytime       int               `json:"totalPlaytime" gorm:"-"` // in minutes
+	AveragePlayers      float64            `json:"averagePlayers"`
+	PeakPlayers         int                `json:"peakPlayers"`
+	TotalSessions       int                `json:"totalSessions"`
+	TotalPlaytime       int                `json:"totalPlaytime" gorm:"-"` // in minutes
 	PlayerCountOverTime []PlayerCountPoint `json:"playerCountOverTime" gorm:"-"`
 	SessionTypes        []SessionCount     `json:"sessionTypes" gorm:"-"`
 	DailyActivity       []DailyActivity    `json:"dailyActivity" gorm:"-"`
 	RecentSessions      []RecentSession    `json:"recentSessions" gorm:"-"`
-} 
+}
 
 type RecentSession struct {
-	ID       uint      `json:"id"`
+	ID       uuid.UUID `json:"id"`
 	Date     string    `json:"date"`
 	Type     string    `json:"type"`
 	Track    string    `json:"track"`
