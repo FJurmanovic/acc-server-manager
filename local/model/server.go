@@ -73,12 +73,12 @@ type State struct {
 
 type ServerState struct {
 	sync.RWMutex           `swaggerignore:"-" json:"-"`
-	Session                string    `json:"session"`
-	SessionStart           time.Time `json:"sessionStart"`
-	PlayerCount            int       `json:"playerCount"`
-	Track                  string    `json:"track"`
-	MaxConnections         int       `json:"maxConnections"`
-	SessionDurationMinutes int       `json:"sessionDurationMinutes"`
+	Session                TrackSession `json:"session"`
+	SessionStart           time.Time    `json:"sessionStart"`
+	PlayerCount            int          `json:"playerCount"`
+	Track                  string       `json:"track"`
+	MaxConnections         int          `json:"maxConnections"`
+	SessionDurationMinutes int          `json:"sessionDurationMinutes"`
 	// Players     map[int]*PlayerState
 	// etc.
 }

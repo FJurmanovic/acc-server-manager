@@ -3,8 +3,8 @@ package model
 import "github.com/google/uuid"
 
 type SessionCount struct {
-	Name  string `json:"name"`
-	Count int    `json:"count"`
+	Name  TrackSession `json:"name"`
+	Count int          `json:"count"`
 }
 
 type DailyActivity struct {
@@ -29,10 +29,10 @@ type StateHistoryStats struct {
 }
 
 type RecentSession struct {
-	ID       uuid.UUID `json:"id"`
-	Date     string    `json:"date"`
-	Type     string    `json:"type"`
-	Track    string    `json:"track"`
-	Duration int       `json:"duration"`
-	Players  int       `json:"players"`
+	ID       uuid.UUID    `json:"id"`
+	Date     string       `json:"date"`
+	Type     TrackSession `json:"type"`
+	Track    string       `json:"track"`
+	Duration int          `json:"duration"`
+	Players  int          `json:"players"`
 }

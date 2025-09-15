@@ -46,7 +46,7 @@ func TestStateHistoryController_GetAll_Success(t *testing.T) {
 
 	// Insert test data
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
-	history := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
+	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 	err := repo.Insert(helper.CreateContext(), &history)
 	tests.AssertNoError(t, err)
 
@@ -78,7 +78,7 @@ func TestStateHistoryController_GetAll_Success(t *testing.T) {
 	err = json.Unmarshal(body, &result)
 	tests.AssertNoError(t, err)
 	tests.AssertEqual(t, 1, len(result))
-	tests.AssertEqual(t, "Practice", result[0].Session)
+	tests.AssertEqual(t, model.SessionPractice, result[0].Session)
 	tests.AssertEqual(t, 5, result[0].PlayerCount)
 }
 
@@ -107,8 +107,8 @@ func TestStateHistoryController_GetAll_WithSessionFilter(t *testing.T) {
 	// Insert test data with different sessions
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
 
-	practiceHistory := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
-	raceHistory := testData.CreateStateHistory("Race", "spa", 10, uuid.New())
+	practiceHistory := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
+	raceHistory := testData.CreateStateHistory(model.SessionRace, "spa", 10, uuid.New())
 
 	err := repo.Insert(helper.CreateContext(), &practiceHistory)
 	tests.AssertNoError(t, err)
@@ -124,7 +124,7 @@ func TestStateHistoryController_GetAll_WithSessionFilter(t *testing.T) {
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
 	// Create request with session filter and authentication
-	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history?id=%s&session=Race", helper.TestData.ServerID.String()), nil)
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history?id=%s&session=R", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 
@@ -143,7 +143,7 @@ func TestStateHistoryController_GetAll_WithSessionFilter(t *testing.T) {
 	err = json.Unmarshal(body, &result)
 	tests.AssertNoError(t, err)
 	tests.AssertEqual(t, 1, len(result))
-	tests.AssertEqual(t, "Race", result[0].Session)
+	tests.AssertEqual(t, model.SessionRace, result[0].Session)
 	tests.AssertEqual(t, 10, result[0].PlayerCount)
 }
 
@@ -220,7 +220,7 @@ func TestStateHistoryController_GetStatistics_Success(t *testing.T) {
 
 	// Create entries with varying player counts
 	playerCounts := []int{5, 10, 15, 20, 25}
-	entries := testData.CreateMultipleEntries("Race", "spa", playerCounts)
+	entries := testData.CreateMultipleEntries(model.SessionRace, "spa", playerCounts)
 
 	for _, entry := range entries {
 		err := repo.Insert(helper.CreateContext(), &entry)
@@ -475,7 +475,7 @@ func TestStateHistoryController_ContentType(t *testing.T) {
 
 	// Insert test data
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
-	history := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
+	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 	err := repo.Insert(helper.CreateContext(), &history)
 	tests.AssertNoError(t, err)
 
@@ -551,7 +551,7 @@ func TestStateHistoryController_ResponseStructure(t *testing.T) {
 
 	// Insert test data
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
-	history := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
+	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 	err := repo.Insert(helper.CreateContext(), &history)
 	tests.AssertNoError(t, err)
 

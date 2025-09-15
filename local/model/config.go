@@ -79,11 +79,11 @@ type EventConfig struct {
 }
 
 type Session struct {
-	HourOfDay              IntString `json:"hourOfDay"`
-	DayOfWeekend           IntString `json:"dayOfWeekend"`
-	TimeMultiplier         IntString `json:"timeMultiplier"`
-	SessionType            string    `json:"sessionType"`
-	SessionDurationMinutes IntString `json:"sessionDurationMinutes"`
+	HourOfDay              IntString    `json:"hourOfDay"`
+	DayOfWeekend           IntString    `json:"dayOfWeekend"`
+	TimeMultiplier         IntString    `json:"timeMultiplier"`
+	SessionType            TrackSession `json:"sessionType"`
+	SessionDurationMinutes IntString    `json:"sessionDurationMinutes"`
 }
 
 type AssistRules struct {

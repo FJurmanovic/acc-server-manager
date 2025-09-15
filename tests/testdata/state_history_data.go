@@ -22,7 +22,7 @@ func NewStateHistoryTestData(serverID uuid.UUID) *StateHistoryTestData {
 }
 
 // CreateStateHistory creates a basic state history entry
-func (td *StateHistoryTestData) CreateStateHistory(session string, track string, playerCount int, sessionID uuid.UUID) model.StateHistory {
+func (td *StateHistoryTestData) CreateStateHistory(session model.TrackSession, track string, playerCount int, sessionID uuid.UUID) model.StateHistory {
 	return model.StateHistory{
 		ID:                     uuid.New(),
 		ServerID:               td.ServerID,
@@ -37,7 +37,7 @@ func (td *StateHistoryTestData) CreateStateHistory(session string, track string,
 }
 
 // CreateMultipleEntries creates multiple state history entries for the same session
-func (td *StateHistoryTestData) CreateMultipleEntries(session string, track string, playerCounts []int) []model.StateHistory {
+func (td *StateHistoryTestData) CreateMultipleEntries(session model.TrackSession, track string, playerCounts []int) []model.StateHistory {
 	sessionID := uuid.New()
 	var entries []model.StateHistory
 
@@ -69,7 +69,7 @@ func CreateBasicFilter(serverID string) *model.StateHistoryFilter {
 }
 
 // CreateFilterWithSession creates a filter with session type
-func CreateFilterWithSession(serverID string, session string) *model.StateHistoryFilter {
+func CreateFilterWithSession(serverID string, session model.TrackSession) *model.StateHistoryFilter {
 	return &model.StateHistoryFilter{
 		ServerBasedFilter: model.ServerBasedFilter{
 			ServerID: serverID,
@@ -97,13 +97,13 @@ var SampleLogLines = []string{
 
 // ExpectedSessionChanges represents the expected session changes from parsing the sample log lines
 var ExpectedSessionChanges = []struct {
-	From string
-	To   string
+	From model.TrackSession
+	To   model.TrackSession
 }{
-	{"NONE", "PRACTICE"},
-	{"PRACTICE", "QUALIFY"},
-	{"QUALIFY", "RACE"},
-	{"RACE", "NONE"},
+	{model.SessionUnknown, model.SessionPractice},
+	{model.SessionPractice, model.SessionQualify},
+	{model.SessionQualify, model.SessionRace},
+	{model.SessionRace, model.SessionUnknown},
 }
 
 // ExpectedPlayerCounts represents the expected player counts from parsing the sample log lines

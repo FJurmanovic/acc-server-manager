@@ -260,7 +260,7 @@ func (m *MockStateHistoryRepository) GetSessionTypes(ctx context.Context, filter
 	}
 
 	// Group by session type
-	sessionMap := make(map[string]map[string]bool) // session -> sessionID -> bool
+	sessionMap := make(map[model.TrackSession]map[string]bool) // session -> sessionID -> bool
 	for _, entry := range filteredEntries {
 		if sessionMap[entry.Session] == nil {
 			sessionMap[entry.Session] = make(map[string]bool)

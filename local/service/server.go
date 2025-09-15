@@ -159,7 +159,7 @@ func (s *ServerService) insertStateHistory(serverID uuid.UUID, state *model.Serv
 	})
 }
 
-func (s *ServerService) updateSessionDuration(server *model.Server, sessionType string) {
+func (s *ServerService) updateSessionDuration(server *model.Server, sessionType model.TrackSession) {
 	// Get configs using helper methods
 	event, err := s.configService.GetEventConfig(server)
 	if err != nil {

@@ -33,7 +33,7 @@ func TestStateHistoryService_GetAll_Success(t *testing.T) {
 
 	// Insert test data directly into DB
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
-	history := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
+	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 	err := repo.Insert(helper.CreateContext(), &history)
 	tests.AssertNoError(t, err)
 
@@ -49,7 +49,7 @@ func TestStateHistoryService_GetAll_Success(t *testing.T) {
 	tests.AssertNoError(t, err)
 	tests.AssertNotNil(t, result)
 	tests.AssertEqual(t, 1, len(*result))
-	tests.AssertEqual(t, "Practice", (*result)[0].Session)
+	tests.AssertEqual(t, model.SessionPractice, (*result)[0].Session)
 	tests.AssertEqual(t, 5, (*result)[0].PlayerCount)
 }
 
@@ -71,8 +71,8 @@ func TestStateHistoryService_GetAll_WithFilter(t *testing.T) {
 
 	// Insert test data with different sessions
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
-	practiceHistory := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
-	raceHistory := testData.CreateStateHistory("Race", "spa", 10, uuid.New())
+	practiceHistory := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
+	raceHistory := testData.CreateStateHistory(model.SessionRace, "spa", 10, uuid.New())
 
 	err := repo.Insert(helper.CreateContext(), &practiceHistory)
 	tests.AssertNoError(t, err)
@@ -85,13 +85,13 @@ func TestStateHistoryService_GetAll_WithFilter(t *testing.T) {
 	defer helper.ReleaseFiberCtx(app, ctx)
 
 	// Test GetAll with session filter
-	filter := testdata.CreateFilterWithSession(helper.TestData.ServerID.String(), "Race")
+	filter := testdata.CreateFilterWithSession(helper.TestData.ServerID.String(), model.SessionRace)
 	result, err := stateHistoryService.GetAll(ctx, filter)
 
 	tests.AssertNoError(t, err)
 	tests.AssertNotNil(t, result)
 	tests.AssertEqual(t, 1, len(*result))
-	tests.AssertEqual(t, "Race", (*result)[0].Session)
+	tests.AssertEqual(t, model.SessionRace, (*result)[0].Session)
 	tests.AssertEqual(t, 10, (*result)[0].PlayerCount)
 }
 
@@ -143,7 +143,7 @@ func TestStateHistoryService_Insert_Success(t *testing.T) {
 
 	// Create test data
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
-	history := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
+	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 
 	// Create proper Fiber context
 	app := fiber.New()
@@ -180,7 +180,7 @@ func TestStateHistoryService_GetLastSessionID_Success(t *testing.T) {
 	// Insert test data
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
 	sessionID := uuid.New()
-	history := testData.CreateStateHistory("Practice", "spa", 5, sessionID)
+	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, sessionID)
 	err := repo.Insert(helper.CreateContext(), &history)
 	tests.AssertNoError(t, err)
 
@@ -254,7 +254,7 @@ func TestStateHistoryService_GetStatistics_Success(t *testing.T) {
 		{
 			ID:                     uuid.New(),
 			ServerID:               helper.TestData.ServerID,
-			Session:                "Practice",
+			Session:                model.SessionPractice,
 			Track:                  "spa",
 			PlayerCount:            5,
 			DateCreated:            baseTime,
@@ -265,7 +265,7 @@ func TestStateHistoryService_GetStatistics_Success(t *testing.T) {
 		{
 			ID:                     uuid.New(),
 			ServerID:               helper.TestData.ServerID,
-			Session:                "Practice",
+			Session:                model.SessionPractice,
 			Track:                  "spa",
 			PlayerCount:            10,
 			DateCreated:            baseTime.Add(5 * time.Minute),
@@ -276,7 +276,7 @@ func TestStateHistoryService_GetStatistics_Success(t *testing.T) {
 		{
 			ID:                     uuid.New(),
 			ServerID:               helper.TestData.ServerID,
-			Session:                "Race",
+			Session:                model.SessionRace,
 			Track:                  "spa",
 			PlayerCount:            15,
 			DateCreated:            baseTime.Add(10 * time.Minute),
@@ -404,7 +404,7 @@ func TestStateHistoryService_LogParsingWorkflow(t *testing.T) {
 	}
 
 	// Verify session changes were parsed correctly
-	expectedSessions := []string{"PRACTICE", "QUALIFY", "RACE", "NONE"}
+	expectedSessions := []model.TrackSession{model.SessionPractice, model.SessionQualify, model.SessionRace}
 	sessionIndex := 0
 
 	for _, state := range stateChanges {
@@ -433,7 +433,7 @@ func TestStateHistoryService_SessionChangeTracking(t *testing.T) {
 		Name: "Test Server",
 	}
 
-	var sessionChanges []string
+	var sessionChanges []model.TrackSession
 	onStateChange := func(state *model.ServerState, changes ...tracking.StateChange) {
 		for _, change := range changes {
 			if change == tracking.Session {
@@ -448,7 +448,7 @@ func TestStateHistoryService_SessionChangeTracking(t *testing.T) {
 
 	// We'll add one session change at a time and wait briefly to ensure they're processed in order
 	for _, expected := range testdata.ExpectedSessionChanges {
-		line := "[2024-01-15 14:30:25.123] Session changed: " + expected.From + " -> " + expected.To
+		line := string("[2024-01-15 14:30:25.123] Session changed: " + expected.From + " -> " + expected.To)
 		instance.HandleLogLine(line)
 		// Small pause to ensure log processing completes
 		time.Sleep(10 * time.Millisecond)

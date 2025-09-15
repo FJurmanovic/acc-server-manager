@@ -30,7 +30,7 @@ func TestStateHistoryRepository_Insert_Success(t *testing.T) {
 
 	// Create test data
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
-	history := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
+	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 
 	// Test Insert
 	err := repo.Insert(ctx, &history)
@@ -65,7 +65,7 @@ func TestStateHistoryRepository_GetAll_Success(t *testing.T) {
 
 	// Insert multiple entries
 	playerCounts := []int{0, 5, 10, 15, 10, 5, 0}
-	entries := testData.CreateMultipleEntries("Practice", "spa", playerCounts)
+	entries := testData.CreateMultipleEntries(model.SessionPractice, "spa", playerCounts)
 
 	for _, entry := range entries {
 		err := repo.Insert(ctx, &entry)
@@ -101,8 +101,8 @@ func TestStateHistoryRepository_GetAll_WithFilter(t *testing.T) {
 	// Create test data with different sessions
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
 
-	practiceHistory := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
-	raceHistory := testData.CreateStateHistory("Race", "spa", 15, uuid.New())
+	practiceHistory := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
+	raceHistory := testData.CreateStateHistory(model.SessionRace, "spa", 15, uuid.New())
 
 	// Insert both
 	err := repo.Insert(ctx, &practiceHistory)
@@ -111,13 +111,13 @@ func TestStateHistoryRepository_GetAll_WithFilter(t *testing.T) {
 	tests.AssertNoError(t, err)
 
 	// Test GetAll with session filter
-	filter := testdata.CreateFilterWithSession(helper.TestData.ServerID.String(), "Race")
+	filter := testdata.CreateFilterWithSession(helper.TestData.ServerID.String(), model.SessionRace)
 	result, err := repo.GetAll(ctx, filter)
 
 	tests.AssertNoError(t, err)
 	tests.AssertNotNil(t, result)
 	tests.AssertEqual(t, 1, len(*result))
-	tests.AssertEqual(t, "Race", (*result)[0].Session)
+	tests.AssertEqual(t, model.SessionRace, (*result)[0].Session)
 	tests.AssertEqual(t, 15, (*result)[0].PlayerCount)
 }
 
@@ -145,8 +145,8 @@ func TestStateHistoryRepository_GetLastSessionID_Success(t *testing.T) {
 	sessionID1 := uuid.New()
 	sessionID2 := uuid.New()
 
-	history1 := testData.CreateStateHistory("Practice", "spa", 5, sessionID1)
-	history2 := testData.CreateStateHistory("Race", "spa", 10, sessionID2)
+	history1 := testData.CreateStateHistory(model.SessionPractice, "spa", 5, sessionID1)
+	history2 := testData.CreateStateHistory(model.SessionRace, "spa", 10, sessionID2)
 
 	// Insert with a small delay to ensure ordering
 	err := repo.Insert(ctx, &history1)
@@ -217,7 +217,7 @@ func TestStateHistoryRepository_GetSummaryStats_Success(t *testing.T) {
 	sessionID2 := uuid.New()
 
 	// Practice session: 5, 10, 15 players
-	practiceEntries := testData.CreateMultipleEntries("Practice", "spa", []int{5, 10, 15})
+	practiceEntries := testData.CreateMultipleEntries(model.SessionPractice, "spa", []int{5, 10, 15})
 	for i := range practiceEntries {
 		practiceEntries[i].SessionID = sessionID1
 		err := repo.Insert(ctx, &practiceEntries[i])
@@ -225,7 +225,7 @@ func TestStateHistoryRepository_GetSummaryStats_Success(t *testing.T) {
 	}
 
 	// Race session: 20, 25, 30 players
-	raceEntries := testData.CreateMultipleEntries("Race", "spa", []int{20, 25, 30})
+	raceEntries := testData.CreateMultipleEntries(model.SessionRace, "spa", []int{20, 25, 30})
 	for i := range raceEntries {
 		raceEntries[i].SessionID = sessionID2
 		err := repo.Insert(ctx, &raceEntries[i])
@@ -305,7 +305,7 @@ func TestStateHistoryRepository_GetTotalPlaytime_Success(t *testing.T) {
 		{
 			ID:                     uuid.New(),
 			ServerID:               helper.TestData.ServerID,
-			Session:                "Practice",
+			Session:                model.SessionPractice,
 			Track:                  "spa",
 			PlayerCount:            5,
 			DateCreated:            baseTime,
@@ -316,7 +316,7 @@ func TestStateHistoryRepository_GetTotalPlaytime_Success(t *testing.T) {
 		{
 			ID:                     uuid.New(),
 			ServerID:               helper.TestData.ServerID,
-			Session:                "Practice",
+			Session:                model.SessionPractice,
 			Track:                  "spa",
 			PlayerCount:            10,
 			DateCreated:            baseTime.Add(30 * time.Minute),
@@ -327,7 +327,7 @@ func TestStateHistoryRepository_GetTotalPlaytime_Success(t *testing.T) {
 		{
 			ID:                     uuid.New(),
 			ServerID:               helper.TestData.ServerID,
-			Session:                "Practice",
+			Session:                model.SessionPractice,
 			Track:                  "spa",
 			PlayerCount:            8,
 			DateCreated:            baseTime.Add(60 * time.Minute),
@@ -391,7 +391,7 @@ func TestStateHistoryRepository_ConcurrentOperations(t *testing.T) {
 	}
 
 	// Create and insert initial entry to ensure table exists and is properly set up
-	initialHistory := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
+	initialHistory := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 	err := repo.Insert(ctx, &initialHistory)
 	if err != nil {
 		t.Fatalf("Failed to insert initial record: %v", err)
@@ -404,7 +404,7 @@ func TestStateHistoryRepository_ConcurrentOperations(t *testing.T) {
 		defer func() {
 			done <- true
 		}()
-		history := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
+		history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 		err := repo.Insert(ctx, &history)
 		if err != nil {
 			t.Logf("Insert error: %v", err)
@@ -462,7 +462,7 @@ func TestStateHistoryRepository_FilterEdgeCases(t *testing.T) {
 
 	// Insert a test record to ensure the table is properly set up
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
-	history := testData.CreateStateHistory("Practice", "spa", 5, uuid.New())
+	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 	err := repo.Insert(ctx, &history)
 	tests.AssertNoError(t, err)
 

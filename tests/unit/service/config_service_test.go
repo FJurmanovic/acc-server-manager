@@ -94,7 +94,7 @@ func TestConfigService_GetEventConfig_ValidFile(t *testing.T) {
 	// Verify sessions
 	tests.AssertEqual(t, 3, len(eventConfig.Sessions))
 	if len(eventConfig.Sessions) > 0 {
-		tests.AssertEqual(t, "P", eventConfig.Sessions[0].SessionType)
+		tests.AssertEqual(t, model.SessionPractice, eventConfig.Sessions[0].SessionType)
 		tests.AssertEqual(t, model.IntString(10), eventConfig.Sessions[0].SessionDurationMinutes)
 	}
 }

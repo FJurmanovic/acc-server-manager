@@ -1,6 +1,9 @@
 package model
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,9 +16,9 @@ type StateHistoryFilter struct {
 	DateRangeFilter   // Adds date range filtering
 
 	// Additional fields specific to state history
-	Session    string `query:"session"`
-	MinPlayers *int   `query:"min_players"`
-	MaxPlayers *int   `query:"max_players"`
+	Session    TrackSession `query:"session"`
+	MinPlayers *int         `query:"min_players"`
+	MaxPlayers *int         `query:"max_players"`
 }
 
 // ApplyFilter implements the Filterable interface
@@ -52,16 +55,66 @@ func (f *StateHistoryFilter) ApplyFilter(query *gorm.DB) *gorm.DB {
 	return query
 }
 
+type TrackSession string
+
+const (
+	SessionPractice TrackSession = "P"
+	SessionQualify  TrackSession = "Q"
+	SessionRace     TrackSession = "R"
+	SessionUnknown  TrackSession = "U"
+)
+
+func (i *TrackSession) UnmarshalJSON(b []byte) error {
+	var str string
+	if err := json.Unmarshal(b, &str); err == nil {
+		*i = ToTrackSession(str)
+		return nil
+	}
+
+	return fmt.Errorf("invalid TrackSession value")
+}
+
+func (i TrackSession) Humanize() string {
+	switch i {
+	case SessionPractice:
+		return "Practice"
+	case SessionQualify:
+		return "Qualifying"
+	case SessionRace:
+		return "Race"
+	default:
+		return "Unknown"
+	}
+}
+
+func ToTrackSession(i string) TrackSession {
+	sessionAbrv := strings.ToUpper(i[:1])
+	switch sessionAbrv {
+	case "P":
+		return SessionPractice
+	case "Q":
+		return SessionQualify
+	case "R":
+		return SessionRace
+	default:
+		return SessionUnknown
+	}
+}
+
+func (i TrackSession) ToString() string {
+	return string(i)
+}
+
 type StateHistory struct {
-	ID                     uuid.UUID `gorm:"type:uuid;primary_key;" json:"id"`
-	ServerID               uuid.UUID `json:"serverId" gorm:"not null;type:uuid"`
-	Session                string    `json:"session"`
-	Track                  string    `json:"track"`
-	PlayerCount            int       `json:"playerCount"`
-	DateCreated            time.Time `json:"dateCreated"`
-	SessionStart           time.Time `json:"sessionStart"`
-	SessionDurationMinutes int       `json:"sessionDurationMinutes"`
-	SessionID              uuid.UUID `json:"sessionId" gorm:"not null;type:uuid"` // Unique identifier for each session/event
+	ID                     uuid.UUID    `gorm:"type:uuid;primary_key;" json:"id"`
+	ServerID               uuid.UUID    `json:"serverId" gorm:"not null;type:uuid"`
+	Session                TrackSession `json:"session"`
+	Track                  string       `json:"track"`
+	PlayerCount            int          `json:"playerCount"`
+	DateCreated            time.Time    `json:"dateCreated"`
+	SessionStart           time.Time    `json:"sessionStart"`
+	SessionDurationMinutes int          `json:"sessionDurationMinutes"`
+	SessionID              uuid.UUID    `json:"sessionId" gorm:"not null;type:uuid"` // Unique identifier for each session/event
 }
 
 // BeforeCreate is a GORM hook that runs before creating new state history entries
