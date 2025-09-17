@@ -17,9 +17,9 @@ import (
 func Start(di *dig.Container) *fiber.App {
 	app := fiber.New(fiber.Config{
 		EnablePrintRoutes: true,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       120 * time.Second,
+		ReadTimeout:       20 * time.Minute, // Increased for long-running Steam operations
+		WriteTimeout:      20 * time.Minute, // Increased for long-running Steam operations
+		IdleTimeout:       25 * time.Minute, // Increased accordingly
 		BodyLimit:         10 * 1024 * 1024, // 10MB
 	})
 
@@ -29,8 +29,8 @@ func Start(di *dig.Container) *fiber.App {
 	// Add security middleware stack
 	app.Use(securityMW.SecurityHeaders())
 	app.Use(securityMW.LogSecurityEvents())
-	app.Use(securityMW.TimeoutMiddleware(30 * time.Second))
-	app.Use(securityMW.RequestContextTimeout(60 * time.Second))
+	app.Use(securityMW.TimeoutMiddleware(20 * time.Minute)) // Increased for Steam operations
+	app.Use(securityMW.RequestContextTimeout(20 * time.Minute)) // Increased for Steam operations
 	app.Use(securityMW.RequestSizeLimit(10 * 1024 * 1024)) // 10MB
 	app.Use(securityMW.ValidateUserAgent())
 	app.Use(securityMW.ValidateContentType("application/json", "application/x-www-form-urlencoded", "multipart/form-data"))
@@ -41,7 +41,7 @@ func Start(di *dig.Container) *fiber.App {
 
 	allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
 	if allowedOrigin == "" {
-		allowedOrigin = "http://localhost:5173"
+		allowedOrigin = "http://localhost:3000"
 	}
 
 	app.Use(cors.New(cors.Config{

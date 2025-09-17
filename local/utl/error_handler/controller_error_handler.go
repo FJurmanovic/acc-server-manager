@@ -66,12 +66,34 @@ func (ceh *ControllerErrorHandler) HandleError(c *fiber.Ctx, err error, statusCo
 		if errorResponse.Details == nil {
 			errorResponse.Details = make(map[string]string)
 		}
-		errorResponse.Details["method"] = c.Method()
-		errorResponse.Details["path"] = c.Path()
-		errorResponse.Details["ip"] = c.IP()
+		
+		// Safely extract request details
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// If any of these panic, just skip adding the details
+					return
+				}
+			}()
+			
+			errorResponse.Details["method"] = c.Method()
+			errorResponse.Details["path"] = c.Path()
+			
+			// Safely get IP address
+			if ip := c.IP(); ip != "" {
+				errorResponse.Details["ip"] = ip
+			} else {
+				errorResponse.Details["ip"] = "unknown"
+			}
+		}()
 	}
 
 	// Return appropriate response based on status code
+	if c == nil {
+		// If context is nil, we can't return a response
+		return fmt.Errorf("cannot return HTTP response: context is nil")
+	}
+	
 	if statusCode >= 500 {
 		// For server errors, don't expose internal details
 		return c.Status(statusCode).JSON(ErrorResponse{

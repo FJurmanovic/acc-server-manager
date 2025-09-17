@@ -139,10 +139,16 @@ func (ac *ServerController) CreateServer(c *fiber.Ctx) error {
 	if err := c.BodyParser(server); err != nil {
 		return ac.errorHandler.HandleParsingError(c, err)
 	}
-	ac.service.GenerateServerPath(server)
-	if err := ac.service.CreateServer(c, server); err != nil {
+
+	server.GenerateUUID()
+
+	// Use async server creation to avoid blocking other requests
+	if err := ac.service.CreateServerAsync(c, server); err != nil {
 		return ac.errorHandler.HandleServiceError(c, err)
 	}
+
+	// Return immediately with server details
+	// The actual creation will happen in the background with WebSocket updates
 	return c.JSON(server)
 }
 

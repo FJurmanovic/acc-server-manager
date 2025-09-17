@@ -31,7 +31,7 @@ func Init(di *dig.Container, app *fiber.App) {
 		StateHistory: serverIdGroup.Group("/state-history"),
 		Membership:   groups.Group("/membership"),
 		System:       groups.Group("/system"),
-		Steam2FA:     groups.Group("/steam2fa"),
+		WebSocket:    groups.Group("/ws"),
 	}
 
 	accessKeyMiddleware := middleware.NewAccessKeyMiddleware()

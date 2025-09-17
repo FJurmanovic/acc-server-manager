@@ -55,8 +55,8 @@ func InitializeControllers(c *dig.Container) {
 		logging.Panic("unable to initialize membership controller")
 	}
 
-	err = c.Invoke(NewSteam2FAController)
+	err = c.Invoke(NewWebSocketController)
 	if err != nil {
-		logging.Panic("unable to initialize steam 2fa controller")
+		logging.Panic("unable to initialize websocket controller")
 	}
 }

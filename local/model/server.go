@@ -104,6 +104,12 @@ func (f *ServerFilter) ApplyFilter(query *gorm.DB) *gorm.DB {
 	return query
 }
 
+func (s *Server) GenerateUUID() {
+	if s.ID == uuid.Nil {
+		s.ID = uuid.New()
+	}
+}
+
 // BeforeCreate is a GORM hook that runs before creating a new server
 func (s *Server) BeforeCreate(tx *gorm.DB) error {
 	if s.Name == "" {
@@ -111,9 +117,7 @@ func (s *Server) BeforeCreate(tx *gorm.DB) error {
 	}
 
 	// Generate UUID if not set
-	if s.ID == uuid.Nil {
-		s.ID = uuid.New()
-	}
+	s.GenerateUUID()
 
 	// Generate service name and config path if not set
 	if s.ServiceName == "" {

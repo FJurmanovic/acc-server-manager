@@ -25,7 +25,7 @@ type RouteGroups struct {
 	StateHistory fiber.Router
 	Membership   fiber.Router
 	System       fiber.Router
-	Steam2FA     fiber.Router
+	WebSocket    fiber.Router
 }
 
 func CheckError(err error) {
