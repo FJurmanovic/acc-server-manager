@@ -20,10 +20,6 @@ func NewServerRepository(db *gorm.DB) *ServerRepository {
 	return repo
 }
 
-// GetFirstByServiceName
-// Gets first row from Server table.
-//
-//	   	Args:
 //	   		context.Context: Application context
 //		Returns:
 //			model.ServerModel: Server object from database.

@@ -16,21 +16,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// SteamCredentials represents stored Steam login credentials
 type SteamCredentials struct {
 	ID          uuid.UUID `gorm:"type:uuid;primary_key;" json:"id"`
 	Username    string    `gorm:"not null" json:"username"`
-	Password    string    `gorm:"not null" json:"-"` // Encrypted, not exposed in JSON
+	Password    string    `gorm:"not null" json:"-"`
 	DateCreated time.Time `json:"dateCreated"`
 	LastUpdated time.Time `json:"lastUpdated"`
 }
 
-// TableName specifies the table name for GORM
 func (SteamCredentials) TableName() string {
 	return "steam_credentials"
 }
 
-// BeforeCreate is a GORM hook that runs before creating new credentials
 func (s *SteamCredentials) BeforeCreate(tx *gorm.DB) error {
 	if s.ID == uuid.Nil {
 		s.ID = uuid.New()
@@ -42,7 +39,6 @@ func (s *SteamCredentials) BeforeCreate(tx *gorm.DB) error {
 	}
 	s.LastUpdated = now
 
-	// Encrypt password before saving
 	encrypted, err := EncryptPassword(s.Password)
 	if err != nil {
 		return err
@@ -52,11 +48,9 @@ func (s *SteamCredentials) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// BeforeUpdate is a GORM hook that runs before updating credentials
 func (s *SteamCredentials) BeforeUpdate(tx *gorm.DB) error {
 	s.LastUpdated = time.Now().UTC()
 
-	// Only encrypt if password field is being updated
 	if tx.Statement.Changed("Password") {
 		encrypted, err := EncryptPassword(s.Password)
 		if err != nil {
@@ -68,9 +62,7 @@ func (s *SteamCredentials) BeforeUpdate(tx *gorm.DB) error {
 	return nil
 }
 
-// AfterFind is a GORM hook that runs after fetching credentials
 func (s *SteamCredentials) AfterFind(tx *gorm.DB) error {
-	// Decrypt password after fetching
 	if s.Password != "" {
 		decrypted, err := DecryptPassword(s.Password)
 		if err != nil {
@@ -81,18 +73,15 @@ func (s *SteamCredentials) AfterFind(tx *gorm.DB) error {
 	return nil
 }
 
-// Validate checks if the credentials are valid with enhanced security checks
 func (s *SteamCredentials) Validate() error {
 	if s.Username == "" {
 		return errors.New("username is required")
 	}
 
-	// Enhanced username validation
 	if len(s.Username) < 3 || len(s.Username) > 64 {
 		return errors.New("username must be between 3 and 64 characters")
 	}
 
-	// Check for valid characters in username (alphanumeric, underscore, hyphen)
 	if matched, _ := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, s.Username); !matched {
 		return errors.New("username contains invalid characters")
 	}
@@ -101,7 +90,6 @@ func (s *SteamCredentials) Validate() error {
 		return errors.New("password is required")
 	}
 
-	// Basic password validation
 	if len(s.Password) < 6 {
 		return errors.New("password must be at least 6 characters long")
 	}
@@ -110,7 +98,6 @@ func (s *SteamCredentials) Validate() error {
 		return errors.New("password is too long")
 	}
 
-	// Check for obvious weak passwords
 	weakPasswords := []string{"password", "123456", "steam", "admin", "user"}
 	lowerPass := strings.ToLower(s.Password)
 	for _, weak := range weakPasswords {
@@ -122,8 +109,6 @@ func (s *SteamCredentials) Validate() error {
 	return nil
 }
 
-// GetEncryptionKey returns the encryption key from config.
-// The key is loaded from the ENCRYPTION_KEY environment variable.
 func GetEncryptionKey() []byte {
 	key := []byte(configs.EncryptionKey)
 	if len(key) != 32 {
@@ -132,7 +117,6 @@ func GetEncryptionKey() []byte {
 	return key
 }
 
-// EncryptPassword encrypts a password using AES-256-GCM with enhanced security
 func EncryptPassword(password string) (string, error) {
 	if password == "" {
 		return "", errors.New("password cannot be empty")
@@ -148,33 +132,27 @@ func EncryptPassword(password string) (string, error) {
 		return "", err
 	}
 
-	// Create a new GCM cipher
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return "", err
 	}
 
-	// Create a cryptographically secure nonce
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return "", err
 	}
 
-	// Encrypt the password with authenticated encryption
 	ciphertext := gcm.Seal(nonce, nonce, []byte(password), nil)
 
-	// Return base64 encoded encrypted password
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// DecryptPassword decrypts an encrypted password with enhanced validation
 func DecryptPassword(encryptedPassword string) (string, error) {
 	if encryptedPassword == "" {
 		return "", errors.New("encrypted password cannot be empty")
 	}
 
-	// Validate base64 format
-	if len(encryptedPassword) < 24 { // Minimum reasonable length
+	if len(encryptedPassword) < 24 {
 		return "", errors.New("invalid encrypted password format")
 	}
 
@@ -184,13 +162,11 @@ func DecryptPassword(encryptedPassword string) (string, error) {
 		return "", err
 	}
 
-	// Create a new GCM cipher
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return "", err
 	}
 
-	// Decode base64 encoded password
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedPassword)
 	if err != nil {
 		return "", errors.New("invalid base64 encoding")
@@ -207,7 +183,6 @@ func DecryptPassword(encryptedPassword string) (string, error) {
 		return "", errors.New("decryption failed - invalid ciphertext or key")
 	}
 
-	// Validate decrypted content
 	decrypted := string(plaintext)
 	if len(decrypted) == 0 || len(decrypted) > 1024 {
 		return "", errors.New("invalid decrypted password")

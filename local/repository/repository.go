@@ -10,11 +10,7 @@ import (
 	"go.uber.org/dig"
 )
 
-// InitializeRepositories
-// Initializes Dependency Injection modules for repositories
-//
-//	Args:
-//		*dig.Container: Dig Container
+// *dig.Container: Dig Container
 func InitializeRepositories(c *dig.Container) {
 	c.Provide(NewServiceControlRepository)
 	c.Provide(NewStateHistoryRepository)
@@ -24,16 +20,14 @@ func InitializeRepositories(c *dig.Container) {
 	c.Provide(NewSteamCredentialsRepository)
 	c.Provide(NewMembershipRepository)
 
-	// Provide the Steam2FAManager as a singleton
 	if err := c.Provide(func() *model.Steam2FAManager {
 		manager := model.NewSteam2FAManager()
-		
-		// Use graceful shutdown manager for cleanup goroutine
+
 		shutdownManager := graceful.GetManager()
 		shutdownManager.RunGoroutine(func(ctx context.Context) {
 			ticker := time.NewTicker(15 * time.Minute)
 			defer ticker.Stop()
-			
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -43,7 +37,7 @@ func InitializeRepositories(c *dig.Container) {
 				}
 			}
 		})
-		
+
 		return manager
 	}); err != nil {
 		logging.Panic("unable to initialize steam 2fa manager")

@@ -7,8 +7,8 @@ import (
 )
 
 type LogPosition struct {
-	LastPosition int64    `json:"last_position"`
-	LastRead     string   `json:"last_read"`
+	LastPosition int64  `json:"last_position"`
+	LastRead     string `json:"last_read"`
 }
 
 type PositionTracker struct {
@@ -16,11 +16,10 @@ type PositionTracker struct {
 }
 
 func NewPositionTracker(logPath string) *PositionTracker {
-	// Create position file in same directory as log file
 	dir := filepath.Dir(logPath)
 	base := filepath.Base(logPath)
 	positionFile := filepath.Join(dir, "."+base+".position")
-	
+
 	return &PositionTracker{
 		positionFile: positionFile,
 	}
@@ -30,7 +29,6 @@ func (t *PositionTracker) LoadPosition() (*LogPosition, error) {
 	data, err := os.ReadFile(t.positionFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Return empty position if file doesn't exist
 			return &LogPosition{}, nil
 		}
 		return nil, err
@@ -51,4 +49,4 @@ func (t *PositionTracker) SavePosition(pos *LogPosition) error {
 	}
 
 	return os.WriteFile(t.positionFile, data, 0644)
-} 
+}

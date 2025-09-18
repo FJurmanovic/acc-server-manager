@@ -12,13 +12,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// CacheInvalidator interface for cache invalidation
 type CacheInvalidator interface {
 	InvalidateUserPermissions(userID string)
 	InvalidateAllUserPermissions()
 }
 
-// MembershipService provides business logic for membership-related operations.
 type MembershipService struct {
 	repo             *repository.MembershipRepository
 	cacheInvalidator CacheInvalidator
@@ -26,29 +24,25 @@ type MembershipService struct {
 	openJwtHandler   *jwt.OpenJWTHandler
 }
 
-// NewMembershipService creates a new MembershipService.
 func NewMembershipService(repo *repository.MembershipRepository, jwtHandler *jwt.JWTHandler, openJwtHandler *jwt.OpenJWTHandler) *MembershipService {
 	return &MembershipService{
 		repo:             repo,
-		cacheInvalidator: nil, // Will be set later via SetCacheInvalidator
+		cacheInvalidator: nil,
 		jwtHandler:       jwtHandler,
 		openJwtHandler:   openJwtHandler,
 	}
 }
 
-// SetCacheInvalidator sets the cache invalidator after service initialization
 func (s *MembershipService) SetCacheInvalidator(invalidator CacheInvalidator) {
 	s.cacheInvalidator = invalidator
 }
 
-// Login authenticates a user and returns a JWT.
 func (s *MembershipService) HandleLogin(ctx context.Context, username, password string) (*model.User, error) {
 	user, err := s.repo.FindUserByUsername(ctx, username)
 	if err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 
-	// Use secure password verification with constant-time comparison
 	if err := user.VerifyPassword(password); err != nil {
 		return nil, errors.New("invalid credentials")
 	}
@@ -56,7 +50,6 @@ func (s *MembershipService) HandleLogin(ctx context.Context, username, password 
 	return user, nil
 }
 
-// Login authenticates a user and returns a JWT.
 func (s *MembershipService) Login(ctx context.Context, username, password string) (string, error) {
 	user, err := s.HandleLogin(ctx, username, password)
 	if err != nil {
@@ -70,7 +63,6 @@ func (s *MembershipService) GenerateOpenToken(ctx context.Context, userId string
 	return s.openJwtHandler.GenerateToken(userId)
 }
 
-// CreateUser creates a new user.
 func (s *MembershipService) CreateUser(ctx context.Context, username, password, roleName string) (*model.User, error) {
 
 	role, err := s.repo.FindRoleByName(ctx, roleName)
@@ -94,43 +86,35 @@ func (s *MembershipService) CreateUser(ctx context.Context, username, password, 
 	return user, nil
 }
 
-// ListUsers retrieves all users.
 func (s *MembershipService) ListUsers(ctx context.Context) ([]*model.User, error) {
 	return s.repo.ListUsers(ctx)
 }
 
-// GetUser retrieves a single user by ID.
 func (s *MembershipService) GetUser(ctx context.Context, userID uuid.UUID) (*model.User, error) {
 	return s.repo.FindUserByID(ctx, userID)
 }
 
-// GetUserWithPermissions retrieves a single user by ID with their role and permissions.
 func (s *MembershipService) GetUserWithPermissions(ctx context.Context, userID string) (*model.User, error) {
 	return s.repo.FindUserByIDWithPermissions(ctx, userID)
 }
 
-// UpdateUserRequest defines the request body for updating a user.
 type UpdateUserRequest struct {
 	Username *string    `json:"username"`
 	Password *string    `json:"password"`
 	RoleID   *uuid.UUID `json:"roleId"`
 }
 
-// DeleteUser deletes a user with validation to prevent Super Admin deletion.
 func (s *MembershipService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
-	// Get user with role information
 	user, err := s.repo.FindUserByID(ctx, userID)
 	if err != nil {
 		return errors.New("user not found")
 	}
 
-	// Get role to check if it's Super Admin
 	role, err := s.repo.FindRoleByID(ctx, user.RoleID)
 	if err != nil {
 		return errors.New("user role not found")
 	}
 
-	// Prevent deletion of Super Admin users
 	if role.Name == "Super Admin" {
 		return errors.New("cannot delete Super Admin user")
 	}
@@ -140,7 +124,6 @@ func (s *MembershipService) DeleteUser(ctx context.Context, userID uuid.UUID) er
 		return err
 	}
 
-	// Invalidate cache for deleted user
 	if s.cacheInvalidator != nil {
 		s.cacheInvalidator.InvalidateUserPermissions(userID.String())
 	}
@@ -149,7 +132,6 @@ func (s *MembershipService) DeleteUser(ctx context.Context, userID uuid.UUID) er
 	return nil
 }
 
-// UpdateUser updates a user's details.
 func (s *MembershipService) UpdateUser(ctx context.Context, userID uuid.UUID, req UpdateUserRequest) (*model.User, error) {
 	user, err := s.repo.FindUserByID(ctx, userID)
 	if err != nil {
@@ -161,12 +143,10 @@ func (s *MembershipService) UpdateUser(ctx context.Context, userID uuid.UUID, re
 	}
 
 	if req.Password != nil && *req.Password != "" {
-		// Password will be automatically hashed in BeforeUpdate hook
 		user.Password = *req.Password
 	}
 
 	if req.RoleID != nil {
-		// Check if role exists
 		_, err := s.repo.FindRoleByID(ctx, *req.RoleID)
 		if err != nil {
 			return nil, errors.New("role not found")
@@ -178,7 +158,6 @@ func (s *MembershipService) UpdateUser(ctx context.Context, userID uuid.UUID, re
 		return nil, err
 	}
 
-	// Invalidate cache if role was changed
 	if req.RoleID != nil && s.cacheInvalidator != nil {
 		s.cacheInvalidator.InvalidateUserPermissions(userID.String())
 	}
@@ -187,14 +166,12 @@ func (s *MembershipService) UpdateUser(ctx context.Context, userID uuid.UUID, re
 	return user, nil
 }
 
-// HasPermission checks if a user has a specific permission.
 func (s *MembershipService) HasPermission(ctx context.Context, userID string, permissionName string) (bool, error) {
 	user, err := s.repo.FindUserByIDWithPermissions(ctx, userID)
 	if err != nil {
 		return false, err
 	}
 
-	// Super admin and Admin have all permissions
 	if user.Role.Name == "Super Admin" || user.Role.Name == "Admin" {
 		return true, nil
 	}
@@ -208,15 +185,13 @@ func (s *MembershipService) HasPermission(ctx context.Context, userID string, pe
 	return false, nil
 }
 
-// SetupInitialData creates the initial roles and permissions.
 func (s *MembershipService) SetupInitialData(ctx context.Context) error {
-	// Define all permissions
 	permissions := model.AllPermissions()
 
 	createdPermissions := make([]model.Permission, 0)
 	for _, pName := range permissions {
 		perm, err := s.repo.FindPermissionByName(ctx, pName)
-		if err != nil { // Assuming error means not found
+		if err != nil {
 			perm = &model.Permission{Name: pName}
 			if err := s.repo.CreatePermission(ctx, perm); err != nil {
 				return err
@@ -225,7 +200,6 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 		createdPermissions = append(createdPermissions, *perm)
 	}
 
-	// Create Super Admin role with all permissions
 	superAdminRole, err := s.repo.FindRoleByName(ctx, "Super Admin")
 	if err != nil {
 		superAdminRole = &model.Role{Name: "Super Admin"}
@@ -237,7 +211,6 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 		return err
 	}
 
-	// Create Admin role with same permissions as Super Admin
 	adminRole, err := s.repo.FindRoleByName(ctx, "Admin")
 	if err != nil {
 		adminRole = &model.Role{Name: "Admin"}
@@ -249,7 +222,6 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 		return err
 	}
 
-	// Create Manager role with limited permissions (excluding membership, role, user, server create/delete)
 	managerRole, err := s.repo.FindRoleByName(ctx, "Manager")
 	if err != nil {
 		managerRole = &model.Role{Name: "Manager"}
@@ -258,7 +230,6 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 		}
 	}
 
-	// Define manager permissions (limited set)
 	managerPermissionNames := []string{
 		model.ServerView,
 		model.ServerUpdate,
@@ -282,16 +253,14 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 		return err
 	}
 
-	// Invalidate all caches after role setup changes
 	if s.cacheInvalidator != nil {
 		s.cacheInvalidator.InvalidateAllUserPermissions()
 	}
 
-	// Create a default admin user if one doesn't exist
 	_, err = s.repo.FindUserByUsername(ctx, "admin")
 	if err != nil {
 		logging.Debug("Creating default admin user")
-		_, err = s.CreateUser(ctx, "admin", os.Getenv("PASSWORD"), "Super Admin") // Default password, should be changed
+		_, err = s.CreateUser(ctx, "admin", os.Getenv("PASSWORD"), "Super Admin")
 		if err != nil {
 			return err
 		}
@@ -300,7 +269,6 @@ func (s *MembershipService) SetupInitialData(ctx context.Context) error {
 	return nil
 }
 
-// GetAllRoles retrieves all roles for dropdown selection.
 func (s *MembershipService) GetAllRoles(ctx context.Context) ([]*model.Role, error) {
 	return s.repo.ListRoles(ctx)
 }

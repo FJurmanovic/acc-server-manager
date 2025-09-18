@@ -1,4 +1,4 @@
-package service
+package websocket
 
 import (
 	"acc-server-manager/local/model"
@@ -126,33 +126,17 @@ func (ws *WebSocketService) broadcastToServer(serverID uuid.UUID, message model.
 		return
 	}
 
-	sentToAssociatedConnections := false
-
 	ws.connections.Range(func(key, value interface{}) bool {
 		if wsConn, ok := value.(*WebSocketConnection); ok {
 			if wsConn.serverID != nil && *wsConn.serverID == serverID {
 				if err := wsConn.conn.WriteMessage(websocket.TextMessage, data); err != nil {
 					logging.Error("Failed to send WebSocket message to connection %s: %v", key, err)
 					ws.RemoveConnection(key.(string))
-				} else {
-					sentToAssociatedConnections = true
 				}
 			}
 		}
 		return true
 	})
-
-	if !sentToAssociatedConnections && (message.Type == model.MessageTypeStep || message.Type == model.MessageTypeError || message.Type == model.MessageTypeComplete) {
-		ws.connections.Range(func(key, value interface{}) bool {
-			if wsConn, ok := value.(*WebSocketConnection); ok {
-				if err := wsConn.conn.WriteMessage(websocket.TextMessage, data); err != nil {
-					logging.Error("Failed to send WebSocket message to connection %s: %v", key, err)
-					ws.RemoveConnection(key.(string))
-				}
-			}
-			return true
-		})
-	}
 }
 
 func (ws *WebSocketService) BroadcastToUser(userID uuid.UUID, message model.WebSocketMessage) {

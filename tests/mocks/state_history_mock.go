@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// MockStateHistoryRepository provides a mock implementation of StateHistoryRepository
 type MockStateHistoryRepository struct {
 	stateHistories   []model.StateHistory
 	shouldFailGet    bool
@@ -21,7 +20,6 @@ func NewMockStateHistoryRepository() *MockStateHistoryRepository {
 	}
 }
 
-// GetAll mocks the GetAll method
 func (m *MockStateHistoryRepository) GetAll(ctx context.Context, filter *model.StateHistoryFilter) (*[]model.StateHistory, error) {
 	if m.shouldFailGet {
 		return nil, errors.New("failed to get state history")
@@ -37,13 +35,11 @@ func (m *MockStateHistoryRepository) GetAll(ctx context.Context, filter *model.S
 	return &filtered, nil
 }
 
-// Insert mocks the Insert method
 func (m *MockStateHistoryRepository) Insert(ctx context.Context, stateHistory *model.StateHistory) error {
 	if m.shouldFailInsert {
 		return errors.New("failed to insert state history")
 	}
 
-	// Simulate BeforeCreate hook
 	if stateHistory.ID == uuid.Nil {
 		stateHistory.ID = uuid.New()
 	}
@@ -55,7 +51,6 @@ func (m *MockStateHistoryRepository) Insert(ctx context.Context, stateHistory *m
 	return nil
 }
 
-// GetLastSessionID mocks the GetLastSessionID method
 func (m *MockStateHistoryRepository) GetLastSessionID(ctx context.Context, serverID uuid.UUID) (uuid.UUID, error) {
 	for i := len(m.stateHistories) - 1; i >= 0; i-- {
 		if m.stateHistories[i].ServerID == serverID {
@@ -65,7 +60,6 @@ func (m *MockStateHistoryRepository) GetLastSessionID(ctx context.Context, serve
 	return uuid.Nil, nil
 }
 
-// Helper methods for filtering
 func (m *MockStateHistoryRepository) matchesFilter(sh model.StateHistory, filter *model.StateHistoryFilter) bool {
 	if filter == nil {
 		return true
@@ -93,7 +87,6 @@ func (m *MockStateHistoryRepository) matchesFilter(sh model.StateHistory, filter
 	return true
 }
 
-// Helper methods for testing configuration
 func (m *MockStateHistoryRepository) SetShouldFailGet(shouldFail bool) {
 	m.shouldFailGet = shouldFail
 }
@@ -102,7 +95,6 @@ func (m *MockStateHistoryRepository) SetShouldFailInsert(shouldFail bool) {
 	m.shouldFailInsert = shouldFail
 }
 
-// AddStateHistory adds a state history entry to the mock repository
 func (m *MockStateHistoryRepository) AddStateHistory(stateHistory model.StateHistory) {
 	if stateHistory.ID == uuid.Nil {
 		stateHistory.ID = uuid.New()
@@ -113,22 +105,18 @@ func (m *MockStateHistoryRepository) AddStateHistory(stateHistory model.StateHis
 	m.stateHistories = append(m.stateHistories, stateHistory)
 }
 
-// GetCount returns the number of state history entries
 func (m *MockStateHistoryRepository) GetCount() int {
 	return len(m.stateHistories)
 }
 
-// Clear removes all state history entries
 func (m *MockStateHistoryRepository) Clear() {
 	m.stateHistories = make([]model.StateHistory, 0)
 }
 
-// GetSummaryStats calculates peak players, total sessions, and average players for mock data
 func (m *MockStateHistoryRepository) GetSummaryStats(ctx context.Context, filter *model.StateHistoryFilter) (model.StateHistoryStats, error) {
 	var stats model.StateHistoryStats
 	var filteredEntries []model.StateHistory
 
-	// Filter entries
 	for _, entry := range m.stateHistories {
 		if m.matchesFilter(entry, filter) {
 			filteredEntries = append(filteredEntries, entry)
@@ -139,7 +127,6 @@ func (m *MockStateHistoryRepository) GetSummaryStats(ctx context.Context, filter
 		return stats, nil
 	}
 
-	// Calculate statistics
 	sessionMap := make(map[string]bool)
 	totalPlayers := 0
 
@@ -159,11 +146,9 @@ func (m *MockStateHistoryRepository) GetSummaryStats(ctx context.Context, filter
 	return stats, nil
 }
 
-// GetTotalPlaytime calculates total playtime in minutes for mock data
 func (m *MockStateHistoryRepository) GetTotalPlaytime(ctx context.Context, filter *model.StateHistoryFilter) (int, error) {
 	var filteredEntries []model.StateHistory
 
-	// Filter entries
 	for _, entry := range m.stateHistories {
 		if m.matchesFilter(entry, filter) {
 			filteredEntries = append(filteredEntries, entry)
@@ -174,7 +159,6 @@ func (m *MockStateHistoryRepository) GetTotalPlaytime(ctx context.Context, filte
 		return 0, nil
 	}
 
-	// Group by session and calculate durations
 	sessionMap := make(map[string][]model.StateHistory)
 	for _, entry := range filteredEntries {
 		sessionID := entry.SessionID.String()
@@ -184,7 +168,6 @@ func (m *MockStateHistoryRepository) GetTotalPlaytime(ctx context.Context, filte
 	totalMinutes := 0
 	for _, sessionEntries := range sessionMap {
 		if len(sessionEntries) > 1 {
-			// Sort by date (simple approach for mock)
 			minTime := sessionEntries[0].DateCreated
 			maxTime := sessionEntries[0].DateCreated
 			hasPlayers := false
@@ -211,26 +194,22 @@ func (m *MockStateHistoryRepository) GetTotalPlaytime(ctx context.Context, filte
 	return totalMinutes, nil
 }
 
-// GetPlayerCountOverTime returns downsampled player count data for mock
 func (m *MockStateHistoryRepository) GetPlayerCountOverTime(ctx context.Context, filter *model.StateHistoryFilter) ([]model.PlayerCountPoint, error) {
 	var points []model.PlayerCountPoint
 	var filteredEntries []model.StateHistory
 
-	// Filter entries
 	for _, entry := range m.stateHistories {
 		if m.matchesFilter(entry, filter) {
 			filteredEntries = append(filteredEntries, entry)
 		}
 	}
 
-	// Group by hour (simple mock implementation)
 	hourMap := make(map[string][]int)
 	for _, entry := range filteredEntries {
 		hourKey := entry.DateCreated.Format("2006-01-02 15")
 		hourMap[hourKey] = append(hourMap[hourKey], entry.PlayerCount)
 	}
 
-	// Calculate averages per hour
 	for hourKey, counts := range hourMap {
 		total := 0
 		for _, count := range counts {
@@ -247,20 +226,17 @@ func (m *MockStateHistoryRepository) GetPlayerCountOverTime(ctx context.Context,
 	return points, nil
 }
 
-// GetSessionTypes counts sessions by type for mock
 func (m *MockStateHistoryRepository) GetSessionTypes(ctx context.Context, filter *model.StateHistoryFilter) ([]model.SessionCount, error) {
 	var sessionTypes []model.SessionCount
 	var filteredEntries []model.StateHistory
 
-	// Filter entries
 	for _, entry := range m.stateHistories {
 		if m.matchesFilter(entry, filter) {
 			filteredEntries = append(filteredEntries, entry)
 		}
 	}
 
-	// Group by session type
-	sessionMap := make(map[model.TrackSession]map[string]bool) // session -> sessionID -> bool
+	sessionMap := make(map[model.TrackSession]map[string]bool)
 	for _, entry := range filteredEntries {
 		if sessionMap[entry.Session] == nil {
 			sessionMap[entry.Session] = make(map[string]bool)
@@ -268,7 +244,6 @@ func (m *MockStateHistoryRepository) GetSessionTypes(ctx context.Context, filter
 		sessionMap[entry.Session][entry.SessionID.String()] = true
 	}
 
-	// Count unique sessions per type
 	for sessionType, sessions := range sessionMap {
 		sessionTypes = append(sessionTypes, model.SessionCount{
 			Name:  sessionType,
@@ -279,20 +254,17 @@ func (m *MockStateHistoryRepository) GetSessionTypes(ctx context.Context, filter
 	return sessionTypes, nil
 }
 
-// GetDailyActivity counts sessions per day for mock
 func (m *MockStateHistoryRepository) GetDailyActivity(ctx context.Context, filter *model.StateHistoryFilter) ([]model.DailyActivity, error) {
 	var dailyActivity []model.DailyActivity
 	var filteredEntries []model.StateHistory
 
-	// Filter entries
 	for _, entry := range m.stateHistories {
 		if m.matchesFilter(entry, filter) {
 			filteredEntries = append(filteredEntries, entry)
 		}
 	}
 
-	// Group by day
-	dayMap := make(map[string]map[string]bool) // date -> sessionID -> bool
+	dayMap := make(map[string]map[string]bool)
 	for _, entry := range filteredEntries {
 		dateKey := entry.DateCreated.Format("2006-01-02")
 		if dayMap[dateKey] == nil {
@@ -301,7 +273,6 @@ func (m *MockStateHistoryRepository) GetDailyActivity(ctx context.Context, filte
 		dayMap[dateKey][entry.SessionID.String()] = true
 	}
 
-	// Count unique sessions per day
 	for date, sessions := range dayMap {
 		dailyActivity = append(dailyActivity, model.DailyActivity{
 			Date:          date,
@@ -312,26 +283,22 @@ func (m *MockStateHistoryRepository) GetDailyActivity(ctx context.Context, filte
 	return dailyActivity, nil
 }
 
-// GetRecentSessions retrieves recent sessions for mock
 func (m *MockStateHistoryRepository) GetRecentSessions(ctx context.Context, filter *model.StateHistoryFilter) ([]model.RecentSession, error) {
 	var recentSessions []model.RecentSession
 	var filteredEntries []model.StateHistory
 
-	// Filter entries
 	for _, entry := range m.stateHistories {
 		if m.matchesFilter(entry, filter) {
 			filteredEntries = append(filteredEntries, entry)
 		}
 	}
 
-	// Group by session
 	sessionMap := make(map[string][]model.StateHistory)
 	for _, entry := range filteredEntries {
 		sessionID := entry.SessionID.String()
 		sessionMap[sessionID] = append(sessionMap[sessionID], entry)
 	}
 
-	// Create recent sessions (limit to 10)
 	count := 0
 	for _, entries := range sessionMap {
 		if count >= 10 {
@@ -339,7 +306,6 @@ func (m *MockStateHistoryRepository) GetRecentSessions(ctx context.Context, filt
 		}
 
 		if len(entries) > 0 {
-			// Find min/max dates and max players
 			minDate := entries[0].DateCreated
 			maxDate := entries[0].DateCreated
 			maxPlayers := 0
@@ -356,7 +322,6 @@ func (m *MockStateHistoryRepository) GetRecentSessions(ctx context.Context, filt
 				}
 			}
 
-			// Only include sessions with players
 			if maxPlayers > 0 {
 				duration := int(maxDate.Sub(minDate).Minutes())
 				recentSessions = append(recentSessions, model.RecentSession{

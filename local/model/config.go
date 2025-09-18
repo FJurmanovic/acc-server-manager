@@ -13,17 +13,15 @@ import (
 type IntString int
 type IntBool int
 
-// Config tracks configuration modifications
 type Config struct {
 	ID         uuid.UUID `json:"id" gorm:"type:uuid;primary_key;"`
 	ServerID   uuid.UUID `json:"serverId" gorm:"not null;type:uuid"`
-	ConfigFile string    `json:"configFile" gorm:"not null"` // e.g. "settings.json"
+	ConfigFile string    `json:"configFile" gorm:"not null"`
 	OldConfig  string    `json:"oldConfig" gorm:"type:text"`
 	NewConfig  string    `json:"newConfig" gorm:"type:text"`
 	ChangedAt  time.Time `json:"changedAt" gorm:"default:CURRENT_TIMESTAMP"`
 }
 
-// BeforeCreate is a GORM hook that runs before creating new config entries
 func (c *Config) BeforeCreate(tx *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
@@ -120,8 +118,6 @@ type Configuration struct {
 	RegisterToLobby IntString `json:"registerToLobby"`
 	ConfigVersion   IntString `json:"configVersion"`
 }
-
-// Known configuration keys
 
 func (i *IntBool) UnmarshalJSON(b []byte) error {
 	var str int

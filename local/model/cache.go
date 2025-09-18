@@ -6,20 +6,17 @@ import (
 	"time"
 )
 
-// StatusCache represents a cached server status with expiration
 type StatusCache struct {
 	Status    ServiceStatus
 	UpdatedAt time.Time
 }
 
-// CacheConfig holds configuration for cache behavior
 type CacheConfig struct {
-	ExpirationTime time.Duration // How long before a cache entry expires
-	ThrottleTime   time.Duration // Minimum time between status checks
-	DefaultStatus  ServiceStatus // Default status to return when throttled
+	ExpirationTime time.Duration
+	ThrottleTime   time.Duration
+	DefaultStatus  ServiceStatus
 }
 
-// ServerStatusCache manages cached server statuses
 type ServerStatusCache struct {
 	sync.RWMutex
 	cache       map[string]*StatusCache
@@ -27,7 +24,6 @@ type ServerStatusCache struct {
 	lastChecked map[string]time.Time
 }
 
-// NewServerStatusCache creates a new server status cache
 func NewServerStatusCache(config CacheConfig) *ServerStatusCache {
 	return &ServerStatusCache{
 		cache:       make(map[string]*StatusCache),
@@ -36,12 +32,10 @@ func NewServerStatusCache(config CacheConfig) *ServerStatusCache {
 	}
 }
 
-// GetStatus retrieves the cached status or indicates if a fresh check is needed
 func (c *ServerStatusCache) GetStatus(serviceName string) (ServiceStatus, bool) {
 	c.RLock()
 	defer c.RUnlock()
 
-	// Check if we're being throttled
 	if lastCheck, exists := c.lastChecked[serviceName]; exists {
 		if time.Since(lastCheck) < c.config.ThrottleTime {
 			if cached, ok := c.cache[serviceName]; ok {
@@ -51,7 +45,6 @@ func (c *ServerStatusCache) GetStatus(serviceName string) (ServiceStatus, bool) 
 		}
 	}
 
-	// Check if we have a valid cached entry
 	if cached, ok := c.cache[serviceName]; ok {
 		if time.Since(cached.UpdatedAt) < c.config.ExpirationTime {
 			return cached.Status, false
@@ -61,7 +54,6 @@ func (c *ServerStatusCache) GetStatus(serviceName string) (ServiceStatus, bool) 
 	return StatusUnknown, true
 }
 
-// UpdateStatus updates the cache with a new status
 func (c *ServerStatusCache) UpdateStatus(serviceName string, status ServiceStatus) {
 	c.Lock()
 	defer c.Unlock()
@@ -73,7 +65,6 @@ func (c *ServerStatusCache) UpdateStatus(serviceName string, status ServiceStatu
 	c.lastChecked[serviceName] = time.Now()
 }
 
-// InvalidateStatus removes a specific service from the cache
 func (c *ServerStatusCache) InvalidateStatus(serviceName string) {
 	c.Lock()
 	defer c.Unlock()
@@ -82,7 +73,6 @@ func (c *ServerStatusCache) InvalidateStatus(serviceName string) {
 	delete(c.lastChecked, serviceName)
 }
 
-// Clear removes all entries from the cache
 func (c *ServerStatusCache) Clear() {
 	c.Lock()
 	defer c.Unlock()
@@ -91,13 +81,11 @@ func (c *ServerStatusCache) Clear() {
 	c.lastChecked = make(map[string]time.Time)
 }
 
-// LookupCache provides a generic cache for lookup data
 type LookupCache struct {
 	sync.RWMutex
 	data map[string]interface{}
 }
 
-// NewLookupCache creates a new lookup cache
 func NewLookupCache() *LookupCache {
 	logging.Debug("Initializing new LookupCache")
 	return &LookupCache{
@@ -105,7 +93,6 @@ func NewLookupCache() *LookupCache {
 	}
 }
 
-// Get retrieves a cached value by key
 func (c *LookupCache) Get(key string) (interface{}, bool) {
 	c.RLock()
 	defer c.RUnlock()
@@ -119,7 +106,6 @@ func (c *LookupCache) Get(key string) (interface{}, bool) {
 	return value, exists
 }
 
-// Set stores a value in the cache
 func (c *LookupCache) Set(key string, value interface{}) {
 	c.Lock()
 	defer c.Unlock()
@@ -128,7 +114,6 @@ func (c *LookupCache) Set(key string, value interface{}) {
 	logging.Debug("Cache SET for key: %s", key)
 }
 
-// Clear removes all entries from the cache
 func (c *LookupCache) Clear() {
 	c.Lock()
 	defer c.Unlock()
@@ -137,13 +122,11 @@ func (c *LookupCache) Clear() {
 	logging.Debug("Cache CLEARED")
 }
 
-// ConfigEntry represents a cached configuration entry with its update time
 type ConfigEntry[T any] struct {
 	Data      T
 	UpdatedAt time.Time
 }
 
-// getConfigFromCache is a generic helper function to retrieve cached configs
 func getConfigFromCache[T any](cache map[string]*ConfigEntry[T], serverID string, expirationTime time.Duration) (*T, bool) {
 	if entry, ok := cache[serverID]; ok {
 		if time.Since(entry.UpdatedAt) < expirationTime {
@@ -157,7 +140,6 @@ func getConfigFromCache[T any](cache map[string]*ConfigEntry[T], serverID string
 	return nil, false
 }
 
-// updateConfigInCache is a generic helper function to update cached configs
 func updateConfigInCache[T any](cache map[string]*ConfigEntry[T], serverID string, data T) {
 	cache[serverID] = &ConfigEntry[T]{
 		Data:      data,
@@ -166,7 +148,6 @@ func updateConfigInCache[T any](cache map[string]*ConfigEntry[T], serverID strin
 	logging.Debug("Config cache SET for server ID: %s", serverID)
 }
 
-// ServerConfigCache manages cached server configurations
 type ServerConfigCache struct {
 	sync.RWMutex
 	configuration map[string]*ConfigEntry[Configuration]
@@ -177,7 +158,6 @@ type ServerConfigCache struct {
 	config        CacheConfig
 }
 
-// NewServerConfigCache creates a new server configuration cache
 func NewServerConfigCache(config CacheConfig) *ServerConfigCache {
 	logging.Debug("Initializing new ServerConfigCache with expiration time: %v, throttle time: %v", config.ExpirationTime, config.ThrottleTime)
 	return &ServerConfigCache{
@@ -190,7 +170,6 @@ func NewServerConfigCache(config CacheConfig) *ServerConfigCache {
 	}
 }
 
-// GetConfiguration retrieves a cached configuration
 func (c *ServerConfigCache) GetConfiguration(serverID string) (*Configuration, bool) {
 	c.RLock()
 	defer c.RUnlock()
@@ -198,7 +177,6 @@ func (c *ServerConfigCache) GetConfiguration(serverID string) (*Configuration, b
 	return getConfigFromCache(c.configuration, serverID, c.config.ExpirationTime)
 }
 
-// GetAssistRules retrieves cached assist rules
 func (c *ServerConfigCache) GetAssistRules(serverID string) (*AssistRules, bool) {
 	c.RLock()
 	defer c.RUnlock()
@@ -206,7 +184,6 @@ func (c *ServerConfigCache) GetAssistRules(serverID string) (*AssistRules, bool)
 	return getConfigFromCache(c.assistRules, serverID, c.config.ExpirationTime)
 }
 
-// GetEvent retrieves cached event configuration
 func (c *ServerConfigCache) GetEvent(serverID string) (*EventConfig, bool) {
 	c.RLock()
 	defer c.RUnlock()
@@ -214,7 +191,6 @@ func (c *ServerConfigCache) GetEvent(serverID string) (*EventConfig, bool) {
 	return getConfigFromCache(c.event, serverID, c.config.ExpirationTime)
 }
 
-// GetEventRules retrieves cached event rules
 func (c *ServerConfigCache) GetEventRules(serverID string) (*EventRules, bool) {
 	c.RLock()
 	defer c.RUnlock()
@@ -222,7 +198,6 @@ func (c *ServerConfigCache) GetEventRules(serverID string) (*EventRules, bool) {
 	return getConfigFromCache(c.eventRules, serverID, c.config.ExpirationTime)
 }
 
-// GetSettings retrieves cached server settings
 func (c *ServerConfigCache) GetSettings(serverID string) (*ServerSettings, bool) {
 	c.RLock()
 	defer c.RUnlock()
@@ -230,7 +205,6 @@ func (c *ServerConfigCache) GetSettings(serverID string) (*ServerSettings, bool)
 	return getConfigFromCache(c.settings, serverID, c.config.ExpirationTime)
 }
 
-// UpdateConfiguration updates the configuration cache
 func (c *ServerConfigCache) UpdateConfiguration(serverID string, config Configuration) {
 	c.Lock()
 	defer c.Unlock()
@@ -238,7 +212,6 @@ func (c *ServerConfigCache) UpdateConfiguration(serverID string, config Configur
 	updateConfigInCache(c.configuration, serverID, config)
 }
 
-// UpdateAssistRules updates the assist rules cache
 func (c *ServerConfigCache) UpdateAssistRules(serverID string, rules AssistRules) {
 	c.Lock()
 	defer c.Unlock()
@@ -246,7 +219,6 @@ func (c *ServerConfigCache) UpdateAssistRules(serverID string, rules AssistRules
 	updateConfigInCache(c.assistRules, serverID, rules)
 }
 
-// UpdateEvent updates the event configuration cache
 func (c *ServerConfigCache) UpdateEvent(serverID string, event EventConfig) {
 	c.Lock()
 	defer c.Unlock()
@@ -254,7 +226,6 @@ func (c *ServerConfigCache) UpdateEvent(serverID string, event EventConfig) {
 	updateConfigInCache(c.event, serverID, event)
 }
 
-// UpdateEventRules updates the event rules cache
 func (c *ServerConfigCache) UpdateEventRules(serverID string, rules EventRules) {
 	c.Lock()
 	defer c.Unlock()
@@ -262,7 +233,6 @@ func (c *ServerConfigCache) UpdateEventRules(serverID string, rules EventRules) 
 	updateConfigInCache(c.eventRules, serverID, rules)
 }
 
-// UpdateSettings updates the server settings cache
 func (c *ServerConfigCache) UpdateSettings(serverID string, settings ServerSettings) {
 	c.Lock()
 	defer c.Unlock()
@@ -270,7 +240,6 @@ func (c *ServerConfigCache) UpdateSettings(serverID string, settings ServerSetti
 	updateConfigInCache(c.settings, serverID, settings)
 }
 
-// InvalidateServerCache removes all cached configurations for a specific server
 func (c *ServerConfigCache) InvalidateServerCache(serverID string) {
 	c.Lock()
 	defer c.Unlock()
@@ -283,7 +252,6 @@ func (c *ServerConfigCache) InvalidateServerCache(serverID string) {
 	delete(c.settings, serverID)
 }
 
-// Clear removes all entries from the cache
 func (c *ServerConfigCache) Clear() {
 	c.Lock()
 	defer c.Unlock()

@@ -96,11 +96,9 @@ func (s *FirewallService) DeleteServerRules(serverName string, tcpPorts, udpPort
 }
 
 func (s *FirewallService) UpdateServerRules(serverName string, tcpPorts, udpPorts []int) error {
-	// First delete existing rules
 	if err := s.DeleteServerRules(serverName, tcpPorts, udpPorts); err != nil {
 		return err
 	}
 
-	// Then create new rules
 	return s.CreateServerRules(serverName, tcpPorts, udpPorts)
-} 
+}

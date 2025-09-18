@@ -33,7 +33,6 @@ func Start(di *dig.Container) {
 func Migrate(db *gorm.DB) {
 	logging.Info("Migrating database")
 
-	// Run GORM AutoMigrate for all models
 	err := db.AutoMigrate(
 		&model.ServiceControlModel{},
 		&model.Config{},
@@ -52,7 +51,6 @@ func Migrate(db *gorm.DB) {
 
 	if err != nil {
 		logging.Error("GORM AutoMigrate failed: %v", err)
-		// Don't panic, just log the error as custom migrations may have handled this
 	}
 
 	db.FirstOrCreate(&model.ServiceControlModel{ServiceControl: "Works"})
@@ -63,10 +61,8 @@ func Migrate(db *gorm.DB) {
 func runMigrations(db *gorm.DB) {
 	logging.Info("Running custom database migrations...")
 
-	// Migration 001: Password security upgrade
 	if err := migrations.RunPasswordSecurityMigration(db); err != nil {
 		logging.Error("Failed to run password security migration: %v", err)
-		// Continue - this migration might not be needed for all setups
 	}
 
 	logging.Info("Custom database migrations completed")
@@ -132,7 +128,6 @@ func seedCarModels(db *gorm.DB) error {
 	carModels := []model.CarModel{
 		{Value: 0, CarModel: "Porsche 991 GT3 R"},
 		{Value: 1, CarModel: "Mercedes-AMG GT3"},
-		// ... Add all car models from your list
 	}
 
 	for _, cm := range carModels {

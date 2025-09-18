@@ -1,6 +1,5 @@
 package model
 
-// Permission constants
 const (
 	ServerView   = "server.view"
 	ServerCreate = "server.create"
@@ -27,7 +26,6 @@ const (
 	MembershipEdit   = "membership.edit"
 )
 
-// AllPermissions returns a slice of all permission strings.
 func AllPermissions() []string {
 	return []string{
 		ServerView,

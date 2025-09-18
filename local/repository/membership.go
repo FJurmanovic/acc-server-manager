@@ -8,20 +8,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// MembershipRepository handles database operations for users, roles, and permissions.
 type MembershipRepository struct {
 	*BaseRepository[model.User, model.MembershipFilter]
 }
 
-// NewMembershipRepository creates a new MembershipRepository.
 func NewMembershipRepository(db *gorm.DB) *MembershipRepository {
 	return &MembershipRepository{
 		BaseRepository: NewBaseRepository[model.User, model.MembershipFilter](db, model.User{}),
 	}
 }
 
-// FindUserByUsername finds a user by their username.
-// It preloads the user's role and the role's permissions.
 func (r *MembershipRepository) FindUserByUsername(ctx context.Context, username string) (*model.User, error) {
 	var user model.User
 	db := r.db.WithContext(ctx)
@@ -32,7 +28,6 @@ func (r *MembershipRepository) FindUserByUsername(ctx context.Context, username 
 	return &user, nil
 }
 
-// FindUserByIDWithPermissions finds a user by their ID and preloads Role and Permissions.
 func (r *MembershipRepository) FindUserByIDWithPermissions(ctx context.Context, userID string) (*model.User, error) {
 	var user model.User
 	db := r.db.WithContext(ctx)
@@ -43,13 +38,11 @@ func (r *MembershipRepository) FindUserByIDWithPermissions(ctx context.Context, 
 	return &user, nil
 }
 
-// CreateUser creates a new user.
 func (r *MembershipRepository) CreateUser(ctx context.Context, user *model.User) error {
 	db := r.db.WithContext(ctx)
 	return db.Create(user).Error
 }
 
-// FindRoleByName finds a role by its name.
 func (r *MembershipRepository) FindRoleByName(ctx context.Context, name string) (*model.Role, error) {
 	var role model.Role
 	db := r.db.WithContext(ctx)
@@ -60,13 +53,11 @@ func (r *MembershipRepository) FindRoleByName(ctx context.Context, name string) 
 	return &role, nil
 }
 
-// CreateRole creates a new role.
 func (r *MembershipRepository) CreateRole(ctx context.Context, role *model.Role) error {
 	db := r.db.WithContext(ctx)
 	return db.Create(role).Error
 }
 
-// FindPermissionByName finds a permission by its name.
 func (r *MembershipRepository) FindPermissionByName(ctx context.Context, name string) (*model.Permission, error) {
 	var permission model.Permission
 	db := r.db.WithContext(ctx)
@@ -77,19 +68,16 @@ func (r *MembershipRepository) FindPermissionByName(ctx context.Context, name st
 	return &permission, nil
 }
 
-// CreatePermission creates a new permission.
 func (r *MembershipRepository) CreatePermission(ctx context.Context, permission *model.Permission) error {
 	db := r.db.WithContext(ctx)
 	return db.Create(permission).Error
 }
 
-// AssignPermissionsToRole assigns a set of permissions to a role.
 func (r *MembershipRepository) AssignPermissionsToRole(ctx context.Context, role *model.Role, permissions []model.Permission) error {
 	db := r.db.WithContext(ctx)
 	return db.Model(role).Association("Permissions").Replace(permissions)
 }
 
-// GetUserPermissions retrieves all permissions for a given user ID.
 func (r *MembershipRepository) GetUserPermissions(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	var user model.User
 	db := r.db.WithContext(ctx)
@@ -106,7 +94,6 @@ func (r *MembershipRepository) GetUserPermissions(ctx context.Context, userID uu
 	return permissions, nil
 }
 
-// ListUsers retrieves all users.
 func (r *MembershipRepository) ListUsers(ctx context.Context) ([]*model.User, error) {
 	var users []*model.User
 	db := r.db.WithContext(ctx)
@@ -114,13 +101,11 @@ func (r *MembershipRepository) ListUsers(ctx context.Context) ([]*model.User, er
 	return users, err
 }
 
-// DeleteUser deletes a user.
 func (r *MembershipRepository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
 	db := r.db.WithContext(ctx)
 	return db.Delete(&model.User{}, "id = ?", userID).Error
 }
 
-// FindUserByID finds a user by their ID.
 func (r *MembershipRepository) FindUserByID(ctx context.Context, userID uuid.UUID) (*model.User, error) {
 	var user model.User
 	db := r.db.WithContext(ctx)
@@ -131,13 +116,11 @@ func (r *MembershipRepository) FindUserByID(ctx context.Context, userID uuid.UUI
 	return &user, nil
 }
 
-// UpdateUser updates a user's details in the database.
 func (r *MembershipRepository) UpdateUser(ctx context.Context, user *model.User) error {
 	db := r.db.WithContext(ctx)
 	return db.Save(user).Error
 }
 
-// FindRoleByID finds a role by its ID.
 func (r *MembershipRepository) FindRoleByID(ctx context.Context, roleID uuid.UUID) (*model.Role, error) {
 	var role model.Role
 	db := r.db.WithContext(ctx)
@@ -148,12 +131,10 @@ func (r *MembershipRepository) FindRoleByID(ctx context.Context, roleID uuid.UUI
 	return &role, nil
 }
 
-// ListUsersWithFilter retrieves users based on the membership filter.
 func (r *MembershipRepository) ListUsersWithFilter(ctx context.Context, filter *model.MembershipFilter) (*[]model.User, error) {
 	return r.BaseRepository.GetAll(ctx, filter)
 }
 
-// ListRoles retrieves all roles.
 func (r *MembershipRepository) ListRoles(ctx context.Context) ([]*model.Role, error) {
 	var roles []*model.Role
 	db := r.db.WithContext(ctx)

@@ -7,17 +7,12 @@ import (
 	"go.uber.org/dig"
 )
 
-// InitializeServices
-// Initializes Dependency Injection modules for services
-//
-//	Args:
-//		*dig.Container: Dig Container
+// *dig.Container: Dig Container
 func InitializeServices(c *dig.Container) {
 	logging.Debug("Initializing repositories")
 	repository.InitializeRepositories(c)
 
 	logging.Debug("Registering services")
-	// Provide services
 	c.Provide(NewSteamService)
 	c.Provide(NewServerService)
 	c.Provide(NewStateHistoryService)

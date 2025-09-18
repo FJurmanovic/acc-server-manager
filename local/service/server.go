@@ -20,7 +20,7 @@ import (
 
 const (
 	DefaultStartPort  = 9600
-	RequiredPortCount = 1 // Update this if ACC needs more ports
+	RequiredPortCount = 1
 )
 
 type ServerService struct {
@@ -45,18 +45,15 @@ type pendingState struct {
 }
 
 func (s *ServerService) ensureLogTailing(server *model.Server, instance *tracking.AccServerInstance) {
-	// Check if we already have a tailer
 	if _, exists := s.logTailers.Load(server.ID); exists {
 		return
 	}
 
-	// Start tailing in a goroutine that handles file creation/deletion
 	go func() {
 		logPath := filepath.Join(server.GetLogPath(), "server.log")
 		tailer := tracking.NewLogTailer(logPath, instance.HandleLogLine)
 		s.logTailers.Store(server.ID, tailer)
 
-		// Start tailing and automatically handle file changes
 		tailer.Start()
 	}()
 }
@@ -82,7 +79,6 @@ func NewServerService(
 		webSocketService: webSocketService,
 	}
 
-	// Initialize server instances
 	servers, err := repository.GetAll(context.Background(), &model.ServerFilter{})
 	if err != nil {
 		logging.Error("Failed to get servers: %v", err)
@@ -90,7 +86,6 @@ func NewServerService(
 	}
 
 	for i := range *servers {
-		// Initialize instance regardless of status
 		logging.Info("Starting server runtime for server ID: %d", (*servers)[i].ID)
 		service.StartAccServerRuntime(&(*servers)[i])
 	}
@@ -99,7 +94,7 @@ func NewServerService(
 }
 
 func (s *ServerService) shouldInsertStateHistory(serverID uuid.UUID) bool {
-	insertInterval := 5 * time.Minute // Configure this as needed
+	insertInterval := 5 * time.Minute
 
 	lastInsertInterface, exists := s.lastInsertTimes.Load(serverID)
 	if !exists {
@@ -122,16 +117,15 @@ func (s *ServerService) getNextSessionID(serverID uuid.UUID) uuid.UUID {
 	lastID, err := s.stateHistoryRepo.GetLastSessionID(context.Background(), serverID)
 	if err != nil {
 		logging.Error("Failed to get last session ID for server %s: %v", serverID, err)
-		return uuid.New() // Return new UUID as fallback
+		return uuid.New()
 	}
 	if lastID == uuid.Nil {
-		return uuid.New() // Return new UUID if no previous session
+		return uuid.New()
 	}
-	return uuid.New() // Always generate new UUID for each session
+	return uuid.New()
 }
 
 func (s *ServerService) insertStateHistory(serverID uuid.UUID, state *model.ServerState) {
-	// Get or create session ID when session changes
 	currentSessionInterface, exists := s.instances.Load(serverID)
 	var sessionID uuid.UUID
 	if !exists {
@@ -163,7 +157,6 @@ func (s *ServerService) insertStateHistory(serverID uuid.UUID, state *model.Serv
 }
 
 func (s *ServerService) updateSessionDuration(server *model.Server, sessionType model.TrackSession) {
-	// Get configs using helper methods
 	event, err := s.configService.GetEventConfig(server)
 	if err != nil {
 		event = &model.EventConfig{}
@@ -181,9 +174,7 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 		serverInstance.State.Track = event.Track
 		serverInstance.State.MaxConnections = configuration.MaxConnections.ToInt()
 
-		// Check if session type has changed
 		if serverInstance.State.Session != sessionType {
-			// Get new session ID for the new session
 			sessionID := s.getNextSessionID(server.ID)
 			s.sessionIDs.Store(server.ID, sessionID)
 		}
@@ -204,33 +195,27 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 }
 
 func (s *ServerService) GenerateServerPath(server *model.Server) {
-	// Get the base steamcmd path from environment variable
 	steamCMDPath := env.GetSteamCMDDirPath()
-	server.FromSteamCMD = true
 	server.Path = server.GenerateServerPath(steamCMDPath)
+	server.FromSteamCMD = true
 }
 
 func (s *ServerService) handleStateChange(server *model.Server, state *model.ServerState) {
-	// Update session duration when session changes
 	s.updateSessionDuration(server, state.Session)
 
-	// Invalidate status cache when server state changes
 	s.apiService.statusCache.InvalidateStatus(server.ServiceName)
 
-	// Cancel existing timer if any
 	if debouncer, exists := s.debouncers.Load(server.ID); exists {
 		pending := debouncer.(*pendingState)
 		pending.timer.Stop()
 	}
 
-	// Create new timer
 	timer := time.NewTimer(5 * time.Minute)
 	s.debouncers.Store(server.ID, &pendingState{
 		timer: timer,
 		state: state,
 	})
 
-	// Start goroutine to handle the delayed insert
 	go func() {
 		<-timer.C
 		if debouncer, exists := s.debouncers.Load(server.ID); exists {
@@ -240,14 +225,12 @@ func (s *ServerService) handleStateChange(server *model.Server, state *model.Ser
 		}
 	}()
 
-	// If enough time has passed since last insert, insert immediately
 	if s.shouldInsertStateHistory(server.ID) {
 		s.insertStateHistory(server.ID, state)
 	}
 }
 
 func (s *ServerService) StartAccServerRuntime(server *model.Server) {
-	// Get or create instance
 	instanceInterface, exists := s.instances.Load(server.ID)
 	var instance *tracking.AccServerInstance
 	if !exists {
@@ -259,20 +242,14 @@ func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 		instance = instanceInterface.(*tracking.AccServerInstance)
 	}
 
-	// Invalidate config cache for this server before loading new configs
 	serverIDStr := server.ID.String()
 	s.configService.configCache.InvalidateServerCache(serverIDStr)
 
 	s.updateSessionDuration(server, instance.State.Session)
 
-	// Ensure log tailing is running (regardless of server status)
 	s.ensureLogTailing(server, instance)
 }
 
-// GetAll
-// Gets All rows from Server table.
-//
-//	   	Args:
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
@@ -304,10 +281,6 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 	return servers, nil
 }
 
-// GetById
-// Gets rows by ID from Server table.
-//
-//	   	Args:
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
@@ -334,22 +307,19 @@ func (as *ServerService) GetById(ctx *fiber.Ctx, serverID uuid.UUID) (*model.Ser
 	return server, nil
 }
 
-// CreateServerAsync starts server creation asynchronously and returns immediately
 func (s *ServerService) CreateServerAsync(ctx *fiber.Ctx, server *model.Server) error {
-	// Perform basic validation first
+	logging.Info("create server start")
 	if err := server.Validate(); err != nil {
+		logging.Info("create server validation failed")
 		return err
 	}
 
-	// Generate server path
 	s.GenerateServerPath(server)
 
-	// Create a background context that won't be cancelled when the HTTP request ends
 	bgCtx := context.Background()
 
-	// Start the actual creation process in a goroutine
 	go func() {
-		// Create server in background without using fiber.Ctx
+		logging.Info("create server start background")
 		if err := s.createServerBackground(bgCtx, server); err != nil {
 			logging.Error("Async server creation failed for server %s: %v", server.ID, err)
 			s.webSocketService.BroadcastError(server.ID, "Server creation failed", err.Error())
@@ -360,127 +330,128 @@ func (s *ServerService) CreateServerAsync(ctx *fiber.Ctx, server *model.Server) 
 	return nil
 }
 
-func (s *ServerService) CreateServer(ctx *fiber.Ctx, server *model.Server) error {
-	// Broadcast step: validation
-	s.webSocketService.BroadcastStep(server.ID, model.StepValidation, model.StatusInProgress,
-		model.GetStepDescription(model.StepValidation), "")
+type createServerStep struct {
+	stepType    model.ServerCreationStep
+	important   bool
+	callback    func() (string, error)
+	description string
+}
 
-	// Validate basic server configuration
-	if err := server.Validate(); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepValidation, model.StatusFailed,
-			"", fmt.Sprintf("Validation failed: %v", err))
-		return err
+func (s *ServerService) createServerBackground(ctx context.Context, server *model.Server) error {
+	var serverPort int
+	var tcpPorts, udpPorts []int
+
+	steps := []createServerStep{
+		{
+			stepType:    model.StepValidation,
+			important:   true,
+			description: "Server configuration validated successfully",
+			callback: func() (string, error) {
+				if err := server.Validate(); err != nil {
+					return "", fmt.Errorf("validation failed: %v", err)
+				}
+				return "Server configuration validated successfully", nil
+			},
+		},
+		{
+			stepType:    model.StepDirectoryCreation,
+			important:   true,
+			description: "Server directories prepared",
+			callback: func() (string, error) {
+				return "Server directories prepared", nil
+			},
+		},
+		{
+			stepType:    model.StepSteamDownload,
+			important:   true,
+			description: "Server files downloaded successfully",
+			callback: func() (string, error) {
+				if err := s.steamService.InstallServerWithWebSocket(ctx, server.Path, &server.ID, s.webSocketService); err != nil {
+					return "", fmt.Errorf("failed to install server: %v", err)
+				}
+				return "Server files downloaded successfully", nil
+			},
+		},
+		{
+			stepType:    model.StepConfigGeneration,
+			important:   true,
+			description: "",
+			callback: func() (string, error) {
+				ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
+				if err != nil {
+					return "", fmt.Errorf("failed to find available ports: %v", err)
+				}
+
+				serverPort = ports[0]
+
+				if err := s.updateServerPort(server, serverPort); err != nil {
+					return "", fmt.Errorf("failed to update server configuration: %v", err)
+				}
+
+				return fmt.Sprintf("Server configuration generated (Port: %d)", serverPort), nil
+			},
+		},
+		{
+			stepType:    model.StepServiceCreation,
+			important:   true,
+			description: "",
+			callback: func() (string, error) {
+				execPath := filepath.Join(server.GetServerPath(), "accServer.exe")
+				serverWorkingDir := filepath.Join(server.GetServerPath(), "server")
+				if err := s.windowsService.CreateService(ctx, server.ServiceName, execPath, serverWorkingDir, nil); err != nil {
+					return "", fmt.Errorf("failed to create Windows service: %v", err)
+				}
+				return fmt.Sprintf("Windows service '%s' created successfully", server.ServiceName), nil
+			},
+		},
+		{
+			stepType:    model.StepFirewallRules,
+			important:   false,
+			description: "",
+			callback: func() (string, error) {
+				s.configureFirewall(server)
+				tcpPorts = []int{serverPort}
+				udpPorts = []int{serverPort}
+				if err := s.firewallService.CreateServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
+					return "", fmt.Errorf("failed to create firewall rules: %v", err)
+				}
+				return fmt.Sprintf("Firewall rules created for port %d", serverPort), nil
+			},
+		},
+		{
+			stepType:    model.StepDatabaseSave,
+			important:   true,
+			description: "Server saved to database successfully",
+			callback: func() (string, error) {
+				if err := s.repository.Insert(ctx, server); err != nil {
+					return "", fmt.Errorf("failed to insert server into database: %v", err)
+				}
+				return "Server saved to database successfully", nil
+			},
+		},
 	}
 
-	s.webSocketService.BroadcastStep(server.ID, model.StepValidation, model.StatusCompleted,
-		"Server configuration validated successfully", "")
+	for i, step := range steps {
+		s.webSocketService.BroadcastStep(server.ID, step.stepType, model.StatusInProgress,
+			model.GetStepDescription(step.stepType), "")
 
-	// Broadcast step: directory creation
-	s.webSocketService.BroadcastStep(server.ID, model.StepDirectoryCreation, model.StatusInProgress,
-		model.GetStepDescription(model.StepDirectoryCreation), "")
+		successMessage, err := step.callback()
+		if err != nil {
+			s.webSocketService.BroadcastStep(server.ID, step.stepType, model.StatusFailed,
+				"", err.Error())
 
-	// Directory creation is handled within InstallServer, so we mark it as completed
-	s.webSocketService.BroadcastStep(server.ID, model.StepDirectoryCreation, model.StatusCompleted,
-		"Server directories prepared", "")
+			if step.important {
+				s.rollbackSteps(ctx, server, steps[:i], tcpPorts, udpPorts)
+				return err
+			}
+		}
 
-	// Broadcast step: Steam download
-	s.webSocketService.BroadcastStep(server.ID, model.StepSteamDownload, model.StatusInProgress,
-		model.GetStepDescription(model.StepSteamDownload), "")
-
-	// Install server using SteamCMD with streaming support
-	if err := s.steamService.InstallServerWithWebSocket(ctx.UserContext(), server.Path, &server.ID, s.webSocketService); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepSteamDownload, model.StatusFailed,
-			"", fmt.Sprintf("Steam installation failed: %v", err))
-		return fmt.Errorf("failed to install server: %v", err)
+		s.webSocketService.BroadcastStep(server.ID, step.stepType, model.StatusCompleted,
+			successMessage, "")
 	}
 
-	s.webSocketService.BroadcastStep(server.ID, model.StepSteamDownload, model.StatusCompleted,
-		"Server files downloaded successfully", "")
-
-	// Broadcast step: config generation
-	s.webSocketService.BroadcastStep(server.ID, model.StepConfigGeneration, model.StatusInProgress,
-		model.GetStepDescription(model.StepConfigGeneration), "")
-
-	// Find available ports for server
-	ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
-	if err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepConfigGeneration, model.StatusFailed,
-			"", fmt.Sprintf("Failed to find available ports: %v", err))
-		return fmt.Errorf("failed to find available ports: %v", err)
-	}
-
-	// Use the first port for both TCP and UDP
-	serverPort := ports[0]
-
-	// Update server configuration with the allocated port
-	if err := s.updateServerPort(server, serverPort); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepConfigGeneration, model.StatusFailed,
-			"", fmt.Sprintf("Failed to update server configuration: %v", err))
-		return fmt.Errorf("failed to update server configuration: %v", err)
-	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepConfigGeneration, model.StatusCompleted,
-		fmt.Sprintf("Server configuration generated (Port: %d)", serverPort), "")
-
-	// Broadcast step: service creation
-	s.webSocketService.BroadcastStep(server.ID, model.StepServiceCreation, model.StatusInProgress,
-		model.GetStepDescription(model.StepServiceCreation), "")
-
-	// Create Windows service with correct paths
-	execPath := filepath.Join(server.GetServerPath(), "accServer.exe")
-	serverWorkingDir := filepath.Join(server.GetServerPath(), "server")
-	if err := s.windowsService.CreateService(ctx.UserContext(), server.ServiceName, execPath, serverWorkingDir, nil); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepServiceCreation, model.StatusFailed,
-			"", fmt.Sprintf("Failed to create Windows service: %v", err))
-		// Cleanup on failure
-		s.steamService.UninstallServer(server.Path)
-		return fmt.Errorf("failed to create Windows service: %v", err)
-	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepServiceCreation, model.StatusCompleted,
-		fmt.Sprintf("Windows service '%s' created successfully", server.ServiceName), "")
-
-	// Broadcast step: firewall rules
-	s.webSocketService.BroadcastStep(server.ID, model.StepFirewallRules, model.StatusInProgress,
-		model.GetStepDescription(model.StepFirewallRules), "")
-
-	s.configureFirewall(server)
-	tcpPorts := []int{serverPort}
-	udpPorts := []int{serverPort}
-	if err := s.firewallService.CreateServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepFirewallRules, model.StatusFailed,
-			"", fmt.Sprintf("Failed to create firewall rules: %v", err))
-		// Cleanup on failure
-		s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName)
-		s.steamService.UninstallServer(server.Path)
-		return fmt.Errorf("failed to create firewall rules: %v", err)
-	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepFirewallRules, model.StatusCompleted,
-		fmt.Sprintf("Firewall rules created for port %d", serverPort), "")
-
-	// Broadcast step: database save
-	s.webSocketService.BroadcastStep(server.ID, model.StepDatabaseSave, model.StatusInProgress,
-		model.GetStepDescription(model.StepDatabaseSave), "")
-
-	// Insert server into database
-	if err := s.repository.Insert(ctx.UserContext(), server); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepDatabaseSave, model.StatusFailed,
-			"", fmt.Sprintf("Failed to save server to database: %v", err))
-		// Cleanup on failure
-		s.firewallService.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts)
-		s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName)
-		s.steamService.UninstallServer(server.Path)
-		return fmt.Errorf("failed to insert server into database: %v", err)
-	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepDatabaseSave, model.StatusCompleted,
-		"Server saved to database successfully", "")
-
-	// Initialize server runtime
 	s.StartAccServerRuntime(server)
 
-	// Broadcast completion
 	s.webSocketService.BroadcastStep(server.ID, model.StepCompleted, model.StatusCompleted,
 		model.GetStepDescription(model.StepCompleted), "")
 
@@ -490,150 +461,34 @@ func (s *ServerService) CreateServer(ctx *fiber.Ctx, server *model.Server) error
 	return nil
 }
 
-// createServerBackground performs server creation in background without fiber.Ctx
-func (s *ServerService) createServerBackground(ctx context.Context, server *model.Server) error {
-	// Broadcast step: validation
-	s.webSocketService.BroadcastStep(server.ID, model.StepValidation, model.StatusInProgress,
-		model.GetStepDescription(model.StepValidation), "")
-
-	// Validate basic server configuration (already done in async method, but double-check)
-	if err := server.Validate(); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepValidation, model.StatusFailed,
-			"", fmt.Sprintf("Validation failed: %v", err))
-		return err
+func (s *ServerService) rollbackSteps(ctx context.Context, server *model.Server, completedSteps []createServerStep, tcpPorts, udpPorts []int) {
+	for i := len(completedSteps) - 1; i >= 0; i-- {
+		step := completedSteps[i]
+		switch step.stepType {
+		case model.StepDatabaseSave:
+			s.repository.Delete(ctx, server.ID)
+		case model.StepFirewallRules:
+			if len(tcpPorts) > 0 && len(udpPorts) > 0 {
+				s.firewallService.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts)
+			}
+		case model.StepServiceCreation:
+			s.windowsService.DeleteService(ctx, server.ServiceName)
+		case model.StepSteamDownload:
+			s.steamService.UninstallServer(server.Path)
+		}
 	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepValidation, model.StatusCompleted,
-		"Server configuration validated successfully", "")
-
-	// Broadcast step: directory creation
-	s.webSocketService.BroadcastStep(server.ID, model.StepDirectoryCreation, model.StatusInProgress,
-		model.GetStepDescription(model.StepDirectoryCreation), "")
-
-	// Directory creation is handled within InstallServer, so we mark it as completed
-	s.webSocketService.BroadcastStep(server.ID, model.StepDirectoryCreation, model.StatusCompleted,
-		"Server directories prepared", "")
-
-	// Broadcast step: Steam download
-	s.webSocketService.BroadcastStep(server.ID, model.StepSteamDownload, model.StatusInProgress,
-		model.GetStepDescription(model.StepSteamDownload), "")
-
-	// Install server using SteamCMD with streaming support
-	if err := s.steamService.InstallServerWithWebSocket(ctx, server.GetServerPath(), &server.ID, s.webSocketService); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepSteamDownload, model.StatusFailed,
-			"", fmt.Sprintf("Steam installation failed: %v", err))
-		return fmt.Errorf("failed to install server: %v", err)
-	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepSteamDownload, model.StatusCompleted,
-		"Server files downloaded successfully", "")
-
-	// Broadcast step: config generation
-	s.webSocketService.BroadcastStep(server.ID, model.StepConfigGeneration, model.StatusInProgress,
-		model.GetStepDescription(model.StepConfigGeneration), "")
-
-	// Find available ports for server
-	ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
-	if err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepConfigGeneration, model.StatusFailed,
-			"", fmt.Sprintf("Failed to find available ports: %v", err))
-		return fmt.Errorf("failed to find available ports: %v", err)
-	}
-
-	// Use the first port for both TCP and UDP
-	serverPort := ports[0]
-
-	// Update server configuration with the allocated port
-	if err := s.updateServerPort(server, serverPort); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepConfigGeneration, model.StatusFailed,
-			"", fmt.Sprintf("Failed to update server configuration: %v", err))
-		return fmt.Errorf("failed to update server configuration: %v", err)
-	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepConfigGeneration, model.StatusCompleted,
-		fmt.Sprintf("Server configuration generated (Port: %d)", serverPort), "")
-
-	// Broadcast step: service creation
-	s.webSocketService.BroadcastStep(server.ID, model.StepServiceCreation, model.StatusInProgress,
-		model.GetStepDescription(model.StepServiceCreation), "")
-
-	// Create Windows service with correct paths
-	execPath := filepath.Join(server.GetServerPath(), "accServer.exe")
-	serverWorkingDir := filepath.Join(server.GetServerPath(), "server")
-	if err := s.windowsService.CreateService(ctx, server.ServiceName, execPath, serverWorkingDir, nil); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepServiceCreation, model.StatusFailed,
-			"", fmt.Sprintf("Failed to create Windows service: %v", err))
-		// Cleanup on failure
-		s.steamService.UninstallServer(server.Path)
-		return fmt.Errorf("failed to create Windows service: %v", err)
-	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepServiceCreation, model.StatusCompleted,
-		fmt.Sprintf("Windows service '%s' created successfully", server.ServiceName), "")
-
-	// Broadcast step: firewall rules
-	s.webSocketService.BroadcastStep(server.ID, model.StepFirewallRules, model.StatusInProgress,
-		model.GetStepDescription(model.StepFirewallRules), "")
-
-	s.configureFirewall(server)
-	tcpPorts := []int{serverPort}
-	udpPorts := []int{serverPort}
-	if err := s.firewallService.CreateServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepFirewallRules, model.StatusFailed,
-			"", fmt.Sprintf("Failed to create firewall rules: %v", err))
-		// Cleanup on failure
-		s.windowsService.DeleteService(ctx, server.ServiceName)
-		s.steamService.UninstallServer(server.Path)
-		return fmt.Errorf("failed to create firewall rules: %v", err)
-	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepFirewallRules, model.StatusCompleted,
-		fmt.Sprintf("Firewall rules created for port %d", serverPort), "")
-
-	// Broadcast step: database save
-	s.webSocketService.BroadcastStep(server.ID, model.StepDatabaseSave, model.StatusInProgress,
-		model.GetStepDescription(model.StepDatabaseSave), "")
-
-	// Insert server into database
-	if err := s.repository.Insert(ctx, server); err != nil {
-		s.webSocketService.BroadcastStep(server.ID, model.StepDatabaseSave, model.StatusFailed,
-			"", fmt.Sprintf("Failed to save server to database: %v", err))
-		// Cleanup on failure
-		s.firewallService.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts)
-		s.windowsService.DeleteService(ctx, server.ServiceName)
-		s.steamService.UninstallServer(server.Path)
-		return fmt.Errorf("failed to insert server into database: %v", err)
-	}
-
-	s.webSocketService.BroadcastStep(server.ID, model.StepDatabaseSave, model.StatusCompleted,
-		"Server saved to database successfully", "")
-
-	// Initialize server runtime
-	s.StartAccServerRuntime(server)
-
-	// Broadcast completion
-	s.webSocketService.BroadcastStep(server.ID, model.StepCompleted, model.StatusCompleted,
-		model.GetStepDescription(model.StepCompleted), "")
-
-	s.webSocketService.BroadcastComplete(server.ID, true,
-		fmt.Sprintf("Server '%s' created successfully on port %d", server.Name, serverPort))
-
-	return nil
 }
 
 func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID uuid.UUID) error {
-	// Get server details
 	server, err := s.repository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
 		return fmt.Errorf("failed to get server details: %v", err)
 	}
 
-	// Stop and remove Windows service
 	if err := s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName); err != nil {
 		logging.Error("Failed to delete Windows service: %v", err)
 	}
 
-	// Remove firewall rules
 	configuration, err := s.configService.GetConfiguration(server)
 	if err != nil {
 		logging.Error("Failed to get configuration for server %d: %v", server.ID, err)
@@ -644,17 +499,14 @@ func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID uuid.UUID) error {
 		logging.Error("Failed to delete firewall rules: %v", err)
 	}
 
-	// Uninstall server files
 	if err := s.steamService.UninstallServer(server.Path); err != nil {
 		logging.Error("Failed to uninstall server: %v", err)
 	}
 
-	// Remove from database
 	if err := s.repository.Delete(ctx.UserContext(), serverID); err != nil {
 		return fmt.Errorf("failed to delete server from database: %v", err)
 	}
 
-	// Cleanup runtime resources
 	if tailer, exists := s.logTailers.Load(server.ID); exists {
 		tailer.(*tracking.LogTailer).Stop()
 		s.logTailers.Delete(server.ID)
@@ -664,84 +516,27 @@ func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID uuid.UUID) error {
 	s.debouncers.Delete(server.ID)
 	s.sessionIDs.Delete(server.ID)
 
-	// Invalidate status cache for deleted server
 	s.apiService.statusCache.InvalidateStatus(server.ServiceName)
 
 	return nil
 }
 
-func (s *ServerService) UpdateServer(ctx *fiber.Ctx, server *model.Server) error {
-	// Validate server configuration
-	if err := server.Validate(); err != nil {
-		return err
-	}
-
-	// Get existing server details
-	existingServer, err := s.repository.GetByID(ctx.UserContext(), server.ID)
-	if err != nil {
-		return fmt.Errorf("failed to get existing server details: %v", err)
-	}
-
-	// Update server files if path changed
-	if existingServer.Path != server.Path {
-		if err := s.steamService.InstallServer(ctx.UserContext(), server.Path, &server.ID); err != nil {
-			return fmt.Errorf("failed to install server to new location: %v", err)
-		}
-		// Clean up old installation
-		if err := s.steamService.UninstallServer(existingServer.Path); err != nil {
-			logging.Error("Failed to remove old server installation: %v", err)
-		}
-	}
-
-	// Update Windows service if necessary
-	if existingServer.ServiceName != server.ServiceName || existingServer.Path != server.Path {
-		execPath := filepath.Join(server.GetServerPath(), "accServer.exe")
-		serverWorkingDir := server.GetServerPath()
-		if err := s.windowsService.UpdateService(ctx.UserContext(), server.ServiceName, execPath, serverWorkingDir, nil); err != nil {
-			return fmt.Errorf("failed to update Windows service: %v", err)
-		}
-	}
-
-	// Update firewall rules if service name changed
-	if existingServer.ServiceName != server.ServiceName {
-		if err := s.configureFirewall(server); err != nil {
-			return fmt.Errorf("failed to update firewall rules: %v", err)
-		}
-		// Invalidate cache for old service name
-		s.apiService.statusCache.InvalidateStatus(existingServer.ServiceName)
-	}
-
-	// Update database record
-	if err := s.repository.Update(ctx.UserContext(), server); err != nil {
-		return fmt.Errorf("failed to update server in database: %v", err)
-	}
-
-	// Restart server runtime
-	s.StartAccServerRuntime(server)
-
-	return nil
-}
-
 func (s *ServerService) configureFirewall(server *model.Server) error {
-	// Find available ports for the server
 	ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
 	if err != nil {
 		return fmt.Errorf("failed to find available ports: %v", err)
 	}
 
-	// Use the first port for both TCP and UDP
 	serverPort := ports[0]
 	tcpPorts := []int{serverPort}
 	udpPorts := []int{serverPort}
 
 	logging.Info("Configuring firewall for server %d with port %d", server.ID, serverPort)
 
-	// Configure firewall rules
 	if err := s.firewallService.UpdateServerRules(server.Name, tcpPorts, udpPorts); err != nil {
 		return fmt.Errorf("failed to configure firewall: %v", err)
 	}
 
-	// Update server configuration with the allocated port
 	if err := s.updateServerPort(server, serverPort); err != nil {
 		return fmt.Errorf("failed to update server configuration: %v", err)
 	}
@@ -750,7 +545,6 @@ func (s *ServerService) configureFirewall(server *model.Server) error {
 }
 
 func (s *ServerService) updateServerPort(server *model.Server, port int) error {
-	// Load current configuration
 	config, err := s.configService.GetConfiguration(server)
 	if err != nil {
 		return fmt.Errorf("failed to load server configuration: %v", err)
@@ -759,7 +553,6 @@ func (s *ServerService) updateServerPort(server *model.Server, port int) error {
 	config.TcpPort = model.IntString(port)
 	config.UdpPort = model.IntString(port)
 
-	// Save the updated configuration
 	if err := s.configService.SaveConfiguration(server, config); err != nil {
 		return fmt.Errorf("failed to save server configuration: %v", err)
 	}

@@ -10,12 +10,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// AccessKeyMiddleware provides authentication and permission middleware.
 type AccessKeyMiddleware struct {
 	userInfo CachedUserInfo
 }
 
-// NewAccessKeyMiddleware creates a new AccessKeyMiddleware.
 func NewAccessKeyMiddleware() *AccessKeyMiddleware {
 	auth := &AccessKeyMiddleware{
 		userInfo: CachedUserInfo{UserID: uuid.New().String(), Username: "access_key", RoleName: "Admin", Permissions: map[string]bool{
@@ -25,9 +23,7 @@ func NewAccessKeyMiddleware() *AccessKeyMiddleware {
 	return auth
 }
 
-// Authenticate is a middleware for JWT authentication with enhanced security.
 func (m *AccessKeyMiddleware) Authenticate(ctx *fiber.Ctx) error {
-	// Log authentication attempt
 	ip := ctx.IP()
 	userAgent := ctx.Get("User-Agent")
 

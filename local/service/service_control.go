@@ -24,9 +24,9 @@ func NewServiceControlService(repository *repository.ServiceControlRepository,
 		repository:       repository,
 		serverRepository: serverRepository,
 		statusCache: model.NewServerStatusCache(model.CacheConfig{
-			ExpirationTime: 30 * time.Second,    // Cache expires after 30 seconds
-			ThrottleTime:   5 * time.Second,     // Minimum 5 seconds between checks
-			DefaultStatus:  model.StatusRunning, // Default to running if throttled
+			ExpirationTime: 30 * time.Second,
+			ThrottleTime:   5 * time.Second,
+			DefaultStatus:  model.StatusRunning,
 		}),
 		windowsService: NewWindowsService(),
 	}
@@ -42,18 +42,15 @@ func (as *ServiceControlService) GetStatus(ctx *fiber.Ctx) (string, error) {
 		return "", err
 	}
 
-	// Try to get status from cache
 	if status, shouldCheck := as.statusCache.GetStatus(serviceName); !shouldCheck {
 		return status.String(), nil
 	}
 
-	// If cache miss or expired, check actual status
 	statusStr, err := as.StatusServer(serviceName)
 	if err != nil {
 		return "", err
 	}
 
-	// Parse and update cache with new status
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
 	return status.String(), nil
@@ -65,7 +62,6 @@ func (as *ServiceControlService) ServiceControlStartServer(ctx *fiber.Ctx) (stri
 		return "", err
 	}
 
-	// Update status cache for this service before starting
 	as.statusCache.UpdateStatus(serviceName, model.StatusStarting)
 
 	_, err = as.StartServer(serviceName)
@@ -77,7 +73,6 @@ func (as *ServiceControlService) ServiceControlStartServer(ctx *fiber.Ctx) (stri
 		return "", err
 	}
 
-	// Parse and update cache with new status
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
 	return status.String(), nil
@@ -89,7 +84,6 @@ func (as *ServiceControlService) ServiceControlStopServer(ctx *fiber.Ctx) (strin
 		return "", err
 	}
 
-	// Update status cache for this service before stopping
 	as.statusCache.UpdateStatus(serviceName, model.StatusStopping)
 
 	_, err = as.StopServer(serviceName)
@@ -101,7 +95,6 @@ func (as *ServiceControlService) ServiceControlStopServer(ctx *fiber.Ctx) (strin
 		return "", err
 	}
 
-	// Parse and update cache with new status
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
 	return status.String(), nil
@@ -113,7 +106,6 @@ func (as *ServiceControlService) ServiceControlRestartServer(ctx *fiber.Ctx) (st
 		return "", err
 	}
 
-	// Update status cache for this service before restarting
 	as.statusCache.UpdateStatus(serviceName, model.StatusRestarting)
 
 	_, err = as.RestartServer(serviceName)
@@ -125,7 +117,6 @@ func (as *ServiceControlService) ServiceControlRestartServer(ctx *fiber.Ctx) (st
 		return "", err
 	}
 
-	// Parse and update cache with new status
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
 	return status.String(), nil
@@ -135,20 +126,16 @@ func (as *ServiceControlService) StatusServer(serviceName string) (string, error
 	return as.windowsService.Status(context.Background(), serviceName)
 }
 
-// GetCachedStatus gets the cached status for a service name without requiring fiber context
 func (as *ServiceControlService) GetCachedStatus(serviceName string) (string, error) {
-	// Try to get status from cache
 	if status, shouldCheck := as.statusCache.GetStatus(serviceName); !shouldCheck {
 		return status.String(), nil
 	}
 
-	// If cache miss or expired, check actual status
 	statusStr, err := as.StatusServer(serviceName)
 	if err != nil {
 		return "", err
 	}
 
-	// Parse and update cache with new status
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
 	return status.String(), nil

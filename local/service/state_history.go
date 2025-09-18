@@ -46,7 +46,6 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 
 	eg, gCtx := errgroup.WithContext(ctx.UserContext())
 
-	// Get Summary Stats (Peak/Avg Players, Total Sessions)
 	eg.Go(func() error {
 		summary, err := s.repository.GetSummaryStats(gCtx, filter)
 		if err != nil {
@@ -61,7 +60,6 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 		return nil
 	})
 
-	// Get Total Playtime
 	eg.Go(func() error {
 		playtime, err := s.repository.GetTotalPlaytime(gCtx, filter)
 		if err != nil {
@@ -74,7 +72,6 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 		return nil
 	})
 
-	// Get Player Count Over Time
 	eg.Go(func() error {
 		playerCount, err := s.repository.GetPlayerCountOverTime(gCtx, filter)
 		if err != nil {
@@ -87,7 +84,6 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 		return nil
 	})
 
-	// Get Session Types
 	eg.Go(func() error {
 		sessionTypes, err := s.repository.GetSessionTypes(gCtx, filter)
 		if err != nil {
@@ -100,7 +96,6 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 		return nil
 	})
 
-	// Get Daily Activity
 	eg.Go(func() error {
 		dailyActivity, err := s.repository.GetDailyActivity(gCtx, filter)
 		if err != nil {
@@ -113,7 +108,6 @@ func (s *StateHistoryService) GetStatistics(ctx *fiber.Ctx, filter *model.StateH
 		return nil
 	})
 
-	// Get Recent Sessions
 	eg.Go(func() error {
 		recentSessions, err := s.repository.GetRecentSessions(gCtx, filter)
 		if err != nil {

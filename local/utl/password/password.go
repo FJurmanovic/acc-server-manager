@@ -8,13 +8,10 @@ import (
 )
 
 const (
-	// MinPasswordLength defines the minimum password length
 	MinPasswordLength = 8
-	// BcryptCost defines the cost factor for bcrypt hashing
-	BcryptCost = 12
+	BcryptCost        = 12
 )
 
-// HashPassword hashes a plain text password using bcrypt
 func HashPassword(password string) (string, error) {
 	if len(password) < MinPasswordLength {
 		return "", errors.New("password must be at least 8 characters long")
@@ -28,12 +25,10 @@ func HashPassword(password string) (string, error) {
 	return string(hashedBytes), nil
 }
 
-// VerifyPassword verifies a plain text password against a hashed password
 func VerifyPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
-// ValidatePasswordStrength validates password complexity requirements
 func ValidatePasswordStrength(password string) error {
 	if len(password) < MinPasswordLength {
 		return errors.New("password must be at least 8 characters long")

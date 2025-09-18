@@ -18,7 +18,6 @@ var (
 
 func Init() {
 	godotenv.Load()
-	// Fail fast if critical environment variables are missing
 	Secret = getEnvRequired("APP_SECRET")
 	SecretCode = getEnvRequired("APP_SECRET_CODE")
 	EncryptionKey = getEnvRequired("ENCRYPTION_KEY")
@@ -29,7 +28,6 @@ func Init() {
 	}
 }
 
-// getEnv retrieves an environment variable or returns a fallback value.
 func getEnv(key, fallback string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
@@ -38,12 +36,10 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// getEnvRequired retrieves an environment variable and fails if it's not set.
-// This should be used for critical configuration that must not have defaults.
 func getEnvRequired(key string) string {
 	if value, exists := os.LookupEnv(key); exists && value != "" {
 		return value
 	}
 	log.Fatalf("Required environment variable %s is not set or is empty", key)
-	return "" // This line will never be reached due to log.Fatalf
+	return ""
 }

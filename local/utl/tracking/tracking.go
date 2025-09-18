@@ -80,7 +80,7 @@ func TailLogFile(path string, callback func(string)) {
 	file, _ := os.Open(path)
 	defer file.Close()
 
-	file.Seek(0, os.SEEK_END) // Start at end of file
+	file.Seek(0, os.SEEK_END)
 	reader := bufio.NewReader(file)
 
 	for {
@@ -88,7 +88,7 @@ func TailLogFile(path string, callback func(string)) {
 		if err == nil {
 			callback(line)
 		} else {
-			time.Sleep(500 * time.Millisecond) // wait for new data
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }

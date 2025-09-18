@@ -21,7 +21,7 @@ type StateHistoryStats struct {
 	AveragePlayers      float64            `json:"averagePlayers"`
 	PeakPlayers         int                `json:"peakPlayers"`
 	TotalSessions       int                `json:"totalSessions"`
-	TotalPlaytime       int                `json:"totalPlaytime" gorm:"-"` // in minutes
+	TotalPlaytime       int                `json:"totalPlaytime" gorm:"-"`
 	PlayerCountOverTime []PlayerCountPoint `json:"playerCountOverTime" gorm:"-"`
 	SessionTypes        []SessionCount     `json:"sessionTypes" gorm:"-"`
 	DailyActivity       []DailyActivity    `json:"dailyActivity" gorm:"-"`

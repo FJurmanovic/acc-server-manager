@@ -17,25 +17,23 @@ import (
 func Start(di *dig.Container) *fiber.App {
 	app := fiber.New(fiber.Config{
 		EnablePrintRoutes: true,
-		ReadTimeout:       20 * time.Minute, // Increased for long-running Steam operations
-		WriteTimeout:      20 * time.Minute, // Increased for long-running Steam operations
-		IdleTimeout:       25 * time.Minute, // Increased accordingly
-		BodyLimit:         10 * 1024 * 1024, // 10MB
+		ReadTimeout:       20 * time.Minute,
+		WriteTimeout:      20 * time.Minute,
+		IdleTimeout:       25 * time.Minute,
+		BodyLimit:         10 * 1024 * 1024,
 	})
 
-	// Initialize security middleware
 	securityMW := security.NewSecurityMiddleware()
 
-	// Add security middleware stack
 	app.Use(securityMW.SecurityHeaders())
 	app.Use(securityMW.LogSecurityEvents())
-	app.Use(securityMW.TimeoutMiddleware(20 * time.Minute)) // Increased for Steam operations
-	app.Use(securityMW.RequestContextTimeout(20 * time.Minute)) // Increased for Steam operations
-	app.Use(securityMW.RequestSizeLimit(10 * 1024 * 1024)) // 10MB
+	app.Use(securityMW.TimeoutMiddleware(20 * time.Minute))
+	app.Use(securityMW.RequestContextTimeout(20 * time.Minute))
+	app.Use(securityMW.RequestSizeLimit(10 * 1024 * 1024))
 	app.Use(securityMW.ValidateUserAgent())
 	app.Use(securityMW.ValidateContentType("application/json", "application/x-www-form-urlencoded", "multipart/form-data"))
 	app.Use(securityMW.InputSanitization())
-	app.Use(securityMW.RateLimit(100, 1*time.Minute)) // 100 requests per minute global
+	app.Use(securityMW.RateLimit(100, 1*time.Minute))
 
 	app.Use(helmet.New())
 
@@ -62,7 +60,7 @@ func Start(di *dig.Container) *fiber.App {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "3000" // Default port
+		port = "3000"
 	}
 
 	logging.Info("Starting server on port %s", port)

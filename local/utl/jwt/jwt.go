@@ -11,7 +11,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-// Claims represents the JWT claims.
 type Claims struct {
 	UserID      string `json:"user_id"`
 	IsOpenToken bool   `json:"is_open_token"`
@@ -27,7 +26,6 @@ type OpenJWTHandler struct {
 	*JWTHandler
 }
 
-// NewJWTHandler creates a new JWTHandler instance with the provided secret key.
 func NewOpenJWTHandler(jwtSecret string) *OpenJWTHandler {
 	jwtHandler := NewJWTHandler(jwtSecret)
 	jwtHandler.IsOpenToken = true
@@ -36,7 +34,6 @@ func NewOpenJWTHandler(jwtSecret string) *OpenJWTHandler {
 	}
 }
 
-// NewJWTHandler creates a new JWTHandler instance with the provided secret key.
 func NewJWTHandler(jwtSecret string) *JWTHandler {
 	if jwtSecret == "" {
 		errors.SafeFatal("JWT_SECRET environment variable is required and cannot be empty")
@@ -44,14 +41,12 @@ func NewJWTHandler(jwtSecret string) *JWTHandler {
 
 	var secretKey []byte
 
-	// Decode base64 secret if it looks like base64, otherwise use as-is
 	if decoded, err := base64.StdEncoding.DecodeString(jwtSecret); err == nil && len(decoded) >= 32 {
 		secretKey = decoded
 	} else {
 		secretKey = []byte(jwtSecret)
 	}
 
-	// Ensure minimum key length for security
 	if len(secretKey) < 32 {
 		errors.SafeFatal("JWT_SECRET must be at least 32 bytes long for security")
 	}
@@ -60,8 +55,6 @@ func NewJWTHandler(jwtSecret string) *JWTHandler {
 	}
 }
 
-// GenerateSecretKey generates a cryptographically secure random key for JWT signing
-// This is a utility function for generating new secrets, not used in normal operation
 func (jh *JWTHandler) GenerateSecretKey() string {
 	key := make([]byte, 64) // 512 bits
 	if _, err := rand.Read(key); err != nil {
@@ -70,7 +63,6 @@ func (jh *JWTHandler) GenerateSecretKey() string {
 	return base64.StdEncoding.EncodeToString(key)
 }
 
-// GenerateToken generates a new JWT for a given user.
 func (jh *JWTHandler) GenerateToken(userId string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
@@ -99,7 +91,6 @@ func (jh *JWTHandler) GenerateTokenWithExpiry(user *model.User, expiry time.Time
 	return token.SignedString(jh.SecretKey)
 }
 
-// ValidateToken validates a JWT and returns the claims if the token is valid.
 func (jh *JWTHandler) ValidateToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 

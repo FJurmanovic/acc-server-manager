@@ -8,17 +8,12 @@ import (
 	"strings"
 )
 
-// CommandExecutor provides a base structure for executing commands
 type CommandExecutor struct {
-	// Base executable path
-	ExePath string
-	// Working directory for commands
-	WorkDir string
-	// Whether to capture and log output
+	ExePath   string
+	WorkDir   string
 	LogOutput bool
 }
 
-// CommandBuilder helps build command arguments
 type CommandBuilder struct {
 	args []string
 }
@@ -48,10 +43,9 @@ func (b *CommandBuilder) Build() []string {
 	return b.args
 }
 
-// Execute runs a command with the given arguments
 func (e *CommandExecutor) Execute(args ...string) error {
 	cmd := exec.Command(e.ExePath, args...)
-	
+
 	if e.WorkDir != "" {
 		cmd.Dir = e.WorkDir
 	}
@@ -65,15 +59,13 @@ func (e *CommandExecutor) Execute(args ...string) error {
 	return cmd.Run()
 }
 
-// ExecuteWithBuilder runs a command using a CommandBuilder
 func (e *CommandExecutor) ExecuteWithBuilder(builder *CommandBuilder) error {
 	return e.Execute(builder.Build()...)
 }
 
-// ExecuteWithOutput runs a command and returns its output
 func (e *CommandExecutor) ExecuteWithOutput(args ...string) (string, error) {
 	cmd := exec.Command(e.ExePath, args...)
-	
+
 	if e.WorkDir != "" {
 		cmd.Dir = e.WorkDir
 	}
@@ -83,10 +75,9 @@ func (e *CommandExecutor) ExecuteWithOutput(args ...string) (string, error) {
 	return string(output), err
 }
 
-// ExecuteWithEnv runs a command with custom environment variables
 func (e *CommandExecutor) ExecuteWithEnv(env []string, args ...string) error {
 	cmd := exec.Command(e.ExePath, args...)
-	
+
 	if e.WorkDir != "" {
 		cmd.Dir = e.WorkDir
 	}
@@ -100,4 +91,4 @@ func (e *CommandExecutor) ExecuteWithEnv(env []string, args ...string) error {
 
 	logging.Info("Executing command: %s %s", e.ExePath, strings.Join(args, " "))
 	return cmd.Run()
-} 
+}

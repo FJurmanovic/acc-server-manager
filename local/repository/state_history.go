@@ -18,17 +18,14 @@ func NewStateHistoryRepository(db *gorm.DB) *StateHistoryRepository {
 	}
 }
 
-// GetAll retrieves all state history records with the given filter
 func (r *StateHistoryRepository) GetAll(ctx context.Context, filter *model.StateHistoryFilter) (*[]model.StateHistory, error) {
 	return r.BaseRepository.GetAll(ctx, filter)
 }
 
-// Insert creates a new state history record
 func (r *StateHistoryRepository) Insert(ctx context.Context, model *model.StateHistory) error {
 	return r.BaseRepository.Insert(ctx, model)
 }
 
-// GetLastSessionID gets the last session ID for a server
 func (r *StateHistoryRepository) GetLastSessionID(ctx context.Context, serverID uuid.UUID) (uuid.UUID, error) {
 	var lastSession model.StateHistory
 	result := r.BaseRepository.db.WithContext(ctx).
@@ -38,7 +35,7 @@ func (r *StateHistoryRepository) GetLastSessionID(ctx context.Context, serverID 
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			return uuid.Nil, nil // Return nil UUID if no sessions found
+			return uuid.Nil, nil
 		}
 		return uuid.Nil, result.Error
 	}
@@ -46,10 +43,8 @@ func (r *StateHistoryRepository) GetLastSessionID(ctx context.Context, serverID 
 	return lastSession.SessionID, nil
 }
 
-// GetSummaryStats calculates peak players, total sessions, and average players.
 func (r *StateHistoryRepository) GetSummaryStats(ctx context.Context, filter *model.StateHistoryFilter) (model.StateHistoryStats, error) {
 	var stats model.StateHistoryStats
-	// Parse ServerID to UUID for query
 	serverUUID, err := uuid.Parse(filter.ServerID)
 	if err != nil {
 		return model.StateHistoryStats{}, err
@@ -73,12 +68,10 @@ func (r *StateHistoryRepository) GetSummaryStats(ctx context.Context, filter *mo
 	return stats, nil
 }
 
-// GetTotalPlaytime calculates the total playtime in minutes.
 func (r *StateHistoryRepository) GetTotalPlaytime(ctx context.Context, filter *model.StateHistoryFilter) (int, error) {
 	var totalPlaytime struct {
 		TotalMinutes float64
 	}
-	// Parse ServerID to UUID for query
 	serverUUID, err := uuid.Parse(filter.ServerID)
 	if err != nil {
 		return 0, err
@@ -100,10 +93,8 @@ func (r *StateHistoryRepository) GetTotalPlaytime(ctx context.Context, filter *m
 	return int(totalPlaytime.TotalMinutes), nil
 }
 
-// GetPlayerCountOverTime gets downsampled player count data.
 func (r *StateHistoryRepository) GetPlayerCountOverTime(ctx context.Context, filter *model.StateHistoryFilter) ([]model.PlayerCountPoint, error) {
 	var points []model.PlayerCountPoint
-	// Parse ServerID to UUID for query
 	serverUUID, err := uuid.Parse(filter.ServerID)
 	if err != nil {
 		return points, err
@@ -122,10 +113,8 @@ func (r *StateHistoryRepository) GetPlayerCountOverTime(ctx context.Context, fil
 	return points, err
 }
 
-// GetSessionTypes counts sessions by type.
 func (r *StateHistoryRepository) GetSessionTypes(ctx context.Context, filter *model.StateHistoryFilter) ([]model.SessionCount, error) {
 	var sessionTypes []model.SessionCount
-	// Parse ServerID to UUID for query
 	serverUUID, err := uuid.Parse(filter.ServerID)
 	if err != nil {
 		return sessionTypes, err
@@ -145,10 +134,8 @@ func (r *StateHistoryRepository) GetSessionTypes(ctx context.Context, filter *mo
 	return sessionTypes, err
 }
 
-// GetDailyActivity counts sessions per day.
 func (r *StateHistoryRepository) GetDailyActivity(ctx context.Context, filter *model.StateHistoryFilter) ([]model.DailyActivity, error) {
 	var dailyActivity []model.DailyActivity
-	// Parse ServerID to UUID for query
 	serverUUID, err := uuid.Parse(filter.ServerID)
 	if err != nil {
 		return dailyActivity, err
@@ -167,10 +154,8 @@ func (r *StateHistoryRepository) GetDailyActivity(ctx context.Context, filter *m
 	return dailyActivity, err
 }
 
-// GetRecentSessions retrieves the 10 most recent sessions.
 func (r *StateHistoryRepository) GetRecentSessions(ctx context.Context, filter *model.StateHistoryFilter) ([]model.RecentSession, error) {
 	var recentSessions []model.RecentSession
-	// Parse ServerID to UUID for query
 	serverUUID, err := uuid.Parse(filter.ServerID)
 	if err != nil {
 		return recentSessions, err

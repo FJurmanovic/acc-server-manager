@@ -7,11 +7,11 @@ import (
 )
 
 type LogTailer struct {
-	filePath    string
-	handleLine  func(string)
-	stopChan    chan struct{}
-	isRunning   bool
-	tracker     *PositionTracker
+	filePath   string
+	handleLine func(string)
+	stopChan   chan struct{}
+	isRunning  bool
+	tracker    *PositionTracker
 }
 
 func NewLogTailer(filePath string, handleLine func(string)) *LogTailer {
@@ -30,10 +30,9 @@ func (t *LogTailer) Start() {
 	t.isRunning = true
 
 	go func() {
-		// Load last position from tracker
 		pos, err := t.tracker.LoadPosition()
 		if err != nil {
-			pos = &LogPosition{} // Start from beginning if error
+			pos = &LogPosition{}
 		}
 		lastSize := pos.LastPosition
 
@@ -43,7 +42,6 @@ func (t *LogTailer) Start() {
 				t.isRunning = false
 				return
 			default:
-				// Try to open and read the file
 				if file, err := os.Open(t.filePath); err == nil {
 					stat, err := file.Stat()
 					if err != nil {
@@ -52,12 +50,10 @@ func (t *LogTailer) Start() {
 						continue
 					}
 
-					// If file was truncated, start from beginning
 					if stat.Size() < lastSize {
 						lastSize = 0
 					}
 
-					// Seek to last read position
 					if lastSize > 0 {
 						file.Seek(lastSize, 0)
 					}
@@ -66,9 +62,8 @@ func (t *LogTailer) Start() {
 					for scanner.Scan() {
 						line := scanner.Text()
 						t.handleLine(line)
-						lastSize, _ = file.Seek(0, 1) // Get current position
-						
-						// Save position periodically
+						lastSize, _ = file.Seek(0, 1)
+
 						t.tracker.SavePosition(&LogPosition{
 							LastPosition: lastSize,
 							LastRead:     line,
@@ -78,7 +73,6 @@ func (t *LogTailer) Start() {
 					file.Close()
 				}
 
-				// Wait before next attempt
 				time.Sleep(time.Second)
 			}
 		}
@@ -90,4 +84,4 @@ func (t *LogTailer) Stop() {
 		return
 	}
 	close(t.stopChan)
-} 
+}

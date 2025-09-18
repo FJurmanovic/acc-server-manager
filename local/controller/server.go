@@ -29,7 +29,6 @@ func NewServerController(ss *service.ServerService, routeGroups *common.RouteGro
 	serverRoutes.Get("/", auth.HasPermission(model.ServerView), ac.GetAll)
 	serverRoutes.Get("/:id", auth.HasPermission(model.ServerView), ac.GetById)
 	serverRoutes.Post("/", auth.HasPermission(model.ServerCreate), ac.CreateServer)
-	serverRoutes.Put("/:id", auth.HasPermission(model.ServerUpdate), ac.UpdateServer)
 	serverRoutes.Delete("/:id", auth.HasPermission(model.ServerDelete), ac.DeleteServer)
 
 	apiServerRoutes := routeGroups.Api.Group("/server")
@@ -149,41 +148,6 @@ func (ac *ServerController) CreateServer(c *fiber.Ctx) error {
 
 	// Return immediately with server details
 	// The actual creation will happen in the background with WebSocket updates
-	return c.JSON(server)
-}
-
-// UpdateServer updates an existing server
-// @Summary Update an ACC server
-// @Description Update configuration for an existing ACC server
-// @Tags Server
-// @Accept json
-// @Produce json
-// @Param id path string true "Server ID (UUID format)"
-// @Param server body model.Server true "Updated server configuration"
-// @Success 200 {object} object "Updated server details"
-// @Failure 400 {object} error_handler.ErrorResponse "Invalid server data or ID"
-// @Failure 401 {object} error_handler.ErrorResponse "Unauthorized"
-// @Failure 403 {object} error_handler.ErrorResponse "Insufficient permissions"
-// @Failure 404 {object} error_handler.ErrorResponse "Server not found"
-// @Failure 500 {object} error_handler.ErrorResponse "Internal server error"
-// @Security BearerAuth
-// @Router /server/{id} [put]
-func (ac *ServerController) UpdateServer(c *fiber.Ctx) error {
-	serverIDStr := c.Params("id")
-	serverID, err := uuid.Parse(serverIDStr)
-	if err != nil {
-		return ac.errorHandler.HandleUUIDError(c, "server ID")
-	}
-
-	server := new(model.Server)
-	if err := c.BodyParser(server); err != nil {
-		return ac.errorHandler.HandleParsingError(c, err)
-	}
-	server.ID = serverID
-
-	if err := ac.service.UpdateServer(c, server); err != nil {
-		return ac.errorHandler.HandleServiceError(c, err)
-	}
 	return c.JSON(server)
 }
 

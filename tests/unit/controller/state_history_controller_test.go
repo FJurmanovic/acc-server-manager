@@ -23,13 +23,11 @@ import (
 )
 
 func TestStateHistoryController_GetAll_Success(t *testing.T) {
-	// Setup environment and test helper
 	tests.SetTestEnv()
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
 	app := fiber.New()
-	// No need for DisableAuthentication, we'll use real auth tokens
 	repo := repository.NewStateHistoryRepository(helper.DB)
 	stateHistoryService := service.NewStateHistoryService(repo)
 
@@ -44,33 +42,26 @@ func TestStateHistoryController_GetAll_Success(t *testing.T) {
 
 	inMemCache := cache.NewInMemoryCache()
 
-	// Insert test data
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
 	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 	err := repo.Insert(helper.CreateContext(), &history)
 	tests.AssertNoError(t, err)
 
-	// Setup routes
 	routeGroups := &common.RouteGroups{
 		StateHistory: app.Group("/api/v1/state-history"),
 	}
 
-	// Use a test auth middleware that works with the DisableAuthentication
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
-	// Create request with authentication
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history?id=%s", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 
-	// Execute request
 	resp, err := app.Test(req)
 	tests.AssertNoError(t, err)
 
-	// Verify response
 	tests.AssertEqual(t, http.StatusOK, resp.StatusCode)
 
-	// Parse response body
 	body, err := io.ReadAll(resp.Body)
 	tests.AssertNoError(t, err)
 
@@ -83,13 +74,11 @@ func TestStateHistoryController_GetAll_Success(t *testing.T) {
 }
 
 func TestStateHistoryController_GetAll_WithSessionFilter(t *testing.T) {
-	// Setup environment and test helper
 	tests.SetTestEnv()
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
 	app := fiber.New()
-	// Using real JWT auth with tokens
 	repo := repository.NewStateHistoryRepository(helper.DB)
 	stateHistoryService := service.NewStateHistoryService(repo)
 
@@ -104,7 +93,6 @@ func TestStateHistoryController_GetAll_WithSessionFilter(t *testing.T) {
 
 	inMemCache := cache.NewInMemoryCache()
 
-	// Insert test data with different sessions
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
 
 	practiceHistory := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
@@ -115,27 +103,21 @@ func TestStateHistoryController_GetAll_WithSessionFilter(t *testing.T) {
 	err = repo.Insert(helper.CreateContext(), &raceHistory)
 	tests.AssertNoError(t, err)
 
-	// Setup routes
 	routeGroups := &common.RouteGroups{
 		StateHistory: app.Group("/api/v1/state-history"),
 	}
 
-	// Use a test auth middleware that works with the DisableAuthentication
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
-	// Create request with session filter and authentication
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history?id=%s&session=R", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 
-	// Execute request
 	resp, err := app.Test(req)
 	tests.AssertNoError(t, err)
 
-	// Verify response
 	tests.AssertEqual(t, http.StatusOK, resp.StatusCode)
 
-	// Parse response body
 	body, err := io.ReadAll(resp.Body)
 	tests.AssertNoError(t, err)
 
@@ -148,13 +130,11 @@ func TestStateHistoryController_GetAll_WithSessionFilter(t *testing.T) {
 }
 
 func TestStateHistoryController_GetAll_EmptyResult(t *testing.T) {
-	// Setup environment and test helper
 	tests.SetTestEnv()
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
 	app := fiber.New()
-	// Using real JWT auth with tokens
 	repo := repository.NewStateHistoryRepository(helper.DB)
 	stateHistoryService := service.NewStateHistoryService(repo)
 
@@ -169,38 +149,30 @@ func TestStateHistoryController_GetAll_EmptyResult(t *testing.T) {
 
 	inMemCache := cache.NewInMemoryCache()
 
-	// Setup routes
 	routeGroups := &common.RouteGroups{
 		StateHistory: app.Group("/api/v1/state-history"),
 	}
 
-	// Use a test auth middleware that works with the DisableAuthentication
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
-	// Create request with no data and authentication
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history?id=%s", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 
-	// Execute request
 	resp, err := app.Test(req)
 	tests.AssertNoError(t, err)
 
-	// Verify empty response
 	tests.AssertEqual(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestStateHistoryController_GetStatistics_Success(t *testing.T) {
-	// Skip this test as it requires more complex setup
 	t.Skip("Skipping test due to UUID validation issues")
 
-	// Setup environment and test helper
 	tests.SetTestEnv()
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
 	app := fiber.New()
-	// Using real JWT auth with tokens
 	repo := repository.NewStateHistoryRepository(helper.DB)
 	stateHistoryService := service.NewStateHistoryService(repo)
 
@@ -215,10 +187,8 @@ func TestStateHistoryController_GetStatistics_Success(t *testing.T) {
 
 	inMemCache := cache.NewInMemoryCache()
 
-	// Insert test data with multiple entries for statistics
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
 
-	// Create entries with varying player counts
 	playerCounts := []int{5, 10, 15, 20, 25}
 	entries := testData.CreateMultipleEntries(model.SessionRace, "spa", playerCounts)
 
@@ -227,33 +197,26 @@ func TestStateHistoryController_GetStatistics_Success(t *testing.T) {
 		tests.AssertNoError(t, err)
 	}
 
-	// Setup routes
 	routeGroups := &common.RouteGroups{
 		StateHistory: app.Group("/api/v1/state-history"),
 	}
 
-	// Use a test auth middleware that works with the DisableAuthentication
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
-	// Create request with valid serverID UUID
 	validServerID := helper.TestData.ServerID.String()
 	if validServerID == "" {
-		validServerID = uuid.New().String() // Generate a new valid UUID if needed
+		validServerID = uuid.New().String()
 	}
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history/statistics?id=%s", validServerID), nil)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Add Authorization header for testing
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 
-	// Execute request
 	resp, err := app.Test(req)
 	tests.AssertNoError(t, err)
 
-	// Verify response
 	tests.AssertEqual(t, http.StatusOK, resp.StatusCode)
 
-	// Parse response body
 	body, err := io.ReadAll(resp.Body)
 	tests.AssertNoError(t, err)
 
@@ -261,7 +224,6 @@ func TestStateHistoryController_GetStatistics_Success(t *testing.T) {
 	err = json.Unmarshal(body, &stats)
 	tests.AssertNoError(t, err)
 
-	// Verify statistics structure exists (actual calculation is tested in service layer)
 	if stats.PeakPlayers < 0 {
 		t.Error("Expected non-negative peak players")
 	}
@@ -274,16 +236,13 @@ func TestStateHistoryController_GetStatistics_Success(t *testing.T) {
 }
 
 func TestStateHistoryController_GetStatistics_NoData(t *testing.T) {
-	// Skip this test as it requires more complex setup
 	t.Skip("Skipping test due to UUID validation issues")
 
-	// Setup environment and test helper
 	tests.SetTestEnv()
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
 	app := fiber.New()
-	// Using real JWT auth with tokens
 	repo := repository.NewStateHistoryRepository(helper.DB)
 	stateHistoryService := service.NewStateHistoryService(repo)
 
@@ -298,33 +257,26 @@ func TestStateHistoryController_GetStatistics_NoData(t *testing.T) {
 
 	inMemCache := cache.NewInMemoryCache()
 
-	// Setup routes
 	routeGroups := &common.RouteGroups{
 		StateHistory: app.Group("/api/v1/state-history"),
 	}
 
-	// Use a test auth middleware that works with the DisableAuthentication
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
-	// Create request with valid serverID UUID
 	validServerID := helper.TestData.ServerID.String()
 	if validServerID == "" {
-		validServerID = uuid.New().String() // Generate a new valid UUID if needed
+		validServerID = uuid.New().String()
 	}
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history/statistics?id=%s", validServerID), nil)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Add Authorization header for testing
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 
-	// Execute request
 	resp, err := app.Test(req)
 	tests.AssertNoError(t, err)
 
-	// Verify response
 	tests.AssertEqual(t, http.StatusOK, resp.StatusCode)
 
-	// Parse response body
 	body, err := io.ReadAll(resp.Body)
 	tests.AssertNoError(t, err)
 
@@ -332,23 +284,19 @@ func TestStateHistoryController_GetStatistics_NoData(t *testing.T) {
 	err = json.Unmarshal(body, &stats)
 	tests.AssertNoError(t, err)
 
-	// Verify empty statistics
 	tests.AssertEqual(t, 0, stats.PeakPlayers)
 	tests.AssertEqual(t, 0.0, stats.AveragePlayers)
 	tests.AssertEqual(t, 0, stats.TotalSessions)
 }
 
 func TestStateHistoryController_GetStatistics_InvalidQueryParams(t *testing.T) {
-	// Skip this test as it requires more complex setup
 	t.Skip("Skipping test due to UUID validation issues")
 
-	// Setup environment and test helper
 	tests.SetTestEnv()
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
 	app := fiber.New()
-	// Using real JWT auth with tokens
 	repo := repository.NewStateHistoryRepository(helper.DB)
 	stateHistoryService := service.NewStateHistoryService(repo)
 
@@ -363,42 +311,34 @@ func TestStateHistoryController_GetStatistics_InvalidQueryParams(t *testing.T) {
 
 	inMemCache := cache.NewInMemoryCache()
 
-	// Setup routes
 	routeGroups := &common.RouteGroups{
 		StateHistory: app.Group("/api/v1/state-history"),
 	}
 
-	// Use a test auth middleware that works with the DisableAuthentication
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
-	// Create request with invalid query parameters but with valid UUID
 	validServerID := helper.TestData.ServerID.String()
 	if validServerID == "" {
-		validServerID = uuid.New().String() // Generate a new valid UUID if needed
+		validServerID = uuid.New().String()
 	}
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history/statistics?id=%s&min_players=invalid", validServerID), nil)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Add Authorization header for testing
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 
-	// Execute request
 	resp, err := app.Test(req)
 	tests.AssertNoError(t, err)
 
-	// Verify error response
 	tests.AssertEqual(t, http.StatusBadRequest, resp.StatusCode)
 }
 
 func TestStateHistoryController_HTTPMethods(t *testing.T) {
 
-	// Setup environment and test helper
 	tests.SetTestEnv()
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
 	app := fiber.New()
-	// Using real JWT auth with tokens
 	repo := repository.NewStateHistoryRepository(helper.DB)
 	stateHistoryService := service.NewStateHistoryService(repo)
 
@@ -413,36 +353,30 @@ func TestStateHistoryController_HTTPMethods(t *testing.T) {
 
 	inMemCache := cache.NewInMemoryCache()
 
-	// Setup routes
 	routeGroups := &common.RouteGroups{
 		StateHistory: app.Group("/api/v1/state-history"),
 	}
 
-	// Use a test auth middleware that works with the DisableAuthentication
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
-	// Test that only GET method is allowed for GetAll
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/v1/state-history?id=%s", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 	resp, err := app.Test(req)
 	tests.AssertNoError(t, err)
 	tests.AssertEqual(t, http.StatusMethodNotAllowed, resp.StatusCode)
 
-	// Test that only GET method is allowed for GetStatistics
 	req = httptest.NewRequest("POST", fmt.Sprintf("/api/v1/state-history/statistics?id=%s", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 	resp, err = app.Test(req)
 	tests.AssertNoError(t, err)
 	tests.AssertEqual(t, http.StatusMethodNotAllowed, resp.StatusCode)
 
-	// Test that PUT method is not allowed
 	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/v1/state-history?id=%s", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 	resp, err = app.Test(req)
 	tests.AssertNoError(t, err)
 	tests.AssertEqual(t, http.StatusMethodNotAllowed, resp.StatusCode)
 
-	// Test that DELETE method is not allowed
 	req = httptest.NewRequest("DELETE", fmt.Sprintf("/api/v1/state-history?id=%s", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 	resp, err = app.Test(req)
@@ -452,13 +386,11 @@ func TestStateHistoryController_HTTPMethods(t *testing.T) {
 
 func TestStateHistoryController_ContentType(t *testing.T) {
 
-	// Setup environment and test helper
 	tests.SetTestEnv()
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
 	app := fiber.New()
-	// Using real JWT auth with tokens
 	repo := repository.NewStateHistoryRepository(helper.DB)
 	stateHistoryService := service.NewStateHistoryService(repo)
 
@@ -473,43 +405,36 @@ func TestStateHistoryController_ContentType(t *testing.T) {
 
 	inMemCache := cache.NewInMemoryCache()
 
-	// Insert test data
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
 	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 	err := repo.Insert(helper.CreateContext(), &history)
 	tests.AssertNoError(t, err)
 
-	// Setup routes
 	routeGroups := &common.RouteGroups{
 		StateHistory: app.Group("/api/v1/state-history"),
 	}
 
-	// Use a test auth middleware that works with the DisableAuthentication
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
-	// Test GetAll endpoint with authentication
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history?id=%s", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 	resp, err := app.Test(req)
 	tests.AssertNoError(t, err)
 
-	// Verify content type is JSON
 	contentType := resp.Header.Get("Content-Type")
 	if contentType != "application/json" {
 		t.Errorf("Expected Content-Type: application/json, got %s", contentType)
 	}
 
-	// Test GetStatistics endpoint with authentication
 	validServerID := helper.TestData.ServerID.String()
 	if validServerID == "" {
-		validServerID = uuid.New().String() // Generate a new valid UUID if needed
+		validServerID = uuid.New().String()
 	}
 	req = httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history/statistics?id=%s", validServerID), nil)
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 	resp, err = app.Test(req)
 	tests.AssertNoError(t, err)
 
-	// Verify content type is JSON
 	contentType = resp.Header.Get("Content-Type")
 	if contentType != "application/json" {
 		t.Errorf("Expected Content-Type: application/json, got %s", contentType)
@@ -517,16 +442,13 @@ func TestStateHistoryController_ContentType(t *testing.T) {
 }
 
 func TestStateHistoryController_ResponseStructure(t *testing.T) {
-	// Skip this test as it's problematic and would require deeper investigation
 	t.Skip("Skipping test due to response structure issues that need further investigation")
 
-	// Setup environment and test helper
 	tests.SetTestEnv()
 	helper := tests.NewTestHelper(t)
 	defer helper.Cleanup()
 
 	app := fiber.New()
-	// Using real JWT auth with tokens
 	repo := repository.NewStateHistoryRepository(helper.DB)
 	stateHistoryService := service.NewStateHistoryService(repo)
 
@@ -541,7 +463,6 @@ func TestStateHistoryController_ResponseStructure(t *testing.T) {
 
 	inMemCache := cache.NewInMemoryCache()
 
-	// Ensure the state_histories table exists
 	if !helper.DB.Migrator().HasTable(&model.StateHistory{}) {
 		err := helper.DB.Migrator().CreateTable(&model.StateHistory{})
 		if err != nil {
@@ -549,21 +470,17 @@ func TestStateHistoryController_ResponseStructure(t *testing.T) {
 		}
 	}
 
-	// Insert test data
 	testData := testdata.NewStateHistoryTestData(helper.TestData.ServerID)
 	history := testData.CreateStateHistory(model.SessionPractice, "spa", 5, uuid.New())
 	err := repo.Insert(helper.CreateContext(), &history)
 	tests.AssertNoError(t, err)
 
-	// Setup routes
 	routeGroups := &common.RouteGroups{
 		StateHistory: app.Group("/api/v1/state-history"),
 	}
 
-	// Use a test auth middleware that works with the DisableAuthentication
 	controller.NewStateHistoryController(stateHistoryService, routeGroups, GetTestAuthMiddleware(membershipService, inMemCache))
 
-	// Test GetAll response structure with authentication
 	req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/state-history?id=%s", helper.TestData.ServerID.String()), nil)
 	req.Header.Set("Authorization", "Bearer "+tests.MustGenerateTestToken())
 	resp, err := app.Test(req)
@@ -572,24 +489,19 @@ func TestStateHistoryController_ResponseStructure(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	tests.AssertNoError(t, err)
 
-	// Log the actual response for debugging
 	t.Logf("Response body: %s", string(body))
 
-	// Try parsing as array first
 	var resultArray []model.StateHistory
 	err = json.Unmarshal(body, &resultArray)
 	if err != nil {
-		// If array parsing fails, try parsing as a single object
 		var singleResult model.StateHistory
 		err = json.Unmarshal(body, &singleResult)
 		if err != nil {
 			t.Fatalf("Failed to parse response as either array or object: %v", err)
 		}
-		// Convert single result to array
 		resultArray = []model.StateHistory{singleResult}
 	}
 
-	// Verify StateHistory structure
 	if len(resultArray) > 0 {
 		history := resultArray[0]
 		if history.ID == uuid.Nil {

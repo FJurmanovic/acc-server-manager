@@ -6,12 +6,10 @@ import (
 	"sync"
 )
 
-// ErrorLogger handles error-level logging
 type ErrorLogger struct {
 	base *BaseLogger
 }
 
-// NewErrorLogger creates a new error logger instance
 func NewErrorLogger() *ErrorLogger {
 	base, _ := InitializeBase("error")
 	return &ErrorLogger{
@@ -19,14 +17,12 @@ func NewErrorLogger() *ErrorLogger {
 	}
 }
 
-// Log writes an error-level log entry
 func (el *ErrorLogger) Log(format string, v ...interface{}) {
 	if el.base != nil {
 		el.base.Log(LogLevelError, format, v...)
 	}
 }
 
-// LogWithContext writes an error-level log entry with additional context
 func (el *ErrorLogger) LogWithContext(context string, format string, v ...interface{}) {
 	if el.base != nil {
 		contextualFormat := fmt.Sprintf("[%s] %s", context, format)
@@ -34,7 +30,6 @@ func (el *ErrorLogger) LogWithContext(context string, format string, v ...interf
 	}
 }
 
-// LogError logs an error object with optional message
 func (el *ErrorLogger) LogError(err error, message ...string) {
 	if el.base != nil && err != nil {
 		if len(message) > 0 {
@@ -45,7 +40,6 @@ func (el *ErrorLogger) LogError(err error, message ...string) {
 	}
 }
 
-// LogWithStackTrace logs an error with stack trace
 func (el *ErrorLogger) LogWithStackTrace(format string, v ...interface{}) {
 	if el.base != nil {
 		// Get stack trace
@@ -58,7 +52,6 @@ func (el *ErrorLogger) LogWithStackTrace(format string, v ...interface{}) {
 	}
 }
 
-// LogFatal logs a fatal error and exits the program
 func (el *ErrorLogger) LogFatal(format string, v ...interface{}) {
 	if el.base != nil {
 		el.base.Log(LogLevelError, "[FATAL] "+format, v...)
@@ -66,13 +59,11 @@ func (el *ErrorLogger) LogFatal(format string, v ...interface{}) {
 	}
 }
 
-// Global error logger instance
 var (
 	errorLogger *ErrorLogger
 	errorOnce   sync.Once
 )
 
-// GetErrorLogger returns the global error logger instance
 func GetErrorLogger() *ErrorLogger {
 	errorOnce.Do(func() {
 		errorLogger = NewErrorLogger()
@@ -80,27 +71,22 @@ func GetErrorLogger() *ErrorLogger {
 	return errorLogger
 }
 
-// Error logs an error-level message using the global error logger
 func Error(format string, v ...interface{}) {
 	GetErrorLogger().Log(format, v...)
 }
 
-// ErrorWithContext logs an error-level message with context using the global error logger
 func ErrorWithContext(context string, format string, v ...interface{}) {
 	GetErrorLogger().LogWithContext(context, format, v...)
 }
 
-// LogError logs an error object using the global error logger
 func LogError(err error, message ...string) {
 	GetErrorLogger().LogError(err, message...)
 }
 
-// ErrorWithStackTrace logs an error with stack trace using the global error logger
 func ErrorWithStackTrace(format string, v ...interface{}) {
 	GetErrorLogger().LogWithStackTrace(format, v...)
 }
 
-// Fatal logs a fatal error and exits the program using the global error logger
 func Fatal(format string, v ...interface{}) {
 	GetErrorLogger().LogFatal(format, v...)
 }

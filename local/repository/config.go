@@ -17,10 +17,8 @@ func NewConfigRepository(db *gorm.DB) *ConfigRepository {
 	}
 }
 
-// UpdateConfig updates or creates a Config record
 func (r *ConfigRepository) UpdateConfig(ctx context.Context, config *model.Config) *model.Config {
 	if err := r.Update(ctx, config); err != nil {
-		// If update fails, try to insert
 		if err := r.Insert(ctx, config); err != nil {
 			return nil
 		}

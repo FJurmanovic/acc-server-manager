@@ -79,12 +79,6 @@ func IndentJson(body []byte) ([]byte, error) {
 	return unmarshaledBody.Bytes(), nil
 }
 
-// ParseQueryFilter parses query parameters into a filter struct using reflection.
-// It supports various field types and uses struct tags to determine parsing behavior.
-// Supported tags:
-// - `query:"field_name"` - specifies the query parameter name
-// - `param:"param_name"` - specifies the path parameter name
-// - `time_format:"format"` - specifies the time format for parsing dates (default: RFC3339)
 func ParseQueryFilter(c *fiber.Ctx, filter interface{}) error {
 	val := reflect.ValueOf(filter)
 	if val.Kind() != reflect.Ptr || val.IsNil() {
@@ -94,14 +88,12 @@ func ParseQueryFilter(c *fiber.Ctx, filter interface{}) error {
 	elem := val.Elem()
 	typ := elem.Type()
 
-	// Process all fields including embedded structs
 	var processFields func(reflect.Value, reflect.Type) error
 	processFields = func(val reflect.Value, typ reflect.Type) error {
 		for i := 0; i < val.NumField(); i++ {
 			field := val.Field(i)
 			fieldType := typ.Field(i)
 
-			// Handle embedded structs recursively
 			if fieldType.Anonymous {
 				if err := processFields(field, fieldType.Type); err != nil {
 					return err
@@ -109,12 +101,10 @@ func ParseQueryFilter(c *fiber.Ctx, filter interface{}) error {
 				continue
 			}
 
-			// Skip if field cannot be set
 			if !field.CanSet() {
 				continue
 			}
 
-			// Check for param tag first (path parameters)
 			if paramName := fieldType.Tag.Get("param"); paramName != "" {
 				if err := parsePathParam(c, field, paramName); err != nil {
 					return fmt.Errorf("error parsing path parameter %s: %v", paramName, err)
@@ -122,15 +112,14 @@ func ParseQueryFilter(c *fiber.Ctx, filter interface{}) error {
 				continue
 			}
 
-			// Then check for query tag
 			queryName := fieldType.Tag.Get("query")
 			if queryName == "" {
-				queryName = ToSnakeCase(fieldType.Name) // Default to snake_case of field name
+				queryName = ToSnakeCase(fieldType.Name)
 			}
 
 			queryVal := c.Query(queryName)
 			if queryVal == "" {
-				continue // Skip empty values
+				continue
 			}
 
 			if err := parseValue(field, queryVal, fieldType.Tag); err != nil {

@@ -10,24 +10,19 @@ import (
 	"github.com/google/uuid"
 )
 
-// GenerateTestToken creates a JWT token for testing purposes
 func GenerateTestToken() (string, error) {
-	// Create test user
 	user := &model.User{
 		ID:       uuid.New(),
 		Username: "test_user",
 		RoleID:   uuid.New(),
 	}
 
-	// Use the environment JWT_SECRET for consistency with middleware
 	testSecret := os.Getenv("JWT_SECRET")
 	if testSecret == "" {
-		// Fallback to a test secret if env var is not set
 		testSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
 	}
 	jwtHandler := jwt.NewJWTHandler(testSecret)
 
-	// Generate JWT token
 	token, err := jwtHandler.GenerateToken(user.ID.String())
 	if err != nil {
 		return "", fmt.Errorf("failed to generate test token: %w", err)
@@ -36,8 +31,6 @@ func GenerateTestToken() (string, error) {
 	return token, nil
 }
 
-// MustGenerateTestToken generates a test token and panics if it fails
-// This is useful for test setup where failing to generate a token is a fatal error
 func MustGenerateTestToken() string {
 	token, err := GenerateTestToken()
 	if err != nil {
@@ -46,24 +39,19 @@ func MustGenerateTestToken() string {
 	return token
 }
 
-// GenerateTestTokenWithExpiry creates a JWT token with a specific expiry time
 func GenerateTestTokenWithExpiry(expiryTime time.Time) (string, error) {
-	// Use the environment JWT_SECRET for consistency with middleware
 	testSecret := os.Getenv("JWT_SECRET")
 	if testSecret == "" {
-		// Fallback to a test secret if env var is not set
 		testSecret = "test-secret-that-is-at-least-32-bytes-long-for-security"
 	}
 	jwtHandler := jwt.NewJWTHandler(testSecret)
 
-	// Create test user
 	user := &model.User{
 		ID:       uuid.New(),
 		Username: "test_user",
 		RoleID:   uuid.New(),
 	}
 
-	// Generate JWT token with custom expiry
 	token, err := jwtHandler.GenerateTokenWithExpiry(user, expiryTime)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate test token with expiry: %w", err)
@@ -72,8 +60,6 @@ func GenerateTestTokenWithExpiry(expiryTime time.Time) (string, error) {
 	return token, nil
 }
 
-// AddAuthHeader adds a test auth token to the request headers
-// This is a convenience method for tests that need to authenticate requests
 func AddAuthHeader(headers map[string]string) (map[string]string, error) {
 	token, err := GenerateTestToken()
 	if err != nil {
@@ -88,7 +74,6 @@ func AddAuthHeader(headers map[string]string) (map[string]string, error) {
 	return headers, nil
 }
 
-// MustAddAuthHeader adds a test auth token to the request headers and panics if it fails
 func MustAddAuthHeader(headers map[string]string) map[string]string {
 	result, err := AddAuthHeader(headers)
 	if err != nil {
