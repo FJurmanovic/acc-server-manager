@@ -47,6 +47,11 @@ func Migrate(db *gorm.DB) {
 		&model.User{},
 		&model.Role{},
 		&model.Permission{},
+		&model.Leaderboard{},
+		&model.LeaderboardDriver{},
+		&model.LeaderboardRace{},
+		&model.LeaderboardResult{},
+		&model.LeaderboardPointRow{},
 	)
 
 	if err != nil {

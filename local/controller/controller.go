@@ -59,4 +59,9 @@ func InitializeControllers(c *dig.Container) {
 	if err != nil {
 		logging.Panic("unable to initialize websocket controller")
 	}
+
+	err = c.Invoke(NewLeaderboardController)
+	if err != nil {
+		logging.Panic("unable to initialize leaderboard controller")
+	}
 }
