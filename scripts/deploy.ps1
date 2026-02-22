@@ -61,42 +61,18 @@ function Build-Application {
 
     Write-Status "Building application..."
 
-    # Clean build directory
-    if (Test-Path $LocalBuildPath) {
-        Remove-Item -Path $LocalBuildPath -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $LocalBuildPath -Force | Out-Null
+    $buildScript = Join-Path $PSScriptRoot "build.ps1"
+    $buildArgs = @(
+        "-BinaryName",        $BinaryName,
+        "-MigrateBinaryName", $MigrateBinaryName,
+        "-OutputPath",        $LocalBuildPath
+    )
+    if ($SkipTests) { $buildArgs += "-SkipTests" }
 
-    # Run tests
-    if (-not $SkipTests) {
-        Write-Status "Running tests..."
-        & go test -v ./...
-        if ($LASTEXITCODE -ne 0) {
-            throw "Tests failed"
-        }
-    }
-
-    # Build API for Windows
-    Write-Status "Building API binary..."
-    $env:GOOS = "windows"
-    $env:GOARCH = "amd64"
-    & go build -o "$LocalBuildPath\$BinaryName.exe" .\cmd\api
+    & $buildScript @buildArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "Failed to build API binary"
+        throw "Build failed"
     }
-
-    # Build migration tool for Windows
-    Write-Status "Building migration binary..."
-    & go build -o "$LocalBuildPath\$MigrateBinaryName.exe" .\cmd\migrate
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to build migration binary"
-    }
-
-    # Reset environment variables
-    Remove-Item Env:\GOOS -ErrorAction SilentlyContinue
-    Remove-Item Env:\GOARCH -ErrorAction SilentlyContinue
-
-    Write-Status "Build completed successfully"
 }
 
 function Copy-FilesToServer {
