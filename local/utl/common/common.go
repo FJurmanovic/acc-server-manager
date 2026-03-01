@@ -26,6 +26,7 @@ type RouteGroups struct {
 	Membership   fiber.Router
 	System       fiber.Router
 	WebSocket    fiber.Router
+	Leaderboard  fiber.Router
 }
 
 func CheckError(err error) {

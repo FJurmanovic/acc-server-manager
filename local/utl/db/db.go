@@ -33,6 +33,8 @@ func Start(di *dig.Container) {
 func Migrate(db *gorm.DB) {
 	logging.Info("Migrating database")
 
+	runMigrations(db)
+
 	err := db.AutoMigrate(
 		&model.ServiceControlModel{},
 		&model.Config{},
@@ -47,6 +49,11 @@ func Migrate(db *gorm.DB) {
 		&model.User{},
 		&model.Role{},
 		&model.Permission{},
+		&model.Leaderboard{},
+		&model.LeaderboardDriver{},
+		&model.LeaderboardRace{},
+		&model.LeaderboardResult{},
+		&model.LeaderboardPointRow{},
 	)
 
 	if err != nil {
@@ -60,6 +67,10 @@ func Migrate(db *gorm.DB) {
 
 func runMigrations(db *gorm.DB) {
 	logging.Info("Running custom database migrations...")
+
+	if err := migrations.RunFixDDLCommentsMigration(db); err != nil {
+		logging.Error("Failed to run DDL comment fix migration: %v", err)
+	}
 
 	if err := migrations.RunPasswordSecurityMigration(db); err != nil {
 		logging.Error("Failed to run password security migration: %v", err)

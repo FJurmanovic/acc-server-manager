@@ -19,6 +19,7 @@ func InitializeRepositories(c *dig.Container) {
 	c.Provide(NewLookupRepository)
 	c.Provide(NewSteamCredentialsRepository)
 	c.Provide(NewMembershipRepository)
+	c.Provide(NewLeaderboardRepository)
 
 	if err := c.Provide(func() *model.Steam2FAManager {
 		manager := model.NewSteam2FAManager()

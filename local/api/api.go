@@ -32,6 +32,7 @@ func Init(di *dig.Container, app *fiber.App) {
 		Membership:   groups.Group("/membership"),
 		System:       groups.Group("/system"),
 		WebSocket:    groups.Group("/ws"),
+		Leaderboard:  serverIdGroup.Group("/leaderboard"),
 	}
 
 	accessKeyMiddleware := middleware.NewAccessKeyMiddleware()

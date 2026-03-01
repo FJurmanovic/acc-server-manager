@@ -23,6 +23,7 @@ func InitializeServices(c *dig.Container) {
 	c.Provide(NewFirewallService)
 	c.Provide(NewMembershipService)
 	c.Provide(NewWebSocketService)
+	c.Provide(NewLeaderboardService)
 
 	logging.Debug("Initializing service dependencies")
 	err := c.Invoke(func(server *ServerService, api *ServiceControlService, config *ConfigService) {
