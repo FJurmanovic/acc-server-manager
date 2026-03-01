@@ -55,7 +55,7 @@ func (lc *LeaderboardController) Update(c *fiber.Ctx) error {
 		return lc.errorHandler.HandleUUIDError(c, "server ID")
 	}
 
-	var input model.LeaderboardInput
+	var input model.Leaderboard
 	if err := c.BodyParser(&input); err != nil {
 		return lc.errorHandler.HandleParsingError(c, err)
 	}

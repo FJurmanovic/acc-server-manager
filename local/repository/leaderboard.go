@@ -92,7 +92,6 @@ func (r *LeaderboardRepository) FullReplace(ctx context.Context, serverID uuid.U
 		// Re-insert children with correct leaderboard ID
 		for i := range lb.Drivers {
 			lb.Drivers[i].LeaderboardID = existing.ID
-			lb.Drivers[i].ID = uuid.Nil // force new ID
 		}
 		if len(lb.Drivers) > 0 {
 			if err := tx.Create(&lb.Drivers).Error; err != nil {
@@ -112,7 +111,6 @@ func (r *LeaderboardRepository) FullReplace(ctx context.Context, serverID uuid.U
 
 		for i := range lb.Races {
 			lb.Races[i].LeaderboardID = existing.ID
-			lb.Races[i].ID = uuid.Nil
 		}
 		if len(lb.Races) > 0 {
 			// Create races first (without results) to get IDs

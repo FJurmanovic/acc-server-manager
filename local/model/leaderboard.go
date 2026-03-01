@@ -1,9 +1,35 @@
 package model
 
 import (
+	"encoding/json"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"strconv"
 )
+
+// Score is a custom type that accepts both numbers and strings in JSON.
+type Score string
+
+func (s *Score) UnmarshalJSON(data []byte) error {
+	var n json.Number
+	if err := json.Unmarshal(data, &n); err == nil {
+		*s = Score(n.String())
+		return nil
+	}
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	*s = Score(str)
+	return nil
+}
+
+func (s Score) MarshalJSON() ([]byte, error) {
+	if n, err := strconv.Atoi(string(s)); err == nil {
+		return json.Marshal(n)
+	}
+	return json.Marshal(string(s))
+}
 
 type Leaderboard struct {
 	ID          uuid.UUID             `gorm:"type:uuid;primary_key;" json:"id"`
@@ -12,79 +38,43 @@ type Leaderboard struct {
 	FLColor     string                `gorm:"default:'#8b5cf6'" json:"flColor"`
 	FLTextColor string                `gorm:"default:'#000000'" json:"flTextColor"`
 	Drivers     []LeaderboardDriver   `gorm:"foreignKey:LeaderboardID;constraint:OnDelete:CASCADE" json:"drivers"`
-	Races       []LeaderboardRace     `gorm:"foreignKey:LeaderboardID;constraint:OnDelete:CASCADE" json:"races"`
-	PointRows   []LeaderboardPointRow `gorm:"foreignKey:LeaderboardID;constraint:OnDelete:CASCADE" json:"pointRows"`
+	Races       []LeaderboardRace     `gorm:"foreignKey:LeaderboardID;constraint:OnDelete:CASCADE" json:"tracks"`
+	PointRows   []LeaderboardPointRow `gorm:"foreignKey:LeaderboardID;constraint:OnDelete:CASCADE" json:"pointsTable"`
 }
 
 type LeaderboardDriver struct {
 	ID            uuid.UUID `gorm:"type:uuid;primary_key;" json:"id"`
-	LeaderboardID uuid.UUID `gorm:"not null;type:uuid" json:"leaderboardId"`
+	LeaderboardID uuid.UUID `gorm:"not null;type:uuid" json:"-"`
 	Name          string    `gorm:"not null" json:"name"`
 	Initials      string    `json:"initials"`
 	Color         string    `json:"color"`
-	Position      int       `json:"position"`
+	Position      int       `json:"-"`
 }
 
 type LeaderboardRace struct {
 	ID                 uuid.UUID           `gorm:"type:uuid;primary_key;" json:"id"`
-	LeaderboardID      uuid.UUID           `gorm:"not null;type:uuid" json:"leaderboardId"`
+	LeaderboardID      uuid.UUID           `gorm:"not null;type:uuid" json:"-"`
 	Name               string              `gorm:"not null" json:"name"`
-	Position           int                 `json:"position"`
-	FastestLapInitials string              `json:"fastestLapInitials"`
+	Position           int                 `json:"-"`
+	FastestLapDriverID *uuid.UUID          `gorm:"type:uuid" json:"fastestLapDriverId"`
 	Results            []LeaderboardResult `gorm:"foreignKey:RaceID;constraint:OnDelete:CASCADE" json:"results"`
 }
 
 type LeaderboardResult struct {
-	ID       uuid.UUID `gorm:"type:uuid;primary_key;" json:"id"`
-	RaceID   uuid.UUID `gorm:"not null;type:uuid" json:"raceId"`
+	ID       uuid.UUID `gorm:"type:uuid;primary_key;" json:"-"`
+	RaceID   uuid.UUID `gorm:"not null;type:uuid" json:"-"`
 	DriverID uuid.UUID `gorm:"not null;type:uuid" json:"driverId"`
-	Score    string    `json:"score"`
+	Score    Score     `json:"score"`
 }
 
 type LeaderboardPointRow struct {
 	ID            uuid.UUID `gorm:"type:uuid;primary_key;" json:"id"`
-	LeaderboardID uuid.UUID `gorm:"not null;type:uuid" json:"leaderboardId"`
+	LeaderboardID uuid.UUID `gorm:"not null;type:uuid" json:"-"`
 	Label         string    `json:"label"`
 	Points        int       `json:"points"`
 	Color         string    `json:"color"`
 	TextColor     string    `json:"textColor"`
 	Priority      int       `json:"priority"`
-}
-
-// LeaderboardInput is the wire format matching the HTML's appData shape.
-type LeaderboardInput struct {
-	Drivers     []LeaderboardDriverInput   `json:"drivers"`
-	PointsTable []LeaderboardPointRowInput `json:"pointsTable"`
-	FLPoints    LeaderboardFLInput         `json:"flPoints"`
-	Tracks      []LeaderboardTrackInput    `json:"tracks"`
-}
-
-type LeaderboardDriverInput struct {
-	Name     string `json:"name"`
-	Color    string `json:"color"`
-	Initials string `json:"initials"`
-}
-
-type LeaderboardPointRowInput struct {
-	Points    int    `json:"points"`
-	Label     string `json:"label"`
-	Color     string `json:"color"`
-	TextColor string `json:"textColor"`
-	Priority  int    `json:"priority"`
-}
-
-type LeaderboardFLInput struct {
-	Points    int    `json:"points"`
-	Label     string `json:"label"`
-	Color     string `json:"color"`
-	TextColor string `json:"textColor"`
-	Priority  int    `json:"priority"`
-}
-
-type LeaderboardTrackInput struct {
-	Name               string        `json:"name"`
-	Results            []interface{} `json:"results"`
-	FastestLapInitials string        `json:"fastestLapInitials"`
 }
 
 func (l *Leaderboard) BeforeCreate(tx *gorm.DB) error {
