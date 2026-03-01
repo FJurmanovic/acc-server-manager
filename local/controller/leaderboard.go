@@ -22,6 +22,9 @@ func NewLeaderboardController(ls *service.LeaderboardService, routeGroups *commo
 		errorHandler: error_handler.NewControllerErrorHandler(),
 	}
 
+	apiServerRoutes := routeGroups.Api.Group("/server/:id")
+	apiServerRoutes.Get("/leaderboard", lc.Get)
+
 	routeGroups.Leaderboard.Get("/", lc.Get)
 	routeGroups.Leaderboard.Put("/", auth.Authenticate, lc.Update)
 
