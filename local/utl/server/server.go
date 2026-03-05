@@ -44,7 +44,7 @@ func Start(di *dig.Container) *fiber.App {
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     allowedOrigin,
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Access-Token",
 		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
 		AllowCredentials: true,
 		MaxAge:           86400, // 24 hours
