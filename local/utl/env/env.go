@@ -10,8 +10,7 @@ const (
 	DefaultNSSMPath          = ".\\nssm.exe"
 	DefaultPlatform          = "windows"
 	DefaultACCImage          = "acc-wine:latest"
-	DefaultACCGameVolume     = "/data/acc-game"
-	DefaultACCConfigBasePath = "/data/configs"
+	DefaultACCServersPath    = "/data/servers"
 	DefaultLinuxSteamCMDPath = "/usr/games/steamcmd"
 )
 
@@ -59,18 +58,11 @@ func GetACCImage() string {
 	return DefaultACCImage
 }
 
-func GetACCGameVolume() string {
-	if v := os.Getenv("ACC_GAME_VOLUME"); v != "" {
-		return v
-	}
-	return DefaultACCGameVolume
-}
-
-func GetACCConfigBasePath() string {
-	if p := os.Getenv("ACC_CONFIG_BASE_PATH"); p != "" {
+func GetACCServersPath() string {
+	if p := os.Getenv("ACC_SERVERS_PATH"); p != "" {
 		return p
 	}
-	return DefaultACCConfigBasePath
+	return DefaultACCServersPath
 }
 
 func ValidatePaths() map[string]error {

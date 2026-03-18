@@ -200,8 +200,8 @@ func (s *ServerService) GenerateServerPath(server *model.Server) {
 	}
 
 	if env.IsDockerPlatform() {
-		server.Path = filepath.Join(env.GetACCConfigBasePath(), server.ServiceName)
-		server.FromSteamCMD = false
+		server.Path = filepath.Join(env.GetACCServersPath(), server.ServiceName)
+		server.FromSteamCMD = true
 	} else {
 		steamCMDPath := env.GetSteamCMDDirPath()
 		server.Path = server.GenerateServerPath(steamCMDPath)
@@ -369,11 +369,7 @@ func (s *ServerService) createServerBackground(ctx context.Context, server *mode
 			important:   true,
 			description: "Server files downloaded successfully",
 			callback: func() (string, error) {
-				installPath := server.Path
-				if env.IsDockerPlatform() {
-					installPath = env.GetACCGameVolume()
-				}
-				if err := s.steamService.InstallServerWithWebSocket(ctx, installPath, &server.ID, s.webSocketService); err != nil {
+				if err := s.steamService.InstallServerWithWebSocket(ctx, server.Path, &server.ID, s.webSocketService); err != nil {
 					return "", fmt.Errorf("failed to install server: %v", err)
 				}
 				return "Server files downloaded successfully", nil

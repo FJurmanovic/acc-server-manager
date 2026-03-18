@@ -105,9 +105,11 @@ func (s *SteamService) InstallServerWithWebSocket(ctx context.Context, installPa
 		return err
 	}
 
-	if err := s.pathValidator.ValidateInstallPath(installPath); err != nil {
-		wsService.BroadcastSteamOutput(*serverID, fmt.Sprintf("Invalid installation path: %v", err), true)
-		return fmt.Errorf("invalid installation path: %v", err)
+	if !env.IsDockerPlatform() {
+		if err := s.pathValidator.ValidateInstallPath(installPath); err != nil {
+			wsService.BroadcastSteamOutput(*serverID, fmt.Sprintf("Invalid installation path: %v", err), true)
+			return fmt.Errorf("invalid installation path: %v", err)
+		}
 	}
 
 	absPath, err := filepath.Abs(installPath)
@@ -146,6 +148,10 @@ func (s *SteamService) InstallServerWithWebSocket(ctx context.Context, installPa
 	} else {
 		wsService.BroadcastSteamOutput(*serverID, "Using anonymous Steam login", false)
 		steamCMDArgs = append(steamCMDArgs, "anonymous")
+	}
+
+	if env.IsDockerPlatform() {
+		steamCMDArgs = append(steamCMDArgs, "+@sSteamCmdForcePlatformType", "windows")
 	}
 
 	steamCMDArgs = append(steamCMDArgs,
@@ -229,9 +235,11 @@ func (s *SteamService) InstallServerWithCallbacks(ctx context.Context, installPa
 		return err
 	}
 
-	if err := s.pathValidator.ValidateInstallPath(installPath); err != nil {
-		outputCallback(*serverID, fmt.Sprintf("Invalid installation path: %v", err), true)
-		return fmt.Errorf("invalid installation path: %v", err)
+	if !env.IsDockerPlatform() {
+		if err := s.pathValidator.ValidateInstallPath(installPath); err != nil {
+			outputCallback(*serverID, fmt.Sprintf("Invalid installation path: %v", err), true)
+			return fmt.Errorf("invalid installation path: %v", err)
+		}
 	}
 
 	absPath, err := filepath.Abs(installPath)
@@ -270,6 +278,10 @@ func (s *SteamService) InstallServerWithCallbacks(ctx context.Context, installPa
 	} else {
 		outputCallback(*serverID, "Using anonymous Steam login", false)
 		steamCMDArgs = append(steamCMDArgs, "anonymous")
+	}
+
+	if env.IsDockerPlatform() {
+		steamCMDArgs = append(steamCMDArgs, "+@sSteamCmdForcePlatformType", "windows")
 	}
 
 	steamCMDArgs = append(steamCMDArgs,

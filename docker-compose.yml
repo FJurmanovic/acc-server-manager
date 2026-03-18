@@ -11,25 +11,22 @@ services:
     environment:
       PLATFORM: docker
       DB_NAME: /data/db/acc.db
-      ACC_GAME_VOLUME: /var/lib/docker/volumes/acc-server-manager_acc-game/_data
-      ACC_CONFIG_BASE_PATH: /var/lib/docker/volumes/acc-server-manager_acc-configs/_data
       STEAMCMD_LINUX_PATH: /usr/games/steamcmd
       PORT_POOL_MIN: "9600"
       PORT_POOL_MAX: "9700"
       ACC_IMAGE: acc-wine:latest
+      ACC_SERVERS_PATH: /data/servers
     env_file:
       - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - acc-game:/data/acc-game
-      - acc-configs:/data/configs
+      - acc-servers:/data/servers
       - acc-db:/data/db
     networks:
       - acc-net
 
 volumes:
-  acc-game:
-  acc-configs:
+  acc-servers:
   acc-db:
 
 networks:

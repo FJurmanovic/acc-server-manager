@@ -24,10 +24,8 @@ WORKDIR /home/accserver
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Volumes (bind-mounted by DockerRuntime.Create):
-#   /acc/game  — shared game files, mounted read-only (ACC_GAME_VOLUME)
-#   /acc/cfg   — per-server config dir, mounted read-write (server.GetConfigPath())
-VOLUME ["/acc/game", "/acc/cfg"]
+# Bind-mounted by DockerRuntime.Create: per-server game install (rw)
+VOLUME ["/acc/game"]
 
 # Default server port — overridden at runtime via SERVER_PORT env var.
 ENV SERVER_PORT=9600

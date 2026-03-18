@@ -31,9 +31,6 @@ func NewDockerRuntime(client *dockerclient.Client, repo *repository.ServerReposi
 
 func (r *DockerRuntime) Create(ctx context.Context, server *model.Server) error {
 	image := env.GetACCImage()
-	gameVolume := env.GetACCGameVolume()
-	configPath := server.GetConfigPath()
-
 	portStr := strconv.Itoa(server.Port)
 	natPort, err := nat.NewPort("tcp", portStr)
 	if err != nil {
@@ -54,8 +51,7 @@ func (r *DockerRuntime) Create(ctx context.Context, server *model.Server) error 
 	}
 
 	binds := []string{
-		fmt.Sprintf("%s:/acc/game:ro", gameVolume),
-		fmt.Sprintf("%s:/acc/cfg:rw", configPath),
+		fmt.Sprintf("%s:/acc/game:rw", server.GetServerPath()),
 	}
 
 	resp, err := r.client.ContainerCreate(ctx, &container.Config{

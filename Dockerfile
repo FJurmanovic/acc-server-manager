@@ -50,14 +50,13 @@ WORKDIR /app
 COPY --from=builder /acc-server-manager /app/acc-server-manager
 
 # Persistent data directories.
-RUN mkdir -p /data/configs /data/acc-game /data/db
+RUN mkdir -p /data/servers /data/db
 
 ENV PLATFORM=docker
 ENV PORT=3000
 ENV DB_NAME=/data/db/acc.db
 ENV STEAMCMD_LINUX_PATH=/usr/games/steamcmd
-ENV ACC_GAME_VOLUME=/data/acc-game
-ENV ACC_CONFIG_BASE_PATH=/data/configs
+ENV ACC_SERVERS_PATH=/data/servers
 
 EXPOSE 3000
 

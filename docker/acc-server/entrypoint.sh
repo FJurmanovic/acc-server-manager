@@ -12,6 +12,5 @@ trap cleanup SIGTERM SIGINT
 
 echo "Starting ACC server on port ${SERVER_PORT}..."
 
-exec wine /acc/game/server/accServer.exe \
-    -serverCfgPath /acc/cfg \
+exec wine /acc/game/accServer.exe \
     -port "${SERVER_PORT}"
