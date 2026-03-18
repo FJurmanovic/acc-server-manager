@@ -42,6 +42,8 @@ type Server struct {
 	Port         int           `gorm:"not null" json:"-"`
 	Path         string        `gorm:"not null" json:"path"`
 	ServiceName  string        `gorm:"not null" json:"serviceName"`
+	Platform     string        `gorm:"not null;default:'windows'" json:"platform"`
+	ContainerID  string        `gorm:"default:''" json:"-"`
 	State        *ServerState  `gorm:"-" json:"state"`
 	DateCreated  time.Time     `json:"dateCreated"`
 	FromSteamCMD bool          `gorm:"not null; default:true" json:"-"`
