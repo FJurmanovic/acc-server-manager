@@ -76,6 +76,10 @@ func runMigrations(db *gorm.DB) {
 		logging.Error("Failed to run password security migration: %v", err)
 	}
 
+	if err := migrations.RunAddPlatformColumnsMigration(db); err != nil {
+		logging.Error("Failed to run platform columns migration: %v", err)
+	}
+
 	logging.Info("Custom database migrations completed")
 }
 

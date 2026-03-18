@@ -44,6 +44,14 @@ func NewSteamService(repository *repository.SteamCredentialsRepository, tfaManag
 	}
 }
 
+// getSteamCMDPath returns the platform-appropriate SteamCMD binary path.
+func getSteamCMDPath() string {
+	if env.IsDockerPlatform() {
+		return env.GetLinuxSteamCMDPath()
+	}
+	return env.GetSteamCMDPath()
+}
+
 func (s *SteamService) GetCredentials(ctx context.Context) (*model.SteamCredentials, error) {
 	return s.repository.GetCurrent(ctx)
 }
@@ -56,6 +64,11 @@ func (s *SteamService) SaveCredentials(ctx context.Context, creds *model.SteamCr
 }
 
 func (s *SteamService) ensureSteamCMD(_ context.Context) error {
+	// In Docker mode, SteamCMD is pre-installed in the manager container image.
+	if env.IsDockerPlatform() {
+		return nil
+	}
+
 	steamCMDPath := env.GetSteamCMDPath()
 	steamCMDDir := filepath.Dir(steamCMDPath)
 
@@ -117,7 +130,7 @@ func (s *SteamService) InstallServerWithWebSocket(ctx context.Context, installPa
 		return fmt.Errorf("failed to get Steam credentials: %v", err)
 	}
 
-	steamCMDPath := env.GetSteamCMDPath()
+	steamCMDPath := getSteamCMDPath()
 
 	steamCMDArgs := []string{
 		"+force_install_dir", absPath,
@@ -241,7 +254,7 @@ func (s *SteamService) InstallServerWithCallbacks(ctx context.Context, installPa
 		return fmt.Errorf("failed to get Steam credentials: %v", err)
 	}
 
-	steamCMDPath := env.GetSteamCMDPath()
+	steamCMDPath := getSteamCMDPath()
 
 	steamCMDArgs := []string{
 		"+force_install_dir", absPath,
