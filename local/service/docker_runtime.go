@@ -33,23 +33,25 @@ func NewDockerRuntime(client *dockerclient.Client, repo *repository.ServerReposi
 
 func (r *DockerRuntime) Create(ctx context.Context, server *model.Server) error {
 	image := env.GetACCImage()
-	portStr := strconv.Itoa(server.Port)
-	natPort, err := nat.NewPort("tcp", portStr)
+	tcpPortStr := strconv.Itoa(server.Port)
+	udpPortStr := strconv.Itoa(server.Port - 1)
+
+	natTCP, err := nat.NewPort("tcp", tcpPortStr)
 	if err != nil {
-		return fmt.Errorf("invalid port %d: %v", server.Port, err)
+		return fmt.Errorf("invalid tcp port %d: %v", server.Port, err)
 	}
-	natPortUDP, err := nat.NewPort("udp", portStr)
+	natUDP, err := nat.NewPort("udp", udpPortStr)
 	if err != nil {
-		return fmt.Errorf("invalid udp port %d: %v", server.Port, err)
+		return fmt.Errorf("invalid udp port %d: %v", server.Port-1, err)
 	}
 
 	portBindings := nat.PortMap{
-		natPort:    []nat.PortBinding{{HostPort: portStr}},
-		natPortUDP: []nat.PortBinding{{HostPort: portStr}},
+		natTCP: []nat.PortBinding{{HostPort: tcpPortStr}},
+		natUDP: []nat.PortBinding{{HostPort: udpPortStr}},
 	}
 	exposedPorts := nat.PortSet{
-		natPort:    struct{}{},
-		natPortUDP: struct{}{},
+		natTCP: struct{}{},
+		natUDP: struct{}{},
 	}
 
 	containerBase := env.GetACCServersPath()

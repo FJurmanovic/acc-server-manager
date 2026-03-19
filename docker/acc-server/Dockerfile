@@ -15,10 +15,9 @@ RUN dpkg --add-architecture i386 && \
         && \
     rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user for running the server.
-RUN useradd -ms /bin/bash accserver
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
-WORKDIR /home/accserver
+WORKDIR /root
 
 # Copy entrypoint script.
 COPY entrypoint.sh /entrypoint.sh
@@ -30,10 +29,8 @@ VOLUME ["/acc/game"]
 # Default server port — overridden at runtime via SERVER_PORT env var.
 ENV SERVER_PORT=9600
 ENV WINEDEBUG=-all
-ENV DISPLAY=:99
 
 EXPOSE ${SERVER_PORT}/tcp
 EXPOSE ${SERVER_PORT}/udp
 
-USER accserver
 ENTRYPOINT ["/entrypoint.sh"]
