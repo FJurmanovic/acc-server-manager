@@ -65,6 +65,13 @@ func GetACCServersPath() string {
 	return DefaultACCServersPath
 }
 
+func GetACCServersHostPath() string {
+	if p := os.Getenv("ACC_SERVERS_HOST_PATH"); p != "" {
+		return p
+	}
+	return GetACCServersPath()
+}
+
 func ValidatePaths() map[string]error {
 	errors := make(map[string]error)
 

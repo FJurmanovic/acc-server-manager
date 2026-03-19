@@ -487,9 +487,9 @@ func (s *ServerService) rollbackSteps(ctx context.Context, server *model.Server,
 		case model.StepServiceCreation:
 			s.runtime.Delete(ctx, server.ID)
 		case model.StepSteamDownload:
-			if !env.IsDockerPlatform() {
-				s.steamService.UninstallServer(server.Path)
-			}
+			s.steamService.UninstallServer(server.Path)
+		case model.StepDirectoryCreation:
+			s.steamService.UninstallServer(server.Path)
 		case model.StepConfigGeneration:
 			if env.IsDockerPlatform() && server.Port > 0 {
 				s.portPool.Release(ctx, server.Port)
@@ -520,10 +520,8 @@ func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID uuid.UUID) error {
 		}
 	}
 
-	if server.Platform != "docker" {
-		if err := s.steamService.UninstallServer(server.Path); err != nil {
-			logging.Error("Failed to uninstall server: %v", err)
-		}
+	if err := s.steamService.UninstallServer(server.Path); err != nil {
+		logging.Error("Failed to uninstall server: %v", err)
 	}
 
 	if env.IsDockerPlatform() && server.Port > 0 {

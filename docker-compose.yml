@@ -16,17 +16,17 @@ services:
       PORT_POOL_MAX: "9700"
       ACC_IMAGE: acc-wine:latest
       ACC_SERVERS_PATH: /data/servers
+      ACC_SERVERS_HOST_PATH: /opt/acc-servers
     env_file:
       - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - acc-servers:/data/servers
+      - /opt/acc-servers:/data/servers
       - acc-db:/data/db
     networks:
       - acc-net
 
 volumes:
-  acc-servers:
   acc-db:
 
 networks:

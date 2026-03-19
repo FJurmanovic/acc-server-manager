@@ -7,7 +7,9 @@ import (
 	"acc-server-manager/local/utl/logging"
 	"context"
 	"fmt"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -50,8 +52,13 @@ func (r *DockerRuntime) Create(ctx context.Context, server *model.Server) error 
 		natPortUDP: struct{}{},
 	}
 
+	containerBase := env.GetACCServersPath()
+	hostBase := env.GetACCServersHostPath()
+	serverSubPath := strings.TrimPrefix(server.GetServerPath(), containerBase)
+	hostServerPath := filepath.Join(hostBase, serverSubPath)
+
 	binds := []string{
-		fmt.Sprintf("%s:/acc/game:rw", server.GetServerPath()),
+		fmt.Sprintf("%s:/acc/game:rw", hostServerPath),
 	}
 
 	resp, err := r.client.ContainerCreate(ctx, &container.Config{
