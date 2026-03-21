@@ -33,21 +33,21 @@ func NewDockerRuntime(client *dockerclient.Client, repo *repository.ServerReposi
 
 func (r *DockerRuntime) Create(ctx context.Context, server *model.Server) error {
 	image := env.GetACCImage()
-	tcpPortStr := strconv.Itoa(server.Port)
-	udpPortStr := strconv.Itoa(server.Port - 1)
+	// ACC uses the same port number for both TCP (client connections) and UDP (car positions/ping).
+	portStr := strconv.Itoa(server.Port)
 
-	natTCP, err := nat.NewPort("tcp", tcpPortStr)
+	natTCP, err := nat.NewPort("tcp", portStr)
 	if err != nil {
-		return fmt.Errorf("invalid tcp port %d: %v", server.Port, err)
+		return fmt.Errorf("invalid port %d: %v", server.Port, err)
 	}
-	natUDP, err := nat.NewPort("udp", udpPortStr)
+	natUDP, err := nat.NewPort("udp", portStr)
 	if err != nil {
-		return fmt.Errorf("invalid udp port %d: %v", server.Port-1, err)
+		return fmt.Errorf("invalid port %d: %v", server.Port, err)
 	}
 
 	portBindings := nat.PortMap{
-		natTCP: []nat.PortBinding{{HostPort: tcpPortStr}},
-		natUDP: []nat.PortBinding{{HostPort: udpPortStr}},
+		natTCP: []nat.PortBinding{{HostPort: portStr}},
+		natUDP: []nat.PortBinding{{HostPort: portStr}},
 	}
 	exposedPorts := nat.PortSet{
 		natTCP: struct{}{},
@@ -73,6 +73,8 @@ func (r *DockerRuntime) Create(ctx context.Context, server *model.Server) error 
 		Binds:         binds,
 		PortBindings:  portBindings,
 		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+		// NET_RAW is required for tcpdump packet capture in debug mode (DEBUG_MODE=1).
+		CapAdd: []string{"NET_RAW"},
 	}, nil, nil, server.ServiceName)
 	if err != nil {
 		return fmt.Errorf("failed to create container %s: %v", server.ServiceName, err)
@@ -104,10 +106,19 @@ func (r *DockerRuntime) Delete(ctx context.Context, serverID uuid.UUID) error {
 }
 
 func (r *DockerRuntime) Start(ctx context.Context, serverID uuid.UUID) (string, error) {
-	containerID, err := r.resolveContainerID(ctx, serverID)
+	server, err := r.repo.GetByID(ctx, serverID)
+	if err != nil {
+		return "", fmt.Errorf("failed to look up server %s: %v", serverID, err)
+	}
+	if server == nil {
+		return "", fmt.Errorf("server %s not found", serverID)
+	}
+
+	containerID, err := r.ensureContainer(ctx, server)
 	if err != nil {
 		return "", err
 	}
+
 	if err := r.client.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
 		return "", fmt.Errorf("failed to start container: %v", err)
 	}
@@ -126,14 +137,42 @@ func (r *DockerRuntime) Stop(ctx context.Context, serverID uuid.UUID) (string, e
 }
 
 func (r *DockerRuntime) Restart(ctx context.Context, serverID uuid.UUID) (string, error) {
-	containerID, err := r.resolveContainerID(ctx, serverID)
+	server, err := r.repo.GetByID(ctx, serverID)
+	if err != nil {
+		return "", fmt.Errorf("failed to look up server %s: %v", serverID, err)
+	}
+	if server == nil {
+		return "", fmt.Errorf("server %s not found", serverID)
+	}
+
+	containerID, err := r.ensureContainer(ctx, server)
 	if err != nil {
 		return "", err
 	}
+
 	if err := r.client.ContainerRestart(ctx, containerID, container.StopOptions{}); err != nil {
 		return "", fmt.Errorf("failed to restart container: %v", err)
 	}
 	return model.StatusRunning.String(), nil
+}
+
+// ensureContainer returns the container ID for a server, recreating the container
+// from the server's current DB record if it no longer exists in Docker.
+func (r *DockerRuntime) ensureContainer(ctx context.Context, server *model.Server) (string, error) {
+	if server.ContainerID != "" {
+		if _, err := r.client.ContainerInspect(ctx, server.ContainerID); err == nil {
+			return server.ContainerID, nil
+		}
+		logging.Info("Container %s for server %s no longer exists, recreating", server.ContainerID[:min(12, len(server.ContainerID))], server.ID)
+	}
+
+	if err := r.Create(ctx, server); err != nil {
+		return "", fmt.Errorf("failed to recreate container: %v", err)
+	}
+	if err := r.repo.Update(ctx, server); err != nil {
+		return "", fmt.Errorf("container recreated but failed to persist container ID: %v", err)
+	}
+	return server.ContainerID, nil
 }
 
 func (r *DockerRuntime) Status(ctx context.Context, serverID uuid.UUID) (string, error) {

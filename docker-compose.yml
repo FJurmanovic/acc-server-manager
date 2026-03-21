@@ -12,7 +12,7 @@ services:
       PLATFORM: docker
       DB_NAME: /data/db/acc.db
       STEAMCMD_LINUX_PATH: /usr/games/steamcmd
-      PORT_POOL_MIN: "9601"
+      PORT_POOL_MIN: "9600"
       PORT_POOL_MAX: "9699"
       ACC_IMAGE: acc-wine:latest
       ACC_SERVERS_PATH: /data/servers

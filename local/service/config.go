@@ -476,6 +476,14 @@ func (as *ConfigService) GetConfiguration(server *model.Server) (*model.Configur
 	return &config, nil
 }
 
+func (as *ConfigService) SetIgnorePrematureDisconnects(server *model.Server, value int) error {
+	configMap := map[string]interface{}{
+		"ignorePrematureDisconnects": value,
+	}
+	_, _, err := as.updateConfigFiles(context.Background(), server, SettingsJson, &configMap, false)
+	return err
+}
+
 func (as *ConfigService) SaveConfiguration(server *model.Server, config *model.Configuration) error {
 	configMap := make(map[string]interface{})
 	configBytes, err := json.Marshal(config)

@@ -294,7 +294,7 @@ func TestController_ConfigurationModel_JSONSerialization(t *testing.T) {
 	app.Get("/config", func(c *fiber.Ctx) error {
 		config := &model.Configuration{
 			UdpPort:         model.IntString(9231),
-			TcpPort:         model.IntString(9232),
+			TcpPort:         model.IntString(9231),
 			MaxConnections:  model.IntString(30),
 			LanDiscovery:    model.IntString(1),
 			RegisterToLobby: model.IntString(1),
@@ -316,7 +316,7 @@ func TestController_ConfigurationModel_JSONSerialization(t *testing.T) {
 	tests.AssertNoError(t, err)
 
 	tests.AssertEqual(t, model.IntString(9231), response.UdpPort)
-	tests.AssertEqual(t, model.IntString(9232), response.TcpPort)
+	tests.AssertEqual(t, model.IntString(9231), response.TcpPort)
 	tests.AssertEqual(t, model.IntString(30), response.MaxConnections)
 	tests.AssertEqual(t, model.IntString(1), response.LanDiscovery)
 	tests.AssertEqual(t, model.IntString(1), response.RegisterToLobby)

@@ -574,9 +574,16 @@ func (s *ServerService) updateServerPort(server *model.Server, port int) error {
 
 	config.TcpPort = model.IntString(port)
 	config.UdpPort = model.IntString(port)
+	config.RegisterToLobby = model.IntString(1)
 
 	if err := s.configService.SaveConfiguration(server, config); err != nil {
 		return fmt.Errorf("failed to save server configuration: %v", err)
+	}
+
+	if env.IsDockerPlatform() {
+		if err := s.configService.SetIgnorePrematureDisconnects(server, 0); err != nil {
+			logging.Error("Failed to set ignorePrematureDisconnects for Docker server: %v", err)
+		}
 	}
 
 	return nil
