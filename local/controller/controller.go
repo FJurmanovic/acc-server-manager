@@ -69,4 +69,9 @@ func InitializeControllers(c *dig.Container) {
 	if err != nil {
 		logging.Panic("unable to initialize steam controller")
 	}
+
+	err = c.Invoke(NewActivityLogController)
+	if err != nil {
+		logging.Panic("unable to initialize activity log controller")
+	}
 }

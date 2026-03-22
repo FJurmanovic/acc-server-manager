@@ -1,6 +1,7 @@
 package service
 
 import (
+	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
 	"acc-server-manager/local/utl/common"
@@ -68,14 +69,16 @@ type ConfigService struct {
 	repository       *repository.ConfigRepository
 	serverRepository *repository.ServerRepository
 	serverService    *ServerService
+	activityLog      *ActivityLogService
 	configCache      *model.ServerConfigCache
 }
 
-func NewConfigService(repository *repository.ConfigRepository, serverRepository *repository.ServerRepository) *ConfigService {
+func NewConfigService(repository *repository.ConfigRepository, serverRepository *repository.ServerRepository, activityLog *ActivityLogService) *ConfigService {
 	logging.Debug("Initializing ConfigService with 5m expiration and 1s throttle")
 	return &ConfigService{
 		repository:       repository,
 		serverRepository: serverRepository,
+		activityLog:      activityLog,
 		configCache: model.NewServerConfigCache(model.CacheConfig{
 			ExpirationTime: 5 * time.Minute,
 			ThrottleTime:   1 * time.Second,
@@ -120,6 +123,13 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 		{SettingsJson, req.Settings},
 	}
 
+	userInfo, _ := ctx.Locals("userInfo").(*middleware.CachedUserInfo)
+	actorID, actorUsername := "", "system"
+	if userInfo != nil {
+		actorID = userInfo.UserID
+		actorUsername = userInfo.Username
+	}
+
 	var results []*model.Config
 	for _, entry := range entries {
 		if entry.body == nil {
@@ -137,6 +147,17 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 			ChangedAt:  time.Now(),
 		})
 		results = append(results, result)
+
+		details := BuildConfigDetails(entry.fileName, oldDataUTF8, newData)
+		go func(details string) {
+			_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
+				ServerID: serverUUID,
+				UserID:   actorID,
+				Username: actorUsername,
+				Action:   model.ActionConfigUpdate,
+				Details:  details,
+			})
+		}(details)
 	}
 
 	if len(results) > 0 {
@@ -152,7 +173,14 @@ func (as *ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface
 	configFile := ctx.Params("file")
 	override := ctx.QueryBool("override", false)
 
-	return as.updateConfigInternal(ctx.UserContext(), serverID, configFile, body, override)
+	userInfo, _ := ctx.Locals("userInfo").(*middleware.CachedUserInfo)
+	actorID, actorUsername := "", "system"
+	if userInfo != nil {
+		actorID = userInfo.UserID
+		actorUsername = userInfo.Username
+	}
+
+	return as.updateConfigInternal(ctx.UserContext(), serverID, configFile, body, override, actorID, actorUsername)
 }
 
 func (as *ConfigService) updateConfigFiles(ctx context.Context, server *model.Server, configFile string, body *map[string]interface{}, override bool) ([]byte, []byte, error) {
@@ -211,7 +239,7 @@ func (as *ConfigService) updateConfigFiles(ctx context.Context, server *model.Se
 	return oldDataUTF8, newData, nil
 }
 
-func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID string, configFile string, body *map[string]interface{}, override bool) (*model.Config, error) {
+func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID string, configFile string, body *map[string]interface{}, override bool, actorID, actorUsername string) (*model.Config, error) {
 	serverUUID, err := uuid.Parse(serverID)
 	if err != nil {
 		logging.Error("Invalid server ID format: %v", err)
@@ -230,8 +258,19 @@ func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID stri
 	}
 
 	as.configCache.InvalidateServerCache(serverID)
-
 	as.serverService.StartAccServerRuntime(server)
+
+	details := BuildConfigDetails(configFile, oldDataUTF8, newData)
+	go func() {
+		_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
+			ServerID: serverUUID,
+			UserID:   actorID,
+			Username: actorUsername,
+			Action:   model.ActionConfigUpdate,
+			Details:  details,
+		})
+	}()
+
 	return as.repository.UpdateConfig(ctx, &model.Config{
 		ServerID:   serverUUID,
 		ConfigFile: configFile,

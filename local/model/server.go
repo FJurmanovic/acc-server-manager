@@ -35,18 +35,19 @@ func (s *Server) ToServerAPI() *ServerAPI {
 }
 
 type Server struct {
-	ID           uuid.UUID     `gorm:"type:uuid;primary_key;" json:"id"`
-	Name         string        `gorm:"not null" json:"name"`
-	Status       ServiceStatus `json:"status" gorm:"-"`
-	IP           string        `gorm:"not null" json:"-"`
-	Port         int           `gorm:"not null" json:"-"`
-	Path         string        `gorm:"not null" json:"path"`
-	ServiceName  string        `gorm:"not null" json:"serviceName"`
-	Platform     string        `gorm:"not null;default:'windows'" json:"platform"`
-	ContainerID  string        `gorm:"default:''" json:"-"`
-	State        *ServerState  `gorm:"-" json:"state"`
-	DateCreated  time.Time     `json:"dateCreated"`
-	FromSteamCMD bool          `gorm:"not null; default:true" json:"-"`
+	ID           uuid.UUID         `gorm:"type:uuid;primary_key;" json:"id"`
+	Name         string            `gorm:"not null" json:"name"`
+	Status       ServiceStatus     `json:"status" gorm:"-"`
+	IP           string            `gorm:"not null" json:"-"`
+	Port         int               `gorm:"not null" json:"-"`
+	Path         string            `gorm:"not null" json:"path"`
+	ServiceName  string            `gorm:"not null" json:"serviceName"`
+	Platform     string            `gorm:"not null;default:'windows'" json:"platform"`
+	ContainerID  string            `gorm:"default:''" json:"-"`
+	State        *ServerState      `gorm:"-" json:"state"`
+	LastActivity *LastActivityInfo `gorm:"-" json:"lastActivity,omitempty"`
+	DateCreated  time.Time         `json:"dateCreated"`
+	FromSteamCMD bool              `gorm:"not null; default:true" json:"-"`
 }
 
 type PlayerState struct {
