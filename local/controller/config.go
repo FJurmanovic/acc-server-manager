@@ -2,6 +2,7 @@ package controller
 
 import (
 	"acc-server-manager/local/middleware"
+	"acc-server-manager/local/model"
 	"acc-server-manager/local/service"
 	"acc-server-manager/local/utl/common"
 	"acc-server-manager/local/utl/error_handler"
@@ -34,11 +35,60 @@ func NewConfigController(as *service.ConfigService, routeGroups *common.RouteGro
 
 	configGroup := routeGroups.Config
 	configGroup.Use(auth.Authenticate)
+	configGroup.Patch("/", ac.UpdateAllConfigs)
 	configGroup.Put("/:file", ac.UpdateConfig)
 	configGroup.Get("/:file", ac.GetConfig)
 	configGroup.Get("/", ac.GetConfigs)
 
 	return ac
+}
+
+// updateAllConfigs updates all configuration files
+//
+//	@Summary		Bulk update all server configuration files
+//	@Description	Update multiple ACC server configuration files in one request. Null or omitted sections are skipped.
+//	@Tags			Server Configuration
+//	@Accept			json
+//	@Produce		json
+//	@Param			id path string true "Server ID (UUID format)"
+//	@Param			restart query bool false "Restart the server after update"
+//	@Param			override query bool false "Override instead of merging with existing config"
+//	@Param			content body model.ConfigurationsUpdateRequest true "Configuration sections to update (null sections are skipped)"
+//	@Success		200	{array} model.Config "List of updated config audit records"
+//	@Failure		400	{object} error_handler.ErrorResponse "Invalid request or JSON format"
+//	@Failure		401	{object} error_handler.ErrorResponse "Unauthorized"
+//	@Failure		403	{object} error_handler.ErrorResponse "Insufficient permissions"
+//	@Failure		404	{object} error_handler.ErrorResponse "Server not found"
+//	@Failure		500	{object} error_handler.ErrorResponse "Internal server error"
+//	@Security		BearerAuth
+//	@Router			/server/{id}/config [patch]
+func (ac *ConfigController) UpdateAllConfigs(c *fiber.Ctx) error {
+	restart := c.QueryBool("restart")
+	serverID := c.Params("id")
+
+	if _, err := uuid.Parse(serverID); err != nil {
+		return ac.errorHandler.HandleUUIDError(c, "server ID")
+	}
+
+	c.Locals("serverId", serverID)
+
+	var req model.ConfigurationsUpdateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return ac.errorHandler.HandleParsingError(c, err)
+	}
+
+	configs, err := ac.service.UpdateAllConfigs(c, &req)
+	if err != nil {
+		return ac.errorHandler.HandleServiceError(c, err)
+	}
+
+	if restart {
+		if _, err := ac.apiService.ServiceControlRestartServer(c); err != nil {
+			logging.ErrorWithContext("CONFIG_RESTART", "Failed to restart server after bulk config update: %v", err)
+		}
+	}
+
+	return c.JSON(configs)
 }
 
 // updateConfig returns Config

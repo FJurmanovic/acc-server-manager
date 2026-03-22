@@ -40,6 +40,14 @@ type Configurations struct {
 	Settings      ServerSettings `json:"settings"`
 }
 
+type ConfigurationsUpdateRequest struct {
+	Configuration *map[string]interface{} `json:"configuration"`
+	AssistRules   *map[string]interface{} `json:"assistRules"`
+	Event         *map[string]interface{} `json:"event"`
+	EventRules    *map[string]interface{} `json:"eventRules"`
+	Settings      *map[string]interface{} `json:"settings"`
+}
+
 type ServerSettings struct {
 	ServerName                 string    `json:"serverName"`
 	AdminPassword              string    `json:"adminPassword"`

@@ -91,6 +91,62 @@ func (as *ConfigService) SetServerService(serverService *ServerService) {
 //	   		context.Context: Application context
 //		Returns:
 //			string: Application version
+func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.ConfigurationsUpdateRequest) ([]*model.Config, error) {
+	serverID := ctx.Locals("serverId").(string)
+	override := ctx.QueryBool("override", false)
+
+	serverUUID, err := uuid.Parse(serverID)
+	if err != nil {
+		logging.Error("Invalid server ID format: %v", err)
+		return nil, fmt.Errorf("invalid server ID format")
+	}
+
+	server, err := as.serverRepository.GetByID(ctx.UserContext(), serverUUID)
+	if err != nil {
+		logging.Error("Server not found")
+		return nil, fmt.Errorf("server not found")
+	}
+
+	type configEntry struct {
+		fileName string
+		body     *map[string]interface{}
+	}
+
+	entries := []configEntry{
+		{ConfigurationJson, req.Configuration},
+		{AssistRulesJson, req.AssistRules},
+		{EventJson, req.Event},
+		{EventRulesJson, req.EventRules},
+		{SettingsJson, req.Settings},
+	}
+
+	var results []*model.Config
+	for _, entry := range entries {
+		if entry.body == nil {
+			continue
+		}
+		oldDataUTF8, newData, err := as.updateConfigFiles(ctx.UserContext(), server, entry.fileName, entry.body, override)
+		if err != nil {
+			return nil, err
+		}
+		result := as.repository.UpdateConfig(ctx.UserContext(), &model.Config{
+			ServerID:   serverUUID,
+			ConfigFile: entry.fileName,
+			OldConfig:  string(oldDataUTF8),
+			NewConfig:  string(newData),
+			ChangedAt:  time.Now(),
+		})
+		results = append(results, result)
+	}
+
+	if len(results) > 0 {
+		as.configCache.InvalidateServerCache(serverID)
+		as.serverService.StartAccServerRuntime(server)
+	}
+
+	return results, nil
+}
+
 func (as *ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface{}) (*model.Config, error) {
 	serverID := ctx.Locals("serverId").(string)
 	configFile := ctx.Params("file")
