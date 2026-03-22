@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"strconv"
 	"sync"
 
 	"github.com/docker/docker/api/types"
@@ -71,4 +72,35 @@ func (s *DockerLogStreamer) Stop(serverID uuid.UUID) {
 	if v, ok := s.cancels.LoadAndDelete(serverID); ok {
 		v.(context.CancelFunc)()
 	}
+}
+
+func (s *DockerLogStreamer) GetLastLines(ctx context.Context, server *model.Server, n int) ([]string, error) {
+	if n <= 0 || server.ContainerID == "" {
+		return []string{}, nil
+	}
+
+	rc, err := s.client.ContainerLogs(ctx, server.ContainerID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       strconv.Itoa(n),
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+
+	pr, pw := io.Pipe()
+	go func() {
+		defer pw.Close()
+		if _, err := stdcopy.StdCopy(pw, pw, rc); err != nil && err != io.EOF {
+			logging.Warn("DockerLogStreamer.GetLastLines: stdcopy error for %s: %v", server.ServiceName, err)
+		}
+	}()
+
+	var lines []string
+	scanner := bufio.NewScanner(pr)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
 }

@@ -25,4 +25,5 @@ type FirewallManager interface {
 type LogStreamer interface {
 	Start(ctx context.Context, server *model.Server, handleLine func(string)) error
 	Stop(serverID uuid.UUID)
+	GetLastLines(ctx context.Context, server *model.Server, n int) ([]string, error)
 }

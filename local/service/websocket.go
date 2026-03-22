@@ -103,6 +103,16 @@ func (ws *WebSocketService) BroadcastError(serverID uuid.UUID, error string, det
 	ws.broadcastToServer(serverID, wsMsg)
 }
 
+func (ws *WebSocketService) BroadcastLogLine(serverID uuid.UUID, line string) {
+	msg := model.WebSocketMessage{
+		Type:      model.MessageTypeLogLine,
+		ServerID:  &serverID,
+		Timestamp: time.Now().Unix(),
+		Data:      model.LogLineMessage{Line: line},
+	}
+	ws.broadcastToServer(serverID, msg)
+}
+
 func (ws *WebSocketService) BroadcastComplete(serverID uuid.UUID, success bool, message string) {
 	completeMsg := model.CompleteMessage{
 		ServerID: serverID,

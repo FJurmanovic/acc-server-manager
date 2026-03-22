@@ -47,10 +47,25 @@ type pendingState struct {
 
 func (s *ServerService) ensureLogTailing(server *model.Server, instance *tracking.AccServerInstance) {
 	go func() {
-		if err := s.logStreamer.Start(context.Background(), server, instance.HandleLogLine); err != nil {
+		handleFn := func(line string) {
+			instance.HandleLogLine(line)
+			s.webSocketService.BroadcastLogLine(server.ID, line)
+		}
+		if err := s.logStreamer.Start(context.Background(), server, handleFn); err != nil {
 			logging.Error("Failed to start log streaming for server %s: %v", server.ID, err)
 		}
 	}()
+}
+
+func (s *ServerService) GetLastLogLines(ctx *fiber.Ctx, serverID uuid.UUID, n int) ([]string, error) {
+	server, err := s.repository.GetByID(ctx.UserContext(), serverID)
+	if err != nil {
+		return nil, err
+	}
+	if n <= 0 {
+		n = 100
+	}
+	return s.logStreamer.GetLastLines(ctx.UserContext(), server, n)
 }
 
 func NewServerService(
