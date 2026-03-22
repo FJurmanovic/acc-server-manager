@@ -129,6 +129,16 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 		if err != nil {
 			return nil, err
 		}
+		if entry.fileName == SettingsJson {
+			if nameVal, ok := (*entry.body)["serverName"]; ok {
+				if nameStr, ok := nameVal.(string); ok && nameStr != "" && nameStr != server.Name {
+					server.Name = nameStr
+					if err := as.serverRepository.Update(ctx.UserContext(), server); err != nil {
+						logging.Error("Failed to update server name in DB: %v", err)
+					}
+				}
+			}
+		}
 		result := as.repository.UpdateConfig(ctx.UserContext(), &model.Config{
 			ServerID:   serverUUID,
 			ConfigFile: entry.fileName,
