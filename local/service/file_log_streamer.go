@@ -53,16 +53,25 @@ func (s *FileLogStreamer) GetLastLines(_ context.Context, server *model.Server, 
 	}
 	defer f.Close()
 
-	var lines []string
+	ring := make([]string, n)
+	head := 0
+	count := 0
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+		ring[head] = scanner.Text()
+		head = (head + 1) % n
+		if count < n {
+			count++
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-	if len(lines) <= n {
-		return lines, nil
+	if count < n {
+		return ring[:count], nil
 	}
-	return lines[len(lines)-n:], nil
+	out := make([]string, n)
+	copy(out, ring[head:])
+	copy(out[n-head:], ring[:head])
+	return out, nil
 }
