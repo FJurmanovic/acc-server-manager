@@ -1,7 +1,6 @@
 package service
 
 import (
-	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
 	"acc-server-manager/local/utl/common"
@@ -123,11 +122,10 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 		{SettingsJson, req.Settings},
 	}
 
-	userInfo, _ := ctx.Locals("userInfo").(*middleware.CachedUserInfo)
-	actorID, actorUsername := "", "system"
-	if userInfo != nil {
-		actorID = userInfo.UserID
-		actorUsername = userInfo.Username
+	actorID, _ := ctx.Locals("userID").(string)
+	actorUsername, _ := ctx.Locals("actorUsername").(string)
+	if actorUsername == "" {
+		actorUsername = "system"
 	}
 
 	var results []*model.Config
@@ -148,16 +146,18 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 		})
 		results = append(results, result)
 
-		details := BuildConfigDetails(entry.fileName, oldDataUTF8, newData)
-		go func(details string) {
-			_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-				ServerID: serverUUID,
-				UserID:   actorID,
-				Username: actorUsername,
-				Action:   model.ActionConfigUpdate,
-				Details:  details,
-			})
-		}(details)
+		if as.activityLog != nil {
+			details := BuildConfigDetails(entry.fileName, oldDataUTF8, newData)
+			go func(details string) {
+				_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
+					ServerID: serverUUID,
+					UserID:   actorID,
+					Username: actorUsername,
+					Action:   model.ActionConfigUpdate,
+					Details:  details,
+				})
+			}(details)
+		}
 	}
 
 	if len(results) > 0 {
@@ -173,11 +173,10 @@ func (as *ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface
 	configFile := ctx.Params("file")
 	override := ctx.QueryBool("override", false)
 
-	userInfo, _ := ctx.Locals("userInfo").(*middleware.CachedUserInfo)
-	actorID, actorUsername := "", "system"
-	if userInfo != nil {
-		actorID = userInfo.UserID
-		actorUsername = userInfo.Username
+	actorID, _ := ctx.Locals("userID").(string)
+	actorUsername, _ := ctx.Locals("actorUsername").(string)
+	if actorUsername == "" {
+		actorUsername = "system"
 	}
 
 	return as.updateConfigInternal(ctx.UserContext(), serverID, configFile, body, override, actorID, actorUsername)
@@ -260,16 +259,18 @@ func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID stri
 	as.configCache.InvalidateServerCache(serverID)
 	as.serverService.StartAccServerRuntime(server)
 
-	details := BuildConfigDetails(configFile, oldDataUTF8, newData)
-	go func() {
-		_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-			ServerID: serverUUID,
-			UserID:   actorID,
-			Username: actorUsername,
-			Action:   model.ActionConfigUpdate,
-			Details:  details,
-		})
-	}()
+	if as.activityLog != nil {
+		details := BuildConfigDetails(configFile, oldDataUTF8, newData)
+		go func() {
+			_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
+				ServerID: serverUUID,
+				UserID:   actorID,
+				Username: actorUsername,
+				Action:   model.ActionConfigUpdate,
+				Details:  details,
+			})
+		}()
+	}
 
 	return as.repository.UpdateConfig(ctx, &model.Config{
 		ServerID:   serverUUID,

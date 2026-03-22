@@ -1,7 +1,6 @@
 package service
 
 import (
-	"acc-server-manager/local/middleware"
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/platform"
 	"acc-server-manager/local/repository"
@@ -54,11 +53,12 @@ func (as *ServiceControlService) getServerFromCtx(ctx *fiber.Ctx) (*model.Server
 }
 
 func extractActor(ctx *fiber.Ctx) (actorID, actorUsername string) {
-	userInfo, _ := ctx.Locals("userInfo").(*middleware.CachedUserInfo)
-	if userInfo != nil {
-		return userInfo.UserID, userInfo.Username
+	actorID, _ = ctx.Locals("userID").(string)
+	actorUsername, _ = ctx.Locals("actorUsername").(string)
+	if actorUsername == "" {
+		actorUsername = "system"
 	}
-	return "", "system"
+	return
 }
 
 func (as *ServiceControlService) SetServerService(serverService *ServerService) {
@@ -106,16 +106,18 @@ func (as *ServiceControlService) ServiceControlStartServer(ctx *fiber.Ctx) (stri
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
 
-	actorID, actorUsername := extractActor(ctx)
-	go func() {
-		_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-			ServerID: server.ID,
-			UserID:   actorID,
-			Username: actorUsername,
-			Action:   model.ActionServerStart,
-			Details:  `{"service":"` + serviceName + `"}`,
-		})
-	}()
+	if as.activityLog != nil {
+		actorID, actorUsername := extractActor(ctx)
+		go func() {
+			_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
+				ServerID: server.ID,
+				UserID:   actorID,
+				Username: actorUsername,
+				Action:   model.ActionServerStart,
+				Details:  `{"service":"` + serviceName + `"}`,
+			})
+		}()
+	}
 
 	return status.String(), nil
 }
@@ -141,16 +143,18 @@ func (as *ServiceControlService) ServiceControlStopServer(ctx *fiber.Ctx) (strin
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
 
-	actorID, actorUsername := extractActor(ctx)
-	go func() {
-		_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-			ServerID: server.ID,
-			UserID:   actorID,
-			Username: actorUsername,
-			Action:   model.ActionServerStop,
-			Details:  `{"service":"` + serviceName + `"}`,
-		})
-	}()
+	if as.activityLog != nil {
+		actorID, actorUsername := extractActor(ctx)
+		go func() {
+			_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
+				ServerID: server.ID,
+				UserID:   actorID,
+				Username: actorUsername,
+				Action:   model.ActionServerStop,
+				Details:  `{"service":"` + serviceName + `"}`,
+			})
+		}()
+	}
 
 	return status.String(), nil
 }
@@ -176,16 +180,18 @@ func (as *ServiceControlService) ServiceControlRestartServer(ctx *fiber.Ctx) (st
 	status := model.ParseServiceStatus(statusStr)
 	as.statusCache.UpdateStatus(serviceName, status)
 
-	actorID, actorUsername := extractActor(ctx)
-	go func() {
-		_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-			ServerID: server.ID,
-			UserID:   actorID,
-			Username: actorUsername,
-			Action:   model.ActionServerRestart,
-			Details:  `{"service":"` + serviceName + `"}`,
-		})
-	}()
+	if as.activityLog != nil {
+		actorID, actorUsername := extractActor(ctx)
+		go func() {
+			_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
+				ServerID: server.ID,
+				UserID:   actorID,
+				Username: actorUsername,
+				Action:   model.ActionServerRestart,
+				Details:  `{"service":"` + serviceName + `"}`,
+			})
+		}()
+	}
 
 	return status.String(), nil
 }
