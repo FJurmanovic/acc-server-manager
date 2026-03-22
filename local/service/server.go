@@ -388,6 +388,10 @@ func (s *ServerService) createServerBackground(ctx context.Context, server *mode
 					return "", fmt.Errorf("failed to update server configuration: %v", err)
 				}
 
+				if err := s.configService.SetServerName(server, server.Name); err != nil {
+					logging.Error("Failed to set server name in config: %v", err)
+				}
+
 				return fmt.Sprintf("Server configuration generated (Port: %d)", serverPort), nil
 			},
 		},
