@@ -464,7 +464,7 @@ func TestServerConfigCache_Configuration(t *testing.T) {
 	serverID := uuid.New().String()
 	configuration := model.Configuration{
 		UdpPort:         model.IntString(9231),
-		TcpPort:         model.IntString(9232),
+		TcpPort:         model.IntString(9231),
 		MaxConnections:  model.IntString(30),
 		LanDiscovery:    model.IntString(1),
 		RegisterToLobby: model.IntString(1),

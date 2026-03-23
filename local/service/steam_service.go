@@ -44,6 +44,14 @@ func NewSteamService(repository *repository.SteamCredentialsRepository, tfaManag
 	}
 }
 
+// getSteamCMDPath returns the platform-appropriate SteamCMD binary path.
+func getSteamCMDPath() string {
+	if env.IsDockerPlatform() {
+		return env.GetLinuxSteamCMDPath()
+	}
+	return env.GetSteamCMDPath()
+}
+
 func (s *SteamService) GetCredentials(ctx context.Context) (*model.SteamCredentials, error) {
 	return s.repository.GetCurrent(ctx)
 }
@@ -56,6 +64,11 @@ func (s *SteamService) SaveCredentials(ctx context.Context, creds *model.SteamCr
 }
 
 func (s *SteamService) ensureSteamCMD(_ context.Context) error {
+	// In Docker mode, SteamCMD is pre-installed in the manager container image.
+	if env.IsDockerPlatform() {
+		return nil
+	}
+
 	steamCMDPath := env.GetSteamCMDPath()
 	steamCMDDir := filepath.Dir(steamCMDPath)
 
@@ -92,9 +105,11 @@ func (s *SteamService) InstallServerWithWebSocket(ctx context.Context, installPa
 		return err
 	}
 
-	if err := s.pathValidator.ValidateInstallPath(installPath); err != nil {
-		wsService.BroadcastSteamOutput(*serverID, fmt.Sprintf("Invalid installation path: %v", err), true)
-		return fmt.Errorf("invalid installation path: %v", err)
+	if !env.IsDockerPlatform() {
+		if err := s.pathValidator.ValidateInstallPath(installPath); err != nil {
+			wsService.BroadcastSteamOutput(*serverID, fmt.Sprintf("Invalid installation path: %v", err), true)
+			return fmt.Errorf("invalid installation path: %v", err)
+		}
 	}
 
 	absPath, err := filepath.Abs(installPath)
@@ -117,7 +132,7 @@ func (s *SteamService) InstallServerWithWebSocket(ctx context.Context, installPa
 		return fmt.Errorf("failed to get Steam credentials: %v", err)
 	}
 
-	steamCMDPath := env.GetSteamCMDPath()
+	steamCMDPath := getSteamCMDPath()
 
 	steamCMDArgs := []string{
 		"+force_install_dir", absPath,
@@ -133,6 +148,10 @@ func (s *SteamService) InstallServerWithWebSocket(ctx context.Context, installPa
 	} else {
 		wsService.BroadcastSteamOutput(*serverID, "Using anonymous Steam login", false)
 		steamCMDArgs = append(steamCMDArgs, "anonymous")
+	}
+
+	if env.IsDockerPlatform() {
+		steamCMDArgs = append(steamCMDArgs, "+@sSteamCmdForcePlatformType", "windows")
 	}
 
 	steamCMDArgs = append(steamCMDArgs,
@@ -216,9 +235,11 @@ func (s *SteamService) InstallServerWithCallbacks(ctx context.Context, installPa
 		return err
 	}
 
-	if err := s.pathValidator.ValidateInstallPath(installPath); err != nil {
-		outputCallback(*serverID, fmt.Sprintf("Invalid installation path: %v", err), true)
-		return fmt.Errorf("invalid installation path: %v", err)
+	if !env.IsDockerPlatform() {
+		if err := s.pathValidator.ValidateInstallPath(installPath); err != nil {
+			outputCallback(*serverID, fmt.Sprintf("Invalid installation path: %v", err), true)
+			return fmt.Errorf("invalid installation path: %v", err)
+		}
 	}
 
 	absPath, err := filepath.Abs(installPath)
@@ -241,7 +262,7 @@ func (s *SteamService) InstallServerWithCallbacks(ctx context.Context, installPa
 		return fmt.Errorf("failed to get Steam credentials: %v", err)
 	}
 
-	steamCMDPath := env.GetSteamCMDPath()
+	steamCMDPath := getSteamCMDPath()
 
 	steamCMDArgs := []string{
 		"+force_install_dir", absPath,
@@ -257,6 +278,10 @@ func (s *SteamService) InstallServerWithCallbacks(ctx context.Context, installPa
 	} else {
 		outputCallback(*serverID, "Using anonymous Steam login", false)
 		steamCMDArgs = append(steamCMDArgs, "anonymous")
+	}
+
+	if env.IsDockerPlatform() {
+		steamCMDArgs = append(steamCMDArgs, "+@sSteamCmdForcePlatformType", "windows")
 	}
 
 	steamCMDArgs = append(steamCMDArgs,

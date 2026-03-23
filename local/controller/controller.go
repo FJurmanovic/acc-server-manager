@@ -64,4 +64,9 @@ func InitializeControllers(c *dig.Container) {
 	if err != nil {
 		logging.Panic("unable to initialize leaderboard controller")
 	}
+
+	err = c.Invoke(NewSteamController)
+	if err != nil {
+		logging.Panic("unable to initialize steam controller")
+	}
 }

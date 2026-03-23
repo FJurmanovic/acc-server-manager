@@ -2,6 +2,7 @@ package service
 
 import (
 	"acc-server-manager/local/model"
+	"acc-server-manager/local/platform"
 	"acc-server-manager/local/repository"
 	"context"
 	"errors"
@@ -15,20 +16,23 @@ type ServiceControlService struct {
 	serverRepository *repository.ServerRepository
 	serverService    *ServerService
 	statusCache      *model.ServerStatusCache
-	windowsService   *WindowsService
+	runtime          platform.ServerRuntime
 }
 
-func NewServiceControlService(repository *repository.ServiceControlRepository,
-	serverRepository *repository.ServerRepository) *ServiceControlService {
+func NewServiceControlService(
+	repository *repository.ServiceControlRepository,
+	serverRepository *repository.ServerRepository,
+	runtime platform.ServerRuntime,
+) *ServiceControlService {
 	return &ServiceControlService{
 		repository:       repository,
 		serverRepository: serverRepository,
+		runtime:          runtime,
 		statusCache: model.NewServerStatusCache(model.CacheConfig{
 			ExpirationTime: 30 * time.Second,
 			ThrottleTime:   5 * time.Second,
 			DefaultStatus:  model.StatusRunning,
 		}),
-		windowsService: NewWindowsService(),
 	}
 }
 
@@ -123,7 +127,11 @@ func (as *ServiceControlService) ServiceControlRestartServer(ctx *fiber.Ctx) (st
 }
 
 func (as *ServiceControlService) StatusServer(serviceName string) (string, error) {
-	return as.windowsService.Status(context.Background(), serviceName)
+	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
+	if err != nil {
+		return "", err
+	}
+	return as.runtime.Status(context.Background(), server.ID)
 }
 
 func (as *ServiceControlService) GetCachedStatus(serviceName string) (string, error) {
@@ -142,44 +150,46 @@ func (as *ServiceControlService) GetCachedStatus(serviceName string) (string, er
 }
 
 func (as *ServiceControlService) StartServer(serviceName string) (string, error) {
-	status, err := as.windowsService.Start(context.Background(), serviceName)
-	if err != nil {
-		return "", err
-	}
-
 	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
 	if err != nil {
 		return "", err
 	}
+
+	status, err := as.runtime.Start(context.Background(), server.ID)
+	if err != nil {
+		return "", err
+	}
+
 	as.serverService.StartAccServerRuntime(server)
 	return status, err
 }
 
 func (as *ServiceControlService) StopServer(serviceName string) (string, error) {
-	status, err := as.windowsService.Stop(context.Background(), serviceName)
-	if err != nil {
-		return "", err
-	}
-
 	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
 	if err != nil {
 		return "", err
 	}
-	as.serverService.instances.Delete(server.ID)
 
+	status, err := as.runtime.Stop(context.Background(), server.ID)
+	if err != nil {
+		return "", err
+	}
+
+	as.serverService.instances.Delete(server.ID)
 	return status, err
 }
 
 func (as *ServiceControlService) RestartServer(serviceName string) (string, error) {
-	status, err := as.windowsService.Restart(context.Background(), serviceName)
-	if err != nil {
-		return "", err
-	}
-
 	server, err := as.serverRepository.GetFirstByServiceName(context.Background(), serviceName)
 	if err != nil {
 		return "", err
 	}
+
+	status, err := as.runtime.Restart(context.Background(), server.ID)
+	if err != nil {
+		return "", err
+	}
+
 	as.serverService.StartAccServerRuntime(server)
 	return status, err
 }

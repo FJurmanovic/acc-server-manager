@@ -109,7 +109,7 @@ func createTestData(t *testing.T, tempDir string) *TestData {
 	configFiles := map[string]string{
 		"configuration.json": `{
 			"udpPort": "9231",
-			"tcpPort": "9232",
+			"tcpPort": "9231",
 			"maxConnections": "30",
 			"lanDiscovery": "1",
 			"registerToLobby": "1",
@@ -198,7 +198,7 @@ func createTestData(t *testing.T, tempDir string) *TestData {
 
 	sampleConfig := &model.Configuration{
 		UdpPort:         model.IntString(9231),
-		TcpPort:         model.IntString(9232),
+		TcpPort:         model.IntString(9231),
 		MaxConnections:  model.IntString(30),
 		LanDiscovery:    model.IntString(1),
 		RegisterToLobby: model.IntString(1),

@@ -1,0 +1,34 @@
+services:
+  manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: acc-server-manager:latest
+    container_name: acc-server-manager
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PLATFORM: docker
+      DB_NAME: /data/db/acc.db
+      STEAMCMD_LINUX_PATH: /usr/games/steamcmd
+      PORT_POOL_MIN: "9600"
+      PORT_POOL_MAX: "9699"
+      ACC_IMAGE: acc-wine:latest
+      ACC_SERVERS_PATH: /data/servers
+      ACC_SERVERS_HOST_PATH: /opt/acc-servers
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/acc-servers:/data/servers
+      - acc-db:/data/db
+    networks:
+      - acc-net
+
+volumes:
+  acc-db:
+
+networks:
+  acc-net:
+    driver: bridge

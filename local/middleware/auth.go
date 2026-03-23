@@ -178,6 +178,23 @@ func (m *AuthMiddleware) HasPermission(requiredPermission string) fiber.Handler 
 	}
 }
 
+func (m *AuthMiddleware) RequireSuperAdmin() fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		if os.Getenv("TESTING_ENV") == "true" {
+			return ctx.Next()
+		}
+
+		userInfo, ok := ctx.Locals("userInfo").(*CachedUserInfo)
+		if !ok || userInfo.RoleName != "Super Admin" {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Forbidden",
+			})
+		}
+
+		return ctx.Next()
+	}
+}
+
 func (m *AuthMiddleware) AuthRateLimit() fiber.Handler {
 	return m.securityMW.AuthRateLimit()
 }

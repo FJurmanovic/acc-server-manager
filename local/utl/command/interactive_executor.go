@@ -106,11 +106,12 @@ func (e *InteractiveCommandExecutor) monitorOutput(ctx context.Context, stdout, 
 	stdoutScanner := bufio.NewScanner(stdout)
 	stderrScanner := bufio.NewScanner(stderr)
 
-	outputChan := make(chan string, 100)
+	outputChan := make(chan string, 10000)
 	readersDone := make(chan struct{}, 2)
 
 	steamConsoleStarted := false
 	tfaRequestCreated := false
+	tfaAutoCompleted := false
 
 	go func() {
 		defer func() { readersDone <- struct{}{} }()
@@ -165,12 +166,13 @@ func (e *InteractiveCommandExecutor) monitorOutput(ctx context.Context, stdout, 
 			if readersFinished == 2 {
 				close(outputChan)
 				for line := range outputChan {
-					if e.is2FAPrompt(line) {
-						if err := e.handle2FAPrompt(ctx, line, serverID); err != nil {
-							logging.Error("Failed to handle 2FA prompt: %v", err)
-							done <- err
-							return
-						}
+					if e.is2FAPrompt(line) && !tfaRequestCreated {
+						tfaRequestCreated = true
+						go func(prompt string) {
+							if err := e.handle2FAPrompt(ctx, prompt, serverID); err != nil {
+								logging.Error("Failed to handle 2FA prompt: %v", err)
+							}
+						}(line)
 					}
 				}
 				return
@@ -188,28 +190,29 @@ func (e *InteractiveCommandExecutor) monitorOutput(ctx context.Context, stdout, 
 
 			if e.is2FAPrompt(line) {
 				if !tfaRequestCreated {
-					if err := e.handle2FAPrompt(ctx, line, serverID); err != nil {
-						logging.Error("Failed to handle 2FA prompt: %v", err)
-						done <- err
-						return
-					}
 					tfaRequestCreated = true
+					go func(prompt string) {
+						if err := e.handle2FAPrompt(ctx, prompt, serverID); err != nil {
+							logging.Error("Failed to handle 2FA prompt: %v", err)
+						}
+					}(line)
 				}
 			}
 
-			if tfaRequestCreated && e.isSteamContinuing(line) {
+			if tfaRequestCreated && !tfaAutoCompleted && e.isSteamContinuing(line) {
 				logging.Info("Steam CMD appears to have continued after 2FA confirmation - auto-completing 2FA request")
+				tfaAutoCompleted = true
 				e.autoCompletePendingRequests(serverID)
 			}
 		case <-time.After(15 * time.Second):
 			if steamConsoleStarted && !tfaRequestCreated {
-				logging.Info("Steam Console started but no output for 15 seconds - likely waiting for Steam Guard 2FA")
-				if err := e.handle2FAPrompt(ctx, "Steam CMD appears to be waiting for Steam Guard confirmation after startup", serverID); err != nil {
-					logging.Error("Failed to handle Steam Guard 2FA prompt: %v", err)
-					done <- err
-					return
-				}
 				tfaRequestCreated = true
+				logging.Info("Steam Console started but no output for 15 seconds - likely waiting for Steam Guard 2FA")
+				go func() {
+					if err := e.handle2FAPrompt(ctx, "Steam CMD appears to be waiting for Steam Guard confirmation after startup", serverID); err != nil {
+						logging.Error("Failed to handle Steam Guard 2FA prompt: %v", err)
+					}
+				}()
 			} else if !steamConsoleStarted {
 				logging.Info("No output for 15 seconds (Steam Console not yet started)")
 			}
@@ -220,43 +223,21 @@ func (e *InteractiveCommandExecutor) monitorOutput(ctx context.Context, stdout, 
 func (e *InteractiveCommandExecutor) is2FAPrompt(line string) bool {
 	twoFAKeywords := []string{
 		"please enter your steam guard code",
-		"steam guard",
-		"two-factor",
-		"authentication code",
+		"steam guard code",
+		"two-factor authentication",
 		"please check your steam mobile app",
-		"confirm in application",
 		"enter the current code from your steam mobile app",
 		"steam guard mobile authenticator",
-		"waiting for user info",
-		"login failure",
 		"two factor code required",
 		"enter steam guard code",
 		"mobile authenticator code",
-		"authenticator app",
-		"guard code",
-		"mobile app",
-		"confirmation required",
+		"2fa prompt detected",
 	}
 
 	lowerLine := strings.ToLower(line)
 	for _, keyword := range twoFAKeywords {
 		if strings.Contains(lowerLine, keyword) {
 			logging.Info("2FA keyword match found: '%s' in line: '%s'", keyword, line)
-			return true
-		}
-	}
-
-	waitingPatterns := []string{
-		"waiting for",
-		"please enter",
-		"enter code",
-		"code:",
-		"authenticator:",
-	}
-
-	for _, pattern := range waitingPatterns {
-		if strings.Contains(lowerLine, pattern) {
-			logging.Info("Potential 2FA waiting pattern found: '%s' in line: '%s'", pattern, line)
 			return true
 		}
 	}

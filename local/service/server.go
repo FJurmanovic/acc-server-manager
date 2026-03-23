@@ -2,17 +2,17 @@ package service
 
 import (
 	"acc-server-manager/local/model"
+	"acc-server-manager/local/platform"
 	"acc-server-manager/local/repository"
 	"acc-server-manager/local/utl/env"
 	"acc-server-manager/local/utl/logging"
+	"acc-server-manager/local/utl/network"
 	"acc-server-manager/local/utl/tracking"
 	"context"
 	"fmt"
 	"path/filepath"
 	"sync"
 	"time"
-
-	"acc-server-manager/local/utl/network"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -29,14 +29,15 @@ type ServerService struct {
 	apiService       *ServiceControlService
 	configService    *ConfigService
 	steamService     *SteamService
-	windowsService   *WindowsService
-	firewallService  *FirewallService
+	runtime          platform.ServerRuntime
+	firewall         platform.FirewallManager
+	logStreamer      platform.LogStreamer
+	portPool         *network.PortPoolManager
 	webSocketService *WebSocketService
-	instances        sync.Map // Track instances per server
-	lastInsertTimes  sync.Map // Track last insert time per server
-	debouncers       sync.Map // Track debounce timers per server
-	logTailers       sync.Map // Track log tailers per server
-	sessionIDs       sync.Map // Track current session ID per server
+	instances        sync.Map // uuid.UUID → *tracking.AccServerInstance
+	lastInsertTimes  sync.Map // uuid.UUID → time.Time
+	debouncers       sync.Map // uuid.UUID → *pendingState
+	sessionIDs       sync.Map // uuid.UUID → uuid.UUID
 }
 
 type pendingState struct {
@@ -45,16 +46,10 @@ type pendingState struct {
 }
 
 func (s *ServerService) ensureLogTailing(server *model.Server, instance *tracking.AccServerInstance) {
-	if _, exists := s.logTailers.Load(server.ID); exists {
-		return
-	}
-
 	go func() {
-		logPath := filepath.Join(server.GetLogPath(), "server.log")
-		tailer := tracking.NewLogTailer(logPath, instance.HandleLogLine)
-		s.logTailers.Store(server.ID, tailer)
-
-		tailer.Start()
+		if err := s.logStreamer.Start(context.Background(), server, instance.HandleLogLine); err != nil {
+			logging.Error("Failed to start log streaming for server %s: %v", server.ID, err)
+		}
 	}()
 }
 
@@ -64,8 +59,10 @@ func NewServerService(
 	apiService *ServiceControlService,
 	configService *ConfigService,
 	steamService *SteamService,
-	windowsService *WindowsService,
-	firewallService *FirewallService,
+	runtime platform.ServerRuntime,
+	firewall platform.FirewallManager,
+	logStreamer platform.LogStreamer,
+	portPool *network.PortPoolManager,
 	webSocketService *WebSocketService,
 ) *ServerService {
 	service := &ServerService{
@@ -74,8 +71,10 @@ func NewServerService(
 		apiService:       apiService,
 		configService:    configService,
 		steamService:     steamService,
-		windowsService:   windowsService,
-		firewallService:  firewallService,
+		runtime:          runtime,
+		firewall:         firewall,
+		logStreamer:      logStreamer,
+		portPool:         portPool,
 		webSocketService: webSocketService,
 	}
 
@@ -195,9 +194,19 @@ func (s *ServerService) updateSessionDuration(server *model.Server, sessionType 
 }
 
 func (s *ServerService) GenerateServerPath(server *model.Server) {
-	steamCMDPath := env.GetSteamCMDDirPath()
-	server.Path = server.GenerateServerPath(steamCMDPath)
-	server.FromSteamCMD = true
+	server.GenerateUUID()
+	if server.ServiceName == "" {
+		server.ServiceName = server.GenerateServiceName()
+	}
+
+	if env.IsDockerPlatform() {
+		server.Path = filepath.Join(env.GetACCServersPath(), server.ServiceName)
+		server.FromSteamCMD = true
+	} else {
+		steamCMDPath := env.GetSteamCMDDirPath()
+		server.Path = server.GenerateServerPath(steamCMDPath)
+		server.FromSteamCMD = true
+	}
 }
 
 func (s *ServerService) handleStateChange(server *model.Server, state *model.ServerState) {
@@ -250,9 +259,6 @@ func (s *ServerService) StartAccServerRuntime(server *model.Server) {
 	s.ensureLogTailing(server, instance)
 }
 
-//	   		context.Context: Application context
-//		Returns:
-//			string: Application version
 func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]model.Server, error) {
 	servers, err := s.repository.GetAll(ctx.UserContext(), filter)
 	if err != nil {
@@ -281,9 +287,6 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 	return servers, nil
 }
 
-//	   		context.Context: Application context
-//		Returns:
-//			string: Application version
 func (as *ServerService) GetById(ctx *fiber.Ctx, serverID uuid.UUID) (*model.Server, error) {
 	server, err := as.repository.GetByID(ctx.UserContext(), serverID)
 	if err != nil {
@@ -291,7 +294,7 @@ func (as *ServerService) GetById(ctx *fiber.Ctx, serverID uuid.UUID) (*model.Ser
 	}
 	status, err := as.apiService.GetCachedStatus(server.ServiceName)
 	if err != nil {
-		logging.Error(err.Error())
+		logging.Error("Failed to get cached status: %v", err)
 	}
 	server.Status = model.ParseServiceStatus(status)
 	instance, ok := as.instances.Load(server.ID)
@@ -377,12 +380,24 @@ func (s *ServerService) createServerBackground(ctx context.Context, server *mode
 			important:   true,
 			description: "",
 			callback: func() (string, error) {
-				ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
-				if err != nil {
-					return "", fmt.Errorf("failed to find available ports: %v", err)
+				var port int
+				var err error
+
+				if env.IsDockerPlatform() {
+					port, err = s.portPool.Acquire(ctx)
+					if err != nil {
+						return "", fmt.Errorf("failed to acquire port from pool: %v", err)
+					}
+				} else {
+					ports, err := network.FindAvailablePortRange(DefaultStartPort, RequiredPortCount)
+					if err != nil {
+						return "", fmt.Errorf("failed to find available ports: %v", err)
+					}
+					port = ports[0]
 				}
 
-				serverPort = ports[0]
+				serverPort = port
+				server.Port = port
 
 				if err := s.updateServerPort(server, serverPort); err != nil {
 					return "", fmt.Errorf("failed to update server configuration: %v", err)
@@ -396,12 +411,11 @@ func (s *ServerService) createServerBackground(ctx context.Context, server *mode
 			important:   true,
 			description: "",
 			callback: func() (string, error) {
-				execPath := filepath.Join(server.GetServerPath(), "accServer.exe")
-				serverWorkingDir := filepath.Join(server.GetServerPath(), "server")
-				if err := s.windowsService.CreateService(ctx, server.ServiceName, execPath, serverWorkingDir, nil); err != nil {
-					return "", fmt.Errorf("failed to create Windows service: %v", err)
+				server.Platform = env.GetPlatform()
+				if err := s.runtime.Create(ctx, server); err != nil {
+					return "", fmt.Errorf("failed to create server instance: %v", err)
 				}
-				return fmt.Sprintf("Windows service '%s' created successfully", server.ServiceName), nil
+				return fmt.Sprintf("Server instance '%s' created successfully", server.ServiceName), nil
 			},
 		},
 		{
@@ -409,13 +423,12 @@ func (s *ServerService) createServerBackground(ctx context.Context, server *mode
 			important:   false,
 			description: "",
 			callback: func() (string, error) {
-				s.configureFirewall(server)
 				tcpPorts = []int{serverPort}
 				udpPorts = []int{serverPort}
-				if err := s.firewallService.CreateServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
+				if err := s.firewall.CreateServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
 					return "", fmt.Errorf("failed to create firewall rules: %v", err)
 				}
-				return fmt.Sprintf("Firewall rules created for port %d", serverPort), nil
+				return fmt.Sprintf("Firewall rules configured for port %d", serverPort), nil
 			},
 		},
 		{
@@ -469,12 +482,18 @@ func (s *ServerService) rollbackSteps(ctx context.Context, server *model.Server,
 			s.repository.Delete(ctx, server.ID)
 		case model.StepFirewallRules:
 			if len(tcpPorts) > 0 && len(udpPorts) > 0 {
-				s.firewallService.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts)
+				s.firewall.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts)
 			}
 		case model.StepServiceCreation:
-			s.windowsService.DeleteService(ctx, server.ServiceName)
+			s.runtime.Delete(ctx, server.ID)
 		case model.StepSteamDownload:
 			s.steamService.UninstallServer(server.Path)
+		case model.StepDirectoryCreation:
+			s.steamService.UninstallServer(server.Path)
+		case model.StepConfigGeneration:
+			if env.IsDockerPlatform() && server.Port > 0 {
+				s.portPool.Release(ctx, server.Port)
+			}
 		}
 	}
 }
@@ -485,32 +504,35 @@ func (s *ServerService) DeleteServer(ctx *fiber.Ctx, serverID uuid.UUID) error {
 		return fmt.Errorf("failed to get server details: %v", err)
 	}
 
-	if err := s.windowsService.DeleteService(ctx.UserContext(), server.ServiceName); err != nil {
-		logging.Error("Failed to delete Windows service: %v", err)
+	if err := s.runtime.Delete(ctx.UserContext(), server.ID); err != nil {
+		logging.Error("Failed to delete server instance: %v", err)
 	}
 
 	configuration, err := s.configService.GetConfiguration(server)
 	if err != nil {
 		logging.Error("Failed to get configuration for server %d: %v", server.ID, err)
 	}
-	tcpPorts := []int{configuration.TcpPort.ToInt()}
-	udpPorts := []int{configuration.UdpPort.ToInt()}
-	if err := s.firewallService.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
-		logging.Error("Failed to delete firewall rules: %v", err)
+	if configuration != nil {
+		tcpPorts := []int{configuration.TcpPort.ToInt()}
+		udpPorts := []int{configuration.UdpPort.ToInt()}
+		if err := s.firewall.DeleteServerRules(server.ServiceName, tcpPorts, udpPorts); err != nil {
+			logging.Error("Failed to delete firewall rules: %v", err)
+		}
 	}
 
 	if err := s.steamService.UninstallServer(server.Path); err != nil {
 		logging.Error("Failed to uninstall server: %v", err)
 	}
 
+	if env.IsDockerPlatform() && server.Port > 0 {
+		s.portPool.Release(ctx.UserContext(), server.Port)
+	}
+
 	if err := s.repository.Delete(ctx.UserContext(), serverID); err != nil {
 		return fmt.Errorf("failed to delete server from database: %v", err)
 	}
 
-	if tailer, exists := s.logTailers.Load(server.ID); exists {
-		tailer.(*tracking.LogTailer).Stop()
-		s.logTailers.Delete(server.ID)
-	}
+	s.logStreamer.Stop(server.ID)
 	s.instances.Delete(server.ID)
 	s.lastInsertTimes.Delete(server.ID)
 	s.debouncers.Delete(server.ID)
@@ -533,7 +555,7 @@ func (s *ServerService) configureFirewall(server *model.Server) error {
 
 	logging.Info("Configuring firewall for server %d with port %d", server.ID, serverPort)
 
-	if err := s.firewallService.UpdateServerRules(server.Name, tcpPorts, udpPorts); err != nil {
+	if err := s.firewall.UpdateServerRules(server.Name, tcpPorts, udpPorts); err != nil {
 		return fmt.Errorf("failed to configure firewall: %v", err)
 	}
 
@@ -552,9 +574,16 @@ func (s *ServerService) updateServerPort(server *model.Server, port int) error {
 
 	config.TcpPort = model.IntString(port)
 	config.UdpPort = model.IntString(port)
+	config.RegisterToLobby = model.IntString(1)
 
 	if err := s.configService.SaveConfiguration(server, config); err != nil {
 		return fmt.Errorf("failed to save server configuration: %v", err)
+	}
+
+	if env.IsDockerPlatform() {
+		if err := s.configService.SetIgnorePrematureDisconnects(server, 0); err != nil {
+			logging.Error("Failed to set ignorePrematureDisconnects for Docker server: %v", err)
+		}
 	}
 
 	return nil

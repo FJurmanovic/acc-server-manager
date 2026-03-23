@@ -27,7 +27,7 @@ func TestConfigService_GetConfiguration_ValidFile(t *testing.T) {
 	tests.AssertNotNil(t, config)
 
 	tests.AssertEqual(t, model.IntString(9231), config.UdpPort)
-	tests.AssertEqual(t, model.IntString(9232), config.TcpPort)
+	tests.AssertEqual(t, model.IntString(9231), config.TcpPort)
 	tests.AssertEqual(t, model.IntString(30), config.MaxConnections)
 	tests.AssertEqual(t, model.IntString(1), config.LanDiscovery)
 	tests.AssertEqual(t, model.IntString(1), config.RegisterToLobby)
@@ -122,7 +122,7 @@ func TestConfigService_LoadConfigs_Success(t *testing.T) {
 	tests.AssertNotNil(t, configs)
 
 	tests.AssertEqual(t, model.IntString(9231), configs.Configuration.UdpPort)
-	tests.AssertEqual(t, model.IntString(9232), configs.Configuration.TcpPort)
+	tests.AssertEqual(t, model.IntString(9231), configs.Configuration.TcpPort)
 	tests.AssertEqual(t, "Test ACC Server", configs.Settings.ServerName)
 	tests.AssertEqual(t, "admin123", configs.Settings.AdminPassword)
 	tests.AssertEqual(t, "spa", configs.Event.Track)
@@ -264,7 +264,7 @@ func TestConfigService_Caching_Configuration(t *testing.T) {
 	tests.AssertNotNil(t, config2)
 
 	tests.AssertEqual(t, model.IntString(9231), config2.UdpPort)
-	tests.AssertEqual(t, model.IntString(9232), config2.TcpPort)
+	tests.AssertEqual(t, model.IntString(9231), config2.TcpPort)
 }
 
 func TestConfigService_Caching_EventConfig(t *testing.T) {
