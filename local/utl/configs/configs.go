@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	Version       = "0.12.3"
+	Version       = "0.13.0"
 	Prefix        = "v1"
 	Secret        string
 	SecretCode    string
