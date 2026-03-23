@@ -20,7 +20,7 @@ func TestConfigService_GetConfiguration_ValidFile(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	config, err := configService.GetConfiguration(helper.TestData.Server)
 	tests.AssertNoError(t, err)
@@ -43,7 +43,7 @@ func TestConfigService_GetEventConfig_ValidFile(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	eventConfig, err := configService.GetEventConfig(helper.TestData.Server)
 	tests.AssertNoError(t, err)
@@ -73,7 +73,7 @@ func TestConfigService_SaveConfiguration_Success(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	newConfig := &model.Configuration{
 		UdpPort:         model.IntString(9999),
@@ -115,7 +115,7 @@ func TestConfigService_LoadConfigs_Success(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	configs, err := configService.LoadConfigs(helper.TestData.Server)
 	tests.AssertNoError(t, err)
@@ -142,7 +142,7 @@ func TestConfigService_MalformedJSON(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	config, err := configService.GetConfiguration(helper.TestData.Server)
 	if err == nil {
@@ -245,7 +245,7 @@ func TestConfigService_Caching_Configuration(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	config1, err := configService.GetConfiguration(helper.TestData.Server)
 	tests.AssertNoError(t, err)
@@ -276,7 +276,7 @@ func TestConfigService_Caching_EventConfig(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	event1, err := configService.GetEventConfig(helper.TestData.Server)
 	tests.AssertNoError(t, err)

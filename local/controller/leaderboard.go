@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
+
 type LeaderboardController struct {
 	service      *service.LeaderboardService
 	errorHandler *error_handler.ControllerErrorHandler
@@ -60,7 +61,14 @@ func (lc *LeaderboardController) Update(c *fiber.Ctx) error {
 		return lc.errorHandler.HandleParsingError(c, err)
 	}
 
-	data, err := lc.service.Update(c.UserContext(), serverID, &input)
+	userInfo, _ := c.Locals("userInfo").(*middleware.CachedUserInfo)
+	actorID, actorUsername := "", "system"
+	if userInfo != nil {
+		actorID = userInfo.UserID
+		actorUsername = userInfo.Username
+	}
+
+	data, err := lc.service.Update(c.UserContext(), serverID, &input, actorID, actorUsername)
 	if err != nil {
 		return lc.errorHandler.HandleServiceError(c, err)
 	}

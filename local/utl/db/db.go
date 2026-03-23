@@ -54,6 +54,7 @@ func Migrate(db *gorm.DB) {
 		&model.LeaderboardRace{},
 		&model.LeaderboardResult{},
 		&model.LeaderboardPointRow{},
+		&model.ActivityLog{},
 	)
 
 	if err != nil {
@@ -78,6 +79,10 @@ func runMigrations(db *gorm.DB) {
 
 	if err := migrations.RunAddPlatformColumnsMigration(db); err != nil {
 		logging.Error("Failed to run platform columns migration: %v", err)
+	}
+
+	if err := migrations.RunAddActivityLogMigration(db); err != nil {
+		logging.Error("Failed to run activity log migration: %v", err)
 	}
 
 	logging.Info("Custom database migrations completed")

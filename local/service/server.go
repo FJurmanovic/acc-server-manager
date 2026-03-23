@@ -26,12 +26,13 @@ const (
 type ServerService struct {
 	repository       *repository.ServerRepository
 	stateHistoryRepo *repository.StateHistoryRepository
+	activityLogRepo  *repository.ActivityLogRepository
 	apiService       *ServiceControlService
 	configService    *ConfigService
 	steamService     *SteamService
 	runtime          platform.ServerRuntime
 	firewall         platform.FirewallManager
-	logStreamer      platform.LogStreamer
+	logStreamer       platform.LogStreamer
 	portPool         *network.PortPoolManager
 	webSocketService *WebSocketService
 	instances        sync.Map // uuid.UUID → *tracking.AccServerInstance
@@ -56,6 +57,7 @@ func (s *ServerService) ensureLogTailing(server *model.Server, instance *trackin
 func NewServerService(
 	repository *repository.ServerRepository,
 	stateHistoryRepo *repository.StateHistoryRepository,
+	activityLogRepo *repository.ActivityLogRepository,
 	apiService *ServiceControlService,
 	configService *ConfigService,
 	steamService *SteamService,
@@ -68,6 +70,7 @@ func NewServerService(
 	service := &ServerService{
 		repository:       repository,
 		stateHistoryRepo: stateHistoryRepo,
+		activityLogRepo:  activityLogRepo,
 		apiService:       apiService,
 		configService:    configService,
 		steamService:     steamService,
@@ -266,6 +269,16 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 		return nil, err
 	}
 
+	// Collect server IDs for a single last-activity lookup.
+	serverIDs := make([]uuid.UUID, len(*servers))
+	for i, srv := range *servers {
+		serverIDs[i] = srv.ID
+	}
+	lastActivities, laErr := s.activityLogRepo.GetLastActivityByServerIDs(ctx.UserContext(), serverIDs)
+	if laErr != nil {
+		logging.Error("Failed to get last activities for server list: %v", laErr)
+	}
+
 	for i := range *servers {
 		server := &(*servers)[i]
 		status, err := s.apiService.GetCachedStatus(server.ServiceName)
@@ -280,6 +293,11 @@ func (s *ServerService) GetAll(ctx *fiber.Ctx, filter *model.ServerFilter) (*[]m
 			serverInstance := instance.(*tracking.AccServerInstance)
 			if serverInstance.State != nil {
 				server.State = serverInstance.State
+			}
+		}
+		if lastActivities != nil {
+			if info, ok := lastActivities[server.ID]; ok {
+				server.LastActivity = info
 			}
 		}
 	}

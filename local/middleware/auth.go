@@ -115,6 +115,7 @@ func (m *AuthMiddleware) AuthenticateWithHandler(jwtHandler *jwt.JWTHandler, isO
 	if os.Getenv("TESTING_ENV") == "true" {
 		userInfo := CachedUserInfo{UserID: uuid.New().String(), Username: "test@example.com", RoleName: "Admin", Permissions: make(map[string]bool), CachedAt: time.Now()}
 		ctx.Locals("userID", userInfo.UserID)
+		ctx.Locals("actorUsername", userInfo.Username)
 		ctx.Locals("userInfo", userInfo)
 		ctx.Locals("authTime", time.Now())
 	} else {
@@ -127,6 +128,7 @@ func (m *AuthMiddleware) AuthenticateWithHandler(jwtHandler *jwt.JWTHandler, isO
 		}
 
 		ctx.Locals("userID", claims.UserID)
+		ctx.Locals("actorUsername", userInfo.Username)
 		ctx.Locals("userInfo", userInfo)
 		ctx.Locals("authTime", time.Now())
 	}
