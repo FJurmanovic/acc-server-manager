@@ -73,5 +73,9 @@ func InitializeControllers(c *dig.Container) {
 	err = c.Invoke(NewActivityLogController)
 	if err != nil {
 		logging.Panic("unable to initialize activity log controller")
+		
+	err = c.Invoke(NewLogController)
+	if err != nil {
+		logging.Panic("unable to initialize log controller")
 	}
 }

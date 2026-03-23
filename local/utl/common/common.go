@@ -30,6 +30,7 @@ type RouteGroups struct {
 	Steam        fiber.Router
 	ActivityLog  fiber.Router
 	Groups       fiber.Router
+	Log          fiber.Router
 }
 
 func CheckError(err error) {

@@ -36,6 +36,7 @@ func Init(di *dig.Container, app *fiber.App) {
 		Steam:        groups.Group("/steam"),
 		ActivityLog:  serverIdGroup.Group("/activity-log"),
 		Groups:       groups,
+		Log:          serverIdGroup.Group("/log"),
 	}
 
 	accessKeyMiddleware := middleware.NewAccessKeyMiddleware()
