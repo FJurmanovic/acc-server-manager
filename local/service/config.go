@@ -137,6 +137,16 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 		if err != nil {
 			return nil, err
 		}
+		if entry.fileName == SettingsJson {
+			if nameVal, ok := (*entry.body)["serverName"]; ok {
+				if nameStr, ok := nameVal.(string); ok && nameStr != "" && nameStr != server.Name {
+					server.Name = nameStr
+					if err := as.serverRepository.Update(ctx.UserContext(), server); err != nil {
+						logging.Error("Failed to update server name in DB: %v", err)
+					}
+				}
+			}
+		}
 		result := as.repository.UpdateConfig(ctx.UserContext(), &model.Config{
 			ServerID:   serverUUID,
 			ConfigFile: entry.fileName,
@@ -254,6 +264,17 @@ func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID stri
 	oldDataUTF8, newData, err := as.updateConfigFiles(ctx, server, configFile, body, override)
 	if err != nil {
 		return nil, err
+	}
+
+	if configFile == SettingsJson {
+		if nameVal, ok := (*body)["serverName"]; ok {
+			if nameStr, ok := nameVal.(string); ok && nameStr != "" && nameStr != server.Name {
+				server.Name = nameStr
+				if err := as.serverRepository.Update(ctx, server); err != nil {
+					logging.Error("Failed to update server name in DB: %v", err)
+				}
+			}
+		}
 	}
 
 	as.configCache.InvalidateServerCache(serverID)
@@ -535,5 +556,13 @@ func (as *ConfigService) SaveConfiguration(server *model.Server, config *model.C
 	}
 
 	_, _, err = as.updateConfigFiles(context.Background(), server, ConfigurationJson, &configMap, true)
+	return err
+}
+
+func (as *ConfigService) SetServerName(server *model.Server, name string) error {
+	configMap := map[string]interface{}{
+		"serverName": name,
+	}
+	_, _, err := as.updateConfigFiles(context.Background(), server, SettingsJson, &configMap, false)
 	return err
 }
