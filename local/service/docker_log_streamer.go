@@ -8,6 +8,7 @@ import (
 	"io"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	dockerclient "github.com/docker/docker/client"
@@ -25,14 +26,14 @@ func NewDockerLogStreamer(client *dockerclient.Client) *DockerLogStreamer {
 }
 
 func (s *DockerLogStreamer) Start(ctx context.Context, server *model.Server, handleLine func(string)) error {
-	if _, exists := s.cancels.Load(server.ID); exists {
-		return nil
-	}
+	s.Stop(server.ID)
+
 	if server.ContainerID == "" {
 		logging.Warn("DockerLogStreamer.Start: no container ID for server %s, skipping", server.ID)
 		return nil
 	}
 
+	since := time.Now().UTC().Format(time.RFC3339)
 	streamCtx, cancel := context.WithCancel(ctx)
 	s.cancels.Store(server.ID, cancel)
 
@@ -44,6 +45,7 @@ func (s *DockerLogStreamer) Start(ctx context.Context, server *model.Server, han
 			ShowStderr: true,
 			Follow:     true,
 			Timestamps: false,
+			Since:      since,
 		})
 		if err != nil {
 			logging.Error("DockerLogStreamer: failed to attach to container %s: %v", server.ContainerID[:12], err)
