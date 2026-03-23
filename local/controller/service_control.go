@@ -29,6 +29,7 @@ func NewServiceControlController(as *service.ServiceControlService, routeGroups 
 	}
 
 	serviceRoutes := routeGroups.Server.Group("/:id/service")
+	serviceRoutes.Use(auth.Authenticate)
 	serviceRoutes.Get("/:service", ac.getStatus)
 	serviceRoutes.Post("/start", ac.startServer)
 	serviceRoutes.Post("/stop", ac.stopServer)

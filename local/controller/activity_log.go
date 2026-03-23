@@ -21,34 +21,10 @@ func NewActivityLogController(as *service.ActivityLogService, routeGroups *commo
 		errorHandler: error_handler.NewControllerErrorHandler(),
 	}
 
-	// Per-server activity log: GET /server/:id/activity-log
-	routeGroups.ActivityLog.Use(auth.Authenticate)
-	routeGroups.ActivityLog.Get("/", ac.GetServerLogs)
-
 	// Global activity log: GET /activity-log (admin use)
 	routeGroups.Groups.Group("/activity-log").Use(auth.Authenticate).Get("/", ac.GetAllLogs)
 
 	return ac
-}
-
-// GetServerLogs returns activity logs for a specific server.
-//
-//	@Summary		Return activity logs for a server
-//	@Tags			ActivityLog
-//	@Success		200	{array}	model.ActivityLog
-//	@Router			/server/{id}/activity-log [get]
-func (ac *ActivityLogController) GetServerLogs(c *fiber.Ctx) error {
-	var filter model.ActivityLogFilter
-	if err := common.ParseQueryFilter(c, &filter); err != nil {
-		return ac.errorHandler.HandleValidationError(c, err, "query_filter")
-	}
-
-	result, err := ac.service.GetAll(c.UserContext(), &filter)
-	if err != nil {
-		return ac.errorHandler.HandleServiceError(c, err)
-	}
-
-	return c.JSON(result)
 }
 
 // GetAllLogs returns activity logs across all servers (admin).

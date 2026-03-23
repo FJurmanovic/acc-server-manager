@@ -3,6 +3,7 @@ package repository
 import (
 	"acc-server-manager/local/model"
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,7 +25,27 @@ func (r *ActivityLogRepository) Insert(ctx context.Context, entry *model.Activit
 }
 
 func (r *ActivityLogRepository) GetAll(ctx context.Context, filter *model.ActivityLogFilter) (*[]model.ActivityLog, error) {
-	return r.BaseRepository.GetAll(ctx, filter)
+	result := &[]model.ActivityLog{}
+	query := r.BaseRepository.db.WithContext(ctx).
+		Model(&model.ActivityLog{}).
+		Preload("Server")
+
+	query = filter.ApplyFilter(query)
+
+	offset, limit := filter.Pagination()
+	query = query.Offset(offset).Limit(limit)
+
+	field, desc := filter.GetSorting()
+	if desc {
+		query = query.Order(field + " DESC")
+	} else {
+		query = query.Order(field)
+	}
+
+	if err := query.Find(result).Error; err != nil {
+		return nil, fmt.Errorf("error getting activity logs: %w", err)
+	}
+	return result, nil
 }
 
 type lastActivityRow struct {

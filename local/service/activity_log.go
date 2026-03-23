@@ -57,6 +57,9 @@ func BuildConfigDetails(file string, oldJSON, newJSON []byte) string {
 		}
 	}
 
+	if len(changedKeys) == 0 {
+		return ""
+	}
 	keysJSON, _ := json.Marshal(changedKeys)
 	return fmt.Sprintf(`{"file":%q,"changed_keys":%s}`, file, string(keysJSON))
 }

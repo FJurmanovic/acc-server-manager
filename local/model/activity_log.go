@@ -20,6 +20,7 @@ const (
 type ActivityLog struct {
 	ID        uuid.UUID  `json:"id"        gorm:"type:uuid;primary_key;"`
 	ServerID  uuid.UUID  `json:"serverId"  gorm:"not null;type:uuid;index"`
+	Server    *Server    `json:"server,omitempty" gorm:"foreignKey:ServerID"`
 	UserID    string     `json:"userId"    gorm:"not null"`
 	Username  string     `json:"username"  gorm:"not null"`
 	Action    ActionType `json:"action"    gorm:"not null"`
@@ -39,10 +40,10 @@ func (a *ActivityLog) BeforeCreate(tx *gorm.DB) error {
 
 type ActivityLogFilter struct {
 	BaseFilter
-	ServerBasedFilter
 	DateRangeFilter
-	UserID string     `query:"user_id"`
-	Action ActionType `query:"action"`
+	UserID   string     `query:"user_id"`
+	Action   ActionType `query:"action"`
+	ServerID string     `query:"server_id"`
 }
 
 func (f *ActivityLogFilter) ApplyFilter(query *gorm.DB) *gorm.DB {
