@@ -15,6 +15,8 @@ const (
 	ActionServerStop        ActionType = "server_stop"
 	ActionServerRestart     ActionType = "server_restart"
 	ActionLeaderboardUpdate ActionType = "leaderboard_update"
+	ActionPresetCreate      ActionType = "preset_create"
+	ActionPresetApply       ActionType = "preset_apply"
 )
 
 type ActivityLog struct {

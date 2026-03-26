@@ -3,6 +3,7 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
+	"acc-server-manager/local/utl/logging"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -19,12 +20,14 @@ const (
 type ConfigPresetService struct {
 	repository    *repository.ConfigPresetRepository
 	configService *ConfigService
+	activityLog   *ActivityLogService
 }
 
-func NewConfigPresetService(repo *repository.ConfigPresetRepository, configService *ConfigService) *ConfigPresetService {
+func NewConfigPresetService(repo *repository.ConfigPresetRepository, configService *ConfigService, activityLog *ActivityLogService) *ConfigPresetService {
 	return &ConfigPresetService{
 		repository:    repo,
 		configService: configService,
+		activityLog:   activityLog,
 	}
 }
 
@@ -66,6 +69,8 @@ func (s *ConfigPresetService) CreatePreset(ctx context.Context, req *model.Confi
 	if err := s.repository.Insert(ctx, preset); err != nil {
 		return nil, err
 	}
+
+	logging.Info("Preset created: id=%s name=%q", preset.ID, preset.Name)
 	return preset, nil
 }
 
@@ -110,6 +115,11 @@ func (s *ConfigPresetService) ApplyPreset(ctx context.Context, serverID string, 
 		return nil, err
 	}
 
+	serverUUID, err := uuid.Parse(serverID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid server ID: %v", err)
+	}
+
 	type sectionEntry struct {
 		fileName string
 		raw      string
@@ -140,6 +150,19 @@ func (s *ConfigPresetService) ApplyPreset(ctx context.Context, serverID string, 
 			results = append(results, result)
 		}
 	}
+
+	details := fmt.Sprintf(`{"preset_id":%q,"preset_name":%q,"sections_applied":%d}`, presetID, preset.Name, len(results))
+	go func() {
+		if logErr := s.activityLog.Log(context.Background(), &model.ActivityLog{
+			ServerID: serverUUID,
+			UserID:   actorID,
+			Username: actorUsername,
+			Action:   model.ActionPresetApply,
+			Details:  details,
+		}); logErr != nil {
+			logging.Error("Failed to log preset apply: %v", logErr)
+		}
+	}()
 
 	return results, nil
 }
