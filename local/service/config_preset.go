@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	presetMaxNameLen        = 100
-	presetMaxDescLen        = 500
-	presetMaxSectionBytes   = 64 * 1024 // 64 KB per config section
+	presetMaxNameLen      = 100
+	presetMaxDescLen      = 500
+	presetMaxSectionBytes = 64 * 1024 // 64 KB per config section
 )
 
 type ConfigPresetService struct {
@@ -46,7 +46,7 @@ func (s *ConfigPresetService) GetPreset(ctx context.Context, id uuid.UUID) (*mod
 	return preset, nil
 }
 
-func (s *ConfigPresetService) CreatePreset(ctx context.Context, req *model.ConfigPresetCreateRequest) (*model.ConfigPreset, error) {
+func (s *ConfigPresetService) CreatePreset(ctx context.Context, req *model.ConfigPresetCreateRequest, actorID, actorUsername string) (*model.ConfigPreset, error) {
 	if req.Name == "" {
 		return nil, fmt.Errorf("preset name is required")
 	}
@@ -70,7 +70,18 @@ func (s *ConfigPresetService) CreatePreset(ctx context.Context, req *model.Confi
 		return nil, err
 	}
 
-	logging.Info("Preset created: id=%s name=%q", preset.ID, preset.Name)
+	details := fmt.Sprintf(`{"preset_id":%q,"preset_name":%q}`, preset.ID, preset.Name)
+	go func() {
+		if logErr := s.activityLog.Log(context.Background(), &model.ActivityLog{
+			UserID:   actorID,
+			Username: actorUsername,
+			Action:   model.ActionPresetCreate,
+			Details:  details,
+		}); logErr != nil {
+			logging.Error("Failed to log preset create: %v", logErr)
+		}
+	}()
+
 	return preset, nil
 }
 
@@ -154,7 +165,7 @@ func (s *ConfigPresetService) ApplyPreset(ctx context.Context, serverID string, 
 	details := fmt.Sprintf(`{"preset_id":%q,"preset_name":%q,"sections_applied":%d}`, presetID, preset.Name, len(results))
 	go func() {
 		if logErr := s.activityLog.Log(context.Background(), &model.ActivityLog{
-			ServerID: serverUUID,
+			ServerID: &serverUUID,
 			UserID:   actorID,
 			Username: actorUsername,
 			Action:   model.ActionPresetApply,

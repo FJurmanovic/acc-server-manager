@@ -160,7 +160,7 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 			if details := BuildConfigDetails(entry.fileName, oldDataUTF8, newData); details != "" {
 				go func(details string) {
 					_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-						ServerID: serverUUID,
+						ServerID: &serverUUID,
 						UserID:   actorID,
 						Username: actorUsername,
 						Action:   model.ActionConfigUpdate,
@@ -285,7 +285,7 @@ func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID stri
 		if details := BuildConfigDetails(configFile, oldDataUTF8, newData); details != "" {
 			go func() {
 				_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-					ServerID: serverUUID,
+					ServerID: &serverUUID,
 					UserID:   actorID,
 					Username: actorUsername,
 					Action:   model.ActionConfigUpdate,

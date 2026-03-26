@@ -117,7 +117,13 @@ func (c *ConfigPresetController) CreatePreset(ctx *fiber.Ctx) error {
 		return c.errorHandler.HandleParsingError(ctx, err)
 	}
 
-	preset, err := c.service.CreatePreset(ctx.UserContext(), &req)
+	actorID, _ := ctx.Locals("userID").(string)
+	actorUsername, _ := ctx.Locals("actorUsername").(string)
+	if actorUsername == "" {
+		actorUsername = "system"
+	}
+
+	preset, err := c.service.CreatePreset(ctx.UserContext(), &req, actorID, actorUsername)
 	if err != nil {
 		return c.errorHandler.HandleServiceError(ctx, err)
 	}

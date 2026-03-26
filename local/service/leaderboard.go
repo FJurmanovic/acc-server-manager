@@ -45,7 +45,7 @@ func (s *LeaderboardService) Update(ctx context.Context, serverID uuid.UUID, lb 
 	details := fmt.Sprintf(`{"driver_count":%d,"race_count":%d}`, driverCount, raceCount)
 	go func() {
 		if logErr := s.activityLog.Log(context.Background(), &model.ActivityLog{
-			ServerID: serverID,
+			ServerID: &serverID,
 			UserID:   actorID,
 			Username: actorUsername,
 			Action:   model.ActionLeaderboardUpdate,
