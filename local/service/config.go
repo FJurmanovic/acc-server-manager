@@ -561,6 +561,12 @@ func (as *ConfigService) SaveConfiguration(server *model.Server, config *model.C
 	return err
 }
 
+// ApplySection writes a single config section to the server's config file and
+// records the change. It is used by ConfigPresetService to apply preset sections.
+func (as *ConfigService) ApplySection(ctx context.Context, serverID, configFile string, body *map[string]interface{}, actorID, actorUsername string) (*model.Config, error) {
+	return as.updateConfigInternal(ctx, serverID, configFile, body, false, actorID, actorUsername)
+}
+
 func (as *ConfigService) SetServerName(server *model.Server, name string) error {
 	configMap := map[string]interface{}{
 		"serverName": name,

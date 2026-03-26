@@ -30,6 +30,18 @@ type ConfigFilter struct {
 	ChangedAt  time.Time `query:"changed_at" time_format:"2006-01-02T15:04:05Z07:00"`
 }
 
+type ConfigPresetFilter struct {
+	BaseFilter
+	Name string `query:"name"`
+}
+
+func (f *ConfigPresetFilter) ApplyFilter(query *gorm.DB) *gorm.DB {
+	if f.Name != "" {
+		query = query.Where("name LIKE ?", "%"+f.Name+"%")
+	}
+	return query
+}
+
 type ServiceControlFilter struct {
 	BaseFilter
 	ServiceControl string `query:"serviceControl"`

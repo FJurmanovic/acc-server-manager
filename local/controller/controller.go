@@ -35,6 +35,11 @@ func InitializeControllers(c *dig.Container) {
 		logging.Panic("unable to initialize config controller")
 	}
 
+	err = c.Invoke(NewConfigPresetController)
+	if err != nil {
+		logging.Panic("unable to initialize config preset controller")
+	}
+
 	err = c.Invoke(NewServerController)
 	if err != nil {
 		logging.Panic("unable to initialize server controller")
