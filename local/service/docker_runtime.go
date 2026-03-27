@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	dockerclient "github.com/docker/docker/client"
@@ -94,7 +93,7 @@ func (r *DockerRuntime) Delete(ctx context.Context, serverID uuid.UUID) error {
 		return nil
 	}
 
-	err = r.client.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{
+	err = r.client.ContainerRemove(ctx, containerID, container.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: false,
 	})
@@ -119,7 +118,7 @@ func (r *DockerRuntime) Start(ctx context.Context, serverID uuid.UUID) (string, 
 		return "", err
 	}
 
-	if err := r.client.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+	if err := r.client.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return "", fmt.Errorf("failed to start container: %v", err)
 	}
 	return model.StatusRunning.String(), nil
@@ -209,7 +208,7 @@ func (r *DockerRuntime) resolveContainerID(ctx context.Context, serverID uuid.UU
 }
 
 func (r *DockerRuntime) findContainerByName(ctx context.Context, name string) (string, error) {
-	containers, err := r.client.ContainerList(ctx, types.ContainerListOptions{
+	containers, err := r.client.ContainerList(ctx, container.ListOptions{
 		All:     true,
 		Filters: filters.NewArgs(filters.Arg("name", "/"+name)),
 	})

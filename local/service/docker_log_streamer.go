@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/google/uuid"
@@ -40,7 +40,7 @@ func (s *DockerLogStreamer) Start(ctx context.Context, server *model.Server, han
 	go func() {
 		defer s.cancels.Delete(server.ID)
 
-		rc, err := s.client.ContainerLogs(streamCtx, server.ContainerID, types.ContainerLogsOptions{
+		rc, err := s.client.ContainerLogs(streamCtx, server.ContainerID, container.LogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 			Follow:     true,
@@ -81,7 +81,7 @@ func (s *DockerLogStreamer) GetLastLines(ctx context.Context, server *model.Serv
 		return []string{}, nil
 	}
 
-	rc, err := s.client.ContainerLogs(ctx, server.ContainerID, types.ContainerLogsOptions{
+	rc, err := s.client.ContainerLogs(ctx, server.ContainerID, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Tail:       strconv.Itoa(n),
