@@ -160,7 +160,7 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 			if details := BuildConfigDetails(entry.fileName, oldDataUTF8, newData); details != "" {
 				go func(details string) {
 					_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-						ServerID: serverUUID,
+						ServerID: &serverUUID,
 						UserID:   actorID,
 						Username: actorUsername,
 						Action:   model.ActionConfigUpdate,
@@ -285,7 +285,7 @@ func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID stri
 		if details := BuildConfigDetails(configFile, oldDataUTF8, newData); details != "" {
 			go func() {
 				_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-					ServerID: serverUUID,
+					ServerID: &serverUUID,
 					UserID:   actorID,
 					Username: actorUsername,
 					Action:   model.ActionConfigUpdate,
@@ -559,6 +559,12 @@ func (as *ConfigService) SaveConfiguration(server *model.Server, config *model.C
 
 	_, _, err = as.updateConfigFiles(context.Background(), server, ConfigurationJson, &configMap, true)
 	return err
+}
+
+// ApplySection writes a single config section to the server's config file and
+// records the change. It is used by ConfigPresetService to apply preset sections.
+func (as *ConfigService) ApplySection(ctx context.Context, serverID, configFile string, body *map[string]interface{}, actorID, actorUsername string) (*model.Config, error) {
+	return as.updateConfigInternal(ctx, serverID, configFile, body, true, actorID, actorUsername)
 }
 
 func (as *ConfigService) SetServerName(server *model.Server, name string) error {

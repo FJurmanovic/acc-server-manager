@@ -37,6 +37,7 @@ func Init(di *dig.Container, app *fiber.App) {
 		ActivityLog:  serverIdGroup.Group("/activity-log"),
 		Groups:       groups,
 		Log:          serverIdGroup.Group("/log"),
+		Presets:      groups.Group("/presets"),
 	}
 
 	accessKeyMiddleware := middleware.NewAccessKeyMiddleware()

@@ -15,11 +15,13 @@ const (
 	ActionServerStop        ActionType = "server_stop"
 	ActionServerRestart     ActionType = "server_restart"
 	ActionLeaderboardUpdate ActionType = "leaderboard_update"
+	ActionPresetCreate      ActionType = "preset_create"
+	ActionPresetApply       ActionType = "preset_apply"
 )
 
 type ActivityLog struct {
 	ID        uuid.UUID  `json:"id"        gorm:"type:uuid;primary_key;"`
-	ServerID  uuid.UUID  `json:"serverId"  gorm:"not null;type:uuid;index"`
+	ServerID  *uuid.UUID `json:"serverId"  gorm:"type:uuid;index"`
 	Server    *Server    `json:"server,omitempty" gorm:"foreignKey:ServerID"`
 	UserID    string     `json:"userId"    gorm:"not null"`
 	Username  string     `json:"username"  gorm:"not null"`

@@ -24,6 +24,11 @@ const (
 	MembershipCreate = "membership.create"
 	MembershipView   = "membership.view"
 	MembershipEdit   = "membership.edit"
+
+	PresetView   = "preset.view"
+	PresetCreate = "preset.create"
+	PresetUpdate = "preset.update"
+	PresetDelete = "preset.delete"
 )
 
 func AllPermissions() []string {
@@ -47,5 +52,9 @@ func AllPermissions() []string {
 		MembershipCreate,
 		MembershipView,
 		MembershipEdit,
+		PresetView,
+		PresetCreate,
+		PresetUpdate,
+		PresetDelete,
 	}
 }

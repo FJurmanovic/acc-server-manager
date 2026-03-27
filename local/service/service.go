@@ -32,6 +32,7 @@ func InitializeServices(c *dig.Container) {
 	c.Provide(NewMembershipService)
 	c.Provide(NewWebSocketService)
 	c.Provide(NewLeaderboardService)
+	c.Provide(NewConfigPresetService)
 
 	// Always provide the PortPoolManager; in Windows mode it seeds from an
 	// empty result set and sits idle.

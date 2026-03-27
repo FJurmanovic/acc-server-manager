@@ -31,6 +31,7 @@ type RouteGroups struct {
 	ActivityLog  fiber.Router
 	Groups       fiber.Router
 	Log          fiber.Router
+	Presets      fiber.Router
 }
 
 func CheckError(err error) {

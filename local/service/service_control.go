@@ -110,7 +110,7 @@ func (as *ServiceControlService) ServiceControlStartServer(ctx *fiber.Ctx) (stri
 		actorID, actorUsername := extractActor(ctx)
 		go func() {
 			_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-				ServerID: server.ID,
+				ServerID: &server.ID,
 				UserID:   actorID,
 				Username: actorUsername,
 				Action:   model.ActionServerStart,
@@ -147,7 +147,7 @@ func (as *ServiceControlService) ServiceControlStopServer(ctx *fiber.Ctx) (strin
 		actorID, actorUsername := extractActor(ctx)
 		go func() {
 			_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-				ServerID: server.ID,
+				ServerID: &server.ID,
 				UserID:   actorID,
 				Username: actorUsername,
 				Action:   model.ActionServerStop,
@@ -184,7 +184,7 @@ func (as *ServiceControlService) ServiceControlRestartServer(ctx *fiber.Ctx) (st
 		actorID, actorUsername := extractActor(ctx)
 		go func() {
 			_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
-				ServerID: server.ID,
+				ServerID: &server.ID,
 				UserID:   actorID,
 				Username: actorUsername,
 				Action:   model.ActionServerRestart,
