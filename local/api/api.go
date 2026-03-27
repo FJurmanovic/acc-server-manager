@@ -33,6 +33,11 @@ func Init(di *dig.Container, app *fiber.App) {
 		System:       groups.Group("/system"),
 		WebSocket:    groups.Group("/ws"),
 		Leaderboard:  serverIdGroup.Group("/leaderboard"),
+		Steam:        groups.Group("/steam"),
+		ActivityLog:  serverIdGroup.Group("/activity-log"),
+		Groups:       groups,
+		Log:          serverIdGroup.Group("/log"),
+		Presets:      groups.Group("/presets"),
 	}
 
 	accessKeyMiddleware := middleware.NewAccessKeyMiddleware()

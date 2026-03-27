@@ -35,6 +35,11 @@ func InitializeControllers(c *dig.Container) {
 		logging.Panic("unable to initialize config controller")
 	}
 
+	err = c.Invoke(NewConfigPresetController)
+	if err != nil {
+		logging.Panic("unable to initialize config preset controller")
+	}
+
 	err = c.Invoke(NewServerController)
 	if err != nil {
 		logging.Panic("unable to initialize server controller")
@@ -63,5 +68,20 @@ func InitializeControllers(c *dig.Container) {
 	err = c.Invoke(NewLeaderboardController)
 	if err != nil {
 		logging.Panic("unable to initialize leaderboard controller")
+	}
+
+	err = c.Invoke(NewSteamController)
+	if err != nil {
+		logging.Panic("unable to initialize steam controller")
+	}
+
+	err = c.Invoke(NewActivityLogController)
+	if err != nil {
+		logging.Panic("unable to initialize activity log controller")
+	}
+
+	err = c.Invoke(NewLogController)
+	if err != nil {
+		logging.Panic("unable to initialize log controller")
 	}
 }

@@ -54,6 +54,8 @@ func Migrate(db *gorm.DB) {
 		&model.LeaderboardRace{},
 		&model.LeaderboardResult{},
 		&model.LeaderboardPointRow{},
+		&model.ActivityLog{},
+		&model.ConfigPreset{},
 	)
 
 	if err != nil {
@@ -74,6 +76,18 @@ func runMigrations(db *gorm.DB) {
 
 	if err := migrations.RunPasswordSecurityMigration(db); err != nil {
 		logging.Error("Failed to run password security migration: %v", err)
+	}
+
+	if err := migrations.RunAddPlatformColumnsMigration(db); err != nil {
+		logging.Error("Failed to run platform columns migration: %v", err)
+	}
+
+	if err := migrations.RunAddActivityLogMigration(db); err != nil {
+		logging.Error("Failed to run activity log migration: %v", err)
+	}
+
+	if err := migrations.RunAddConfigPresetsMigration(db); err != nil {
+		logging.Error("Failed to run config presets migration: %v", err)
 	}
 
 	logging.Info("Custom database migrations completed")

@@ -3,6 +3,7 @@ package service
 import (
 	"acc-server-manager/local/model"
 	"acc-server-manager/local/repository"
+	"acc-server-manager/local/utl/logging"
 	"context"
 	"fmt"
 
@@ -10,11 +11,12 @@ import (
 )
 
 type LeaderboardService struct {
-	repo *repository.LeaderboardRepository
+	repo        *repository.LeaderboardRepository
+	activityLog *ActivityLogService
 }
 
-func NewLeaderboardService(repo *repository.LeaderboardRepository) *LeaderboardService {
-	return &LeaderboardService{repo: repo}
+func NewLeaderboardService(repo *repository.LeaderboardRepository, activityLog *ActivityLogService) *LeaderboardService {
+	return &LeaderboardService{repo: repo, activityLog: activityLog}
 }
 
 // Get returns the leaderboard for a server.
@@ -23,7 +25,7 @@ func (s *LeaderboardService) Get(ctx context.Context, serverID uuid.UUID) (*mode
 }
 
 // Update replaces the leaderboard for a server.
-func (s *LeaderboardService) Update(ctx context.Context, serverID uuid.UUID, lb *model.Leaderboard) (*model.Leaderboard, error) {
+func (s *LeaderboardService) Update(ctx context.Context, serverID uuid.UUID, lb *model.Leaderboard, actorID, actorUsername string) (*model.Leaderboard, error) {
 	if lb == nil {
 		return nil, fmt.Errorf("input is required")
 	}
@@ -33,5 +35,25 @@ func (s *LeaderboardService) Update(ctx context.Context, serverID uuid.UUID, lb 
 	for i := range lb.Races {
 		lb.Races[i].Position = i
 	}
-	return s.repo.FullReplace(ctx, serverID, lb)
+	result, err := s.repo.FullReplace(ctx, serverID, lb)
+	if err != nil {
+		return nil, err
+	}
+
+	driverCount := len(lb.Drivers)
+	raceCount := len(lb.Races)
+	details := fmt.Sprintf(`{"driver_count":%d,"race_count":%d}`, driverCount, raceCount)
+	go func() {
+		if logErr := s.activityLog.Log(context.Background(), &model.ActivityLog{
+			ServerID: &serverID,
+			UserID:   actorID,
+			Username: actorUsername,
+			Action:   model.ActionLeaderboardUpdate,
+			Details:  details,
+		}); logErr != nil {
+			logging.Error("Failed to log leaderboard update: %v", logErr)
+		}
+	}()
+
+	return result, nil
 }

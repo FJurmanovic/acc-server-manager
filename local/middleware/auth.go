@@ -115,6 +115,7 @@ func (m *AuthMiddleware) AuthenticateWithHandler(jwtHandler *jwt.JWTHandler, isO
 	if os.Getenv("TESTING_ENV") == "true" {
 		userInfo := CachedUserInfo{UserID: uuid.New().String(), Username: "test@example.com", RoleName: "Admin", Permissions: make(map[string]bool), CachedAt: time.Now()}
 		ctx.Locals("userID", userInfo.UserID)
+		ctx.Locals("actorUsername", userInfo.Username)
 		ctx.Locals("userInfo", userInfo)
 		ctx.Locals("authTime", time.Now())
 	} else {
@@ -127,6 +128,7 @@ func (m *AuthMiddleware) AuthenticateWithHandler(jwtHandler *jwt.JWTHandler, isO
 		}
 
 		ctx.Locals("userID", claims.UserID)
+		ctx.Locals("actorUsername", userInfo.Username)
 		ctx.Locals("userInfo", userInfo)
 		ctx.Locals("authTime", time.Now())
 	}
@@ -174,6 +176,23 @@ func (m *AuthMiddleware) HasPermission(requiredPermission string) fiber.Handler 
 		}
 
 		logging.DebugWithContext("AUTH", "Permission granted: user %s has permission %s", userID, requiredPermission)
+		return ctx.Next()
+	}
+}
+
+func (m *AuthMiddleware) RequireSuperAdmin() fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		if os.Getenv("TESTING_ENV") == "true" {
+			return ctx.Next()
+		}
+
+		userInfo, ok := ctx.Locals("userInfo").(*CachedUserInfo)
+		if !ok || userInfo.RoleName != "Super Admin" {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Forbidden",
+			})
+		}
+
 		return ctx.Next()
 	}
 }

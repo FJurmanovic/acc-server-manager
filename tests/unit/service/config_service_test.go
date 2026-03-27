@@ -20,14 +20,14 @@ func TestConfigService_GetConfiguration_ValidFile(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	config, err := configService.GetConfiguration(helper.TestData.Server)
 	tests.AssertNoError(t, err)
 	tests.AssertNotNil(t, config)
 
 	tests.AssertEqual(t, model.IntString(9231), config.UdpPort)
-	tests.AssertEqual(t, model.IntString(9232), config.TcpPort)
+	tests.AssertEqual(t, model.IntString(9231), config.TcpPort)
 	tests.AssertEqual(t, model.IntString(30), config.MaxConnections)
 	tests.AssertEqual(t, model.IntString(1), config.LanDiscovery)
 	tests.AssertEqual(t, model.IntString(1), config.RegisterToLobby)
@@ -43,7 +43,7 @@ func TestConfigService_GetEventConfig_ValidFile(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	eventConfig, err := configService.GetEventConfig(helper.TestData.Server)
 	tests.AssertNoError(t, err)
@@ -73,7 +73,7 @@ func TestConfigService_SaveConfiguration_Success(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	newConfig := &model.Configuration{
 		UdpPort:         model.IntString(9999),
@@ -115,14 +115,14 @@ func TestConfigService_LoadConfigs_Success(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	configs, err := configService.LoadConfigs(helper.TestData.Server)
 	tests.AssertNoError(t, err)
 	tests.AssertNotNil(t, configs)
 
 	tests.AssertEqual(t, model.IntString(9231), configs.Configuration.UdpPort)
-	tests.AssertEqual(t, model.IntString(9232), configs.Configuration.TcpPort)
+	tests.AssertEqual(t, model.IntString(9231), configs.Configuration.TcpPort)
 	tests.AssertEqual(t, "Test ACC Server", configs.Settings.ServerName)
 	tests.AssertEqual(t, "admin123", configs.Settings.AdminPassword)
 	tests.AssertEqual(t, "spa", configs.Event.Track)
@@ -142,7 +142,7 @@ func TestConfigService_MalformedJSON(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	config, err := configService.GetConfiguration(helper.TestData.Server)
 	if err == nil {
@@ -245,7 +245,7 @@ func TestConfigService_Caching_Configuration(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	config1, err := configService.GetConfiguration(helper.TestData.Server)
 	tests.AssertNoError(t, err)
@@ -264,7 +264,7 @@ func TestConfigService_Caching_Configuration(t *testing.T) {
 	tests.AssertNotNil(t, config2)
 
 	tests.AssertEqual(t, model.IntString(9231), config2.UdpPort)
-	tests.AssertEqual(t, model.IntString(9232), config2.TcpPort)
+	tests.AssertEqual(t, model.IntString(9231), config2.TcpPort)
 }
 
 func TestConfigService_Caching_EventConfig(t *testing.T) {
@@ -276,7 +276,7 @@ func TestConfigService_Caching_EventConfig(t *testing.T) {
 
 	configRepo := repository.NewConfigRepository(helper.DB)
 	serverRepo := repository.NewServerRepository(helper.DB)
-	configService := service.NewConfigService(configRepo, serverRepo)
+	configService := service.NewConfigService(configRepo, serverRepo, nil)
 
 	event1, err := configService.GetEventConfig(helper.TestData.Server)
 	tests.AssertNoError(t, err)

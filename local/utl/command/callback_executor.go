@@ -123,11 +123,12 @@ func (e *CallbackInteractiveCommandExecutor) monitorOutputWithCallbacks(ctx cont
 	stdoutScanner := bufio.NewScanner(stdout)
 	stderrScanner := bufio.NewScanner(stderr)
 
-	outputChan := make(chan outputLine, 100)
+	outputChan := make(chan outputLine, 10000)
 	readersDone := make(chan struct{}, 2)
 
 	steamConsoleStarted := false
 	tfaRequestCreated := false
+	tfaAutoCompleted := false
 
 	go func() {
 		defer func() { readersDone <- struct{}{} }()
@@ -182,13 +183,14 @@ func (e *CallbackInteractiveCommandExecutor) monitorOutputWithCallbacks(ctx cont
 			if readersFinished == 2 {
 				close(outputChan)
 				for lineData := range outputChan {
-					if e.is2FAPrompt(lineData.text) {
-						if err := e.handle2FAPrompt(ctx, lineData.text, serverID); err != nil {
-							logging.Error("Failed to handle 2FA prompt: %v", err)
-							e.callbacks.OnOutput(e.serverID, fmt.Sprintf("Failed to handle 2FA prompt: %v", err), true)
-							done <- err
-							return
-						}
+					if e.is2FAPrompt(lineData.text) && !tfaRequestCreated {
+						tfaRequestCreated = true
+						go func(prompt string) {
+							if err := e.handle2FAPrompt(ctx, prompt, serverID); err != nil {
+								logging.Error("Failed to handle 2FA prompt: %v", err)
+								e.callbacks.OnOutput(e.serverID, fmt.Sprintf("Failed to handle 2FA prompt: %v", err), true)
+							}
+						}(lineData.text)
 					}
 				}
 				return
@@ -207,33 +209,34 @@ func (e *CallbackInteractiveCommandExecutor) monitorOutputWithCallbacks(ctx cont
 
 			if e.is2FAPrompt(lineData.text) {
 				if !tfaRequestCreated {
-					e.callbacks.OnOutput(e.serverID, "2FA prompt detected - waiting for user confirmation", false)
-					if err := e.handle2FAPrompt(ctx, lineData.text, serverID); err != nil {
-						logging.Error("Failed to handle 2FA prompt: %v", err)
-						e.callbacks.OnOutput(e.serverID, fmt.Sprintf("Failed to handle 2FA prompt: %v", err), true)
-						done <- err
-						return
-					}
 					tfaRequestCreated = true
+					e.callbacks.OnOutput(e.serverID, "2FA prompt detected - waiting for user confirmation", false)
+					go func(prompt string) {
+						if err := e.handle2FAPrompt(ctx, prompt, serverID); err != nil {
+							logging.Error("Failed to handle 2FA prompt: %v", err)
+							e.callbacks.OnOutput(e.serverID, fmt.Sprintf("Failed to handle 2FA prompt: %v", err), true)
+						}
+					}(lineData.text)
 				}
 			}
 
-			if tfaRequestCreated && e.isSteamContinuing(lineData.text) {
+			if tfaRequestCreated && !tfaAutoCompleted && e.isSteamContinuing(lineData.text) {
 				logging.Info("Steam CMD appears to have continued after 2FA confirmation")
+				tfaAutoCompleted = true
 				e.callbacks.OnOutput(e.serverID, "Steam CMD continued after 2FA confirmation", false)
 				e.autoCompletePendingRequests(serverID)
 			}
 		case <-time.After(15 * time.Second):
 			if steamConsoleStarted && !tfaRequestCreated {
+				tfaRequestCreated = true
 				logging.Info("Steam Console started but no output for 15 seconds - likely waiting for Steam Guard 2FA")
 				e.callbacks.OnOutput(e.serverID, "Waiting for Steam Guard 2FA confirmation...", false)
-				if err := e.handle2FAPrompt(ctx, "Steam CMD appears to be waiting for Steam Guard confirmation after startup", serverID); err != nil {
-					logging.Error("Failed to handle Steam Guard 2FA prompt: %v", err)
-					e.callbacks.OnOutput(e.serverID, fmt.Sprintf("Failed to handle Steam Guard 2FA prompt: %v", err), true)
-					done <- err
-					return
-				}
-				tfaRequestCreated = true
+				go func() {
+					if err := e.handle2FAPrompt(ctx, "Steam CMD appears to be waiting for Steam Guard confirmation after startup", serverID); err != nil {
+						logging.Error("Failed to handle Steam Guard 2FA prompt: %v", err)
+						e.callbacks.OnOutput(e.serverID, fmt.Sprintf("Failed to handle Steam Guard 2FA prompt: %v", err), true)
+					}
+				}()
 			}
 		}
 	}

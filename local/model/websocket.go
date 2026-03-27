@@ -33,6 +33,7 @@ const (
 	MessageTypeSteamOutput WebSocketMessageType = "steam_output"
 	MessageTypeError       WebSocketMessageType = "error"
 	MessageTypeComplete    WebSocketMessageType = "complete"
+	MessageTypeLogLine     WebSocketMessageType = "log_line"
 )
 
 type WebSocketMessage struct {
@@ -63,6 +64,10 @@ type CompleteMessage struct {
 	ServerID uuid.UUID `json:"server_id"`
 	Success  bool      `json:"success"`
 	Message  string    `json:"message"`
+}
+
+type LogLineMessage struct {
+	Line string `json:"line"`
 }
 
 func GetStepDescription(step ServerCreationStep) string {

@@ -68,14 +68,16 @@ type ConfigService struct {
 	repository       *repository.ConfigRepository
 	serverRepository *repository.ServerRepository
 	serverService    *ServerService
+	activityLog      *ActivityLogService
 	configCache      *model.ServerConfigCache
 }
 
-func NewConfigService(repository *repository.ConfigRepository, serverRepository *repository.ServerRepository) *ConfigService {
+func NewConfigService(repository *repository.ConfigRepository, serverRepository *repository.ServerRepository, activityLog *ActivityLogService) *ConfigService {
 	logging.Debug("Initializing ConfigService with 5m expiration and 1s throttle")
 	return &ConfigService{
 		repository:       repository,
 		serverRepository: serverRepository,
+		activityLog:      activityLog,
 		configCache: model.NewServerConfigCache(model.CacheConfig{
 			ExpirationTime: 5 * time.Minute,
 			ThrottleTime:   1 * time.Second,
@@ -120,6 +122,12 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 		{SettingsJson, req.Settings},
 	}
 
+	actorID, _ := ctx.Locals("userID").(string)
+	actorUsername, _ := ctx.Locals("actorUsername").(string)
+	if actorUsername == "" {
+		actorUsername = "system"
+	}
+
 	var results []*model.Config
 	for _, entry := range entries {
 		if entry.body == nil {
@@ -129,6 +137,16 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 		if err != nil {
 			return nil, err
 		}
+		if entry.fileName == SettingsJson {
+			if nameVal, ok := (*entry.body)["serverName"]; ok {
+				if nameStr, ok := nameVal.(string); ok && nameStr != "" && nameStr != server.Name {
+					server.Name = nameStr
+					if err := as.serverRepository.Update(ctx.UserContext(), server); err != nil {
+						logging.Error("Failed to update server name in DB: %v", err)
+					}
+				}
+			}
+		}
 		result := as.repository.UpdateConfig(ctx.UserContext(), &model.Config{
 			ServerID:   serverUUID,
 			ConfigFile: entry.fileName,
@@ -137,6 +155,20 @@ func (as *ConfigService) UpdateAllConfigs(ctx *fiber.Ctx, req *model.Configurati
 			ChangedAt:  time.Now(),
 		})
 		results = append(results, result)
+
+		if as.activityLog != nil {
+			if details := BuildConfigDetails(entry.fileName, oldDataUTF8, newData); details != "" {
+				go func(details string) {
+					_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
+						ServerID: &serverUUID,
+						UserID:   actorID,
+						Username: actorUsername,
+						Action:   model.ActionConfigUpdate,
+						Details:  details,
+					})
+				}(details)
+			}
+		}
 	}
 
 	if len(results) > 0 {
@@ -152,7 +184,13 @@ func (as *ConfigService) UpdateConfig(ctx *fiber.Ctx, body *map[string]interface
 	configFile := ctx.Params("file")
 	override := ctx.QueryBool("override", false)
 
-	return as.updateConfigInternal(ctx.UserContext(), serverID, configFile, body, override)
+	actorID, _ := ctx.Locals("userID").(string)
+	actorUsername, _ := ctx.Locals("actorUsername").(string)
+	if actorUsername == "" {
+		actorUsername = "system"
+	}
+
+	return as.updateConfigInternal(ctx.UserContext(), serverID, configFile, body, override, actorID, actorUsername)
 }
 
 func (as *ConfigService) updateConfigFiles(ctx context.Context, server *model.Server, configFile string, body *map[string]interface{}, override bool) ([]byte, []byte, error) {
@@ -211,7 +249,7 @@ func (as *ConfigService) updateConfigFiles(ctx context.Context, server *model.Se
 	return oldDataUTF8, newData, nil
 }
 
-func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID string, configFile string, body *map[string]interface{}, override bool) (*model.Config, error) {
+func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID string, configFile string, body *map[string]interface{}, override bool, actorID, actorUsername string) (*model.Config, error) {
 	serverUUID, err := uuid.Parse(serverID)
 	if err != nil {
 		logging.Error("Invalid server ID format: %v", err)
@@ -229,9 +267,34 @@ func (as *ConfigService) updateConfigInternal(ctx context.Context, serverID stri
 		return nil, err
 	}
 
-	as.configCache.InvalidateServerCache(serverID)
+	if configFile == SettingsJson {
+		if nameVal, ok := (*body)["serverName"]; ok {
+			if nameStr, ok := nameVal.(string); ok && nameStr != "" && nameStr != server.Name {
+				server.Name = nameStr
+				if err := as.serverRepository.Update(ctx, server); err != nil {
+					logging.Error("Failed to update server name in DB: %v", err)
+				}
+			}
+		}
+	}
 
+	as.configCache.InvalidateServerCache(serverID)
 	as.serverService.StartAccServerRuntime(server)
+
+	if as.activityLog != nil {
+		if details := BuildConfigDetails(configFile, oldDataUTF8, newData); details != "" {
+			go func() {
+				_ = as.activityLog.Log(context.Background(), &model.ActivityLog{
+					ServerID: &serverUUID,
+					UserID:   actorID,
+					Username: actorUsername,
+					Action:   model.ActionConfigUpdate,
+					Details:  details,
+				})
+			}()
+		}
+	}
+
 	return as.repository.UpdateConfig(ctx, &model.Config{
 		ServerID:   serverUUID,
 		ConfigFile: configFile,
@@ -476,6 +539,14 @@ func (as *ConfigService) GetConfiguration(server *model.Server) (*model.Configur
 	return &config, nil
 }
 
+func (as *ConfigService) SetIgnorePrematureDisconnects(server *model.Server, value int) error {
+	configMap := map[string]interface{}{
+		"ignorePrematureDisconnects": value,
+	}
+	_, _, err := as.updateConfigFiles(context.Background(), server, SettingsJson, &configMap, false)
+	return err
+}
+
 func (as *ConfigService) SaveConfiguration(server *model.Server, config *model.Configuration) error {
 	configMap := make(map[string]interface{})
 	configBytes, err := json.Marshal(config)
@@ -487,5 +558,19 @@ func (as *ConfigService) SaveConfiguration(server *model.Server, config *model.C
 	}
 
 	_, _, err = as.updateConfigFiles(context.Background(), server, ConfigurationJson, &configMap, true)
+	return err
+}
+
+// ApplySection writes a single config section to the server's config file and
+// records the change. It is used by ConfigPresetService to apply preset sections.
+func (as *ConfigService) ApplySection(ctx context.Context, serverID, configFile string, body *map[string]interface{}, actorID, actorUsername string) (*model.Config, error) {
+	return as.updateConfigInternal(ctx, serverID, configFile, body, true, actorID, actorUsername)
+}
+
+func (as *ConfigService) SetServerName(server *model.Server, name string) error {
+	configMap := map[string]interface{}{
+		"serverName": name,
+	}
+	_, _, err := as.updateConfigFiles(context.Background(), server, SettingsJson, &configMap, false)
 	return err
 }

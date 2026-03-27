@@ -15,6 +15,7 @@ type WebSocketConnection struct {
 	conn     *websocket.Conn
 	serverID *uuid.UUID
 	userID   *uuid.UUID
+	mu       sync.Mutex
 }
 
 type WebSocketService struct {
@@ -102,6 +103,16 @@ func (ws *WebSocketService) BroadcastError(serverID uuid.UUID, error string, det
 	ws.broadcastToServer(serverID, wsMsg)
 }
 
+func (ws *WebSocketService) BroadcastLogLine(serverID uuid.UUID, line string) {
+	msg := model.WebSocketMessage{
+		Type:      model.MessageTypeLogLine,
+		ServerID:  &serverID,
+		Timestamp: time.Now().Unix(),
+		Data:      model.LogLineMessage{Line: line},
+	}
+	ws.broadcastToServer(serverID, msg)
+}
+
 func (ws *WebSocketService) BroadcastComplete(serverID uuid.UUID, success bool, message string) {
 	completeMsg := model.CompleteMessage{
 		ServerID: serverID,
@@ -131,7 +142,7 @@ func (ws *WebSocketService) broadcastToServer(serverID uuid.UUID, message model.
 	ws.connections.Range(func(key, value interface{}) bool {
 		if wsConn, ok := value.(*WebSocketConnection); ok {
 			if wsConn.serverID != nil && *wsConn.serverID == serverID {
-				if err := wsConn.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+				if err := wsConn.writeMessage(websocket.TextMessage, data); err != nil {
 					logging.Error("Failed to send WebSocket message to connection %s: %v", key, err)
 					ws.RemoveConnection(key.(string))
 				} else {
@@ -145,7 +156,7 @@ func (ws *WebSocketService) broadcastToServer(serverID uuid.UUID, message model.
 	if !sentToAssociatedConnections && (message.Type == model.MessageTypeStep || message.Type == model.MessageTypeError || message.Type == model.MessageTypeComplete) {
 		ws.connections.Range(func(key, value interface{}) bool {
 			if wsConn, ok := value.(*WebSocketConnection); ok {
-				if err := wsConn.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+				if err := wsConn.writeMessage(websocket.TextMessage, data); err != nil {
 					logging.Error("Failed to send WebSocket message to connection %s: %v", key, err)
 					ws.RemoveConnection(key.(string))
 				}
@@ -165,7 +176,7 @@ func (ws *WebSocketService) BroadcastToUser(userID uuid.UUID, message model.WebS
 	ws.connections.Range(func(key, value interface{}) bool {
 		if wsConn, ok := value.(*WebSocketConnection); ok {
 			if wsConn.userID != nil && *wsConn.userID == userID {
-				if err := wsConn.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+				if err := wsConn.writeMessage(websocket.TextMessage, data); err != nil {
 					logging.Error("Failed to send WebSocket message to connection %s: %v", key, err)
 					ws.RemoveConnection(key.(string))
 				}
@@ -173,6 +184,12 @@ func (ws *WebSocketService) BroadcastToUser(userID uuid.UUID, message model.WebS
 		}
 		return true
 	})
+}
+
+func (wc *WebSocketConnection) writeMessage(messageType int, data []byte) error {
+	wc.mu.Lock()
+	defer wc.mu.Unlock()
+	return wc.conn.WriteMessage(messageType, data)
 }
 
 func (ws *WebSocketService) GetActiveConnections() int {
