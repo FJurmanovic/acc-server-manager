@@ -1,16 +1,19 @@
-# ACC Server container: Wine + accServer.exe
+# ACC Server container: Wine Staging + accServer.exe
 # Game files are bind-mounted from the host at /acc/game.
 FROM debian:bookworm-slim
 
-# Install Wine, Xvfb (headless display for Wine), and minimal runtime deps.
+# Install Wine Staging from WineHQ (newer than Debian's packages, includes fsync support).
 RUN dpkg --add-architecture i386 && \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
-        wine \
-        wine32 \
-        wine64 \
+    apt-get install -y --no-install-recommends wget ca-certificates && \
+    mkdir -pm755 /etc/apt/keyrings && \
+    wget -q -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key && \
+    echo "deb [arch=amd64,i386 signed-by=/etc/apt/keyrings/winehq-archive.key] https://dl.winehq.org/wine-builds/debian/ bookworm main" \
+        > /etc/apt/sources.list.d/winehq.list && \
+    apt-get update && \
+    apt-get install -y --install-recommends \
+        winehq-staging \
         xvfb \
-        ca-certificates \
         tcpdump \
         && \
     rm -rf /var/lib/apt/lists/*
@@ -22,6 +25,10 @@ WORKDIR /root
 ENV WINEARCH=win64
 ENV WINEPREFIX=/root/.wine
 ENV WINEDEBUG=-all
+# fsync uses Linux futex2 for Wine synchronization — reduces timing jitter under load.
+# Falls back to esync (eventfd) if fsync is unavailable; falls back to standard if neither.
+ENV WINEFSYNC=1
+ENV WINEESYNC=1
 
 # Copy entrypoint script.
 COPY entrypoint.sh /entrypoint.sh
