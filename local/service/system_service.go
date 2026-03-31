@@ -8,10 +8,8 @@ import (
 	"acc-server-manager/local/utl/logging"
 	"context"
 	"fmt"
-	"io"
 
 	"github.com/docker/docker/api/types/container"
-	dockerimage "github.com/docker/docker/api/types/image"
 	dockerclient "github.com/docker/docker/client"
 )
 
@@ -38,17 +36,6 @@ func NewSystemService(
 
 func (s *SystemService) MigrateImage(ctx context.Context, stopRunning bool) (*model.MigrationResult, error) {
 	image := env.GetACCImage()
-
-	// Attempt to pull the image from a remote registry. This is best-effort —
-	// acc-wine is typically a locally-built image so the pull may not succeed,
-	// but container recreation below will still use whatever local image matches.
-	if reader, err := s.dockerClient.ImagePull(ctx, image, dockerimage.PullOptions{}); err != nil {
-		logging.Warn("Could not pull image %s (may be local-only): %v", image, err)
-	} else {
-		io.Copy(io.Discard, reader)
-		reader.Close()
-		logging.Info("Pulled image %s", image)
-	}
 
 	servers, err := s.repo.GetAll(ctx, &model.ServerFilter{})
 	if err != nil {
