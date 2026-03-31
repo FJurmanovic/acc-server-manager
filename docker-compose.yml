@@ -17,6 +17,11 @@ services:
       ACC_IMAGE: acc-wine:latest
       ACC_SERVERS_PATH: /data/servers
       ACC_SERVERS_HOST_PATH: /opt/acc-servers
+      # ACC_CPUSET: Pin all ACC containers to specific CPU cores (e.g., "0-11").
+      # Reduces simulation timing misses ("not enough CPU power" in accServer.exe).
+      # Set the CPU governor to 'performance' on the host for best results:
+      #   echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+      # ACC_CPUSET: "0-11"
     env_file:
       - .env
     volumes:

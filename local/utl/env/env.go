@@ -65,6 +65,10 @@ func GetACCServersPath() string {
 	return DefaultACCServersPath
 }
 
+func GetACCCpuset() string {
+	return os.Getenv("ACC_CPUSET")
+}
+
 func GetACCServersHostPath() string {
 	if p := os.Getenv("ACC_SERVERS_HOST_PATH"); p != "" {
 		return p

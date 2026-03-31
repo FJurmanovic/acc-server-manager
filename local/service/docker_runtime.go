@@ -62,19 +62,24 @@ func (r *DockerRuntime) Create(ctx context.Context, server *model.Server) error 
 		fmt.Sprintf("%s:/acc/game:rw", hostServerPath),
 	}
 
+	hostConfig := &container.HostConfig{
+		Binds:         binds,
+		PortBindings:  portBindings,
+		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+		// NET_RAW is required for tcpdump packet capture in debug mode (DEBUG_MODE=1).
+		CapAdd: []string{"NET_RAW"},
+	}
+	if cpuset := env.GetACCCpuset(); cpuset != "" {
+		hostConfig.CpusetCpus = cpuset
+	}
+
 	resp, err := r.client.ContainerCreate(ctx, &container.Config{
 		Image:        image,
 		ExposedPorts: exposedPorts,
 		Env: []string{
 			fmt.Sprintf("SERVER_PORT=%d", server.Port),
 		},
-	}, &container.HostConfig{
-		Binds:         binds,
-		PortBindings:  portBindings,
-		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
-		// NET_RAW is required for tcpdump packet capture in debug mode (DEBUG_MODE=1).
-		CapAdd: []string{"NET_RAW"},
-	}, nil, nil, server.ServiceName)
+	}, hostConfig, nil, nil, server.ServiceName)
 	if err != nil {
 		return fmt.Errorf("failed to create container %s: %v", server.ServiceName, err)
 	}

@@ -100,4 +100,7 @@ func registerDockerProviders(c *dig.Container) {
 	c.Provide(func(client *dockerclient.Client) platform.LogStreamer {
 		return NewDockerLogStreamer(client)
 	})
+
+	c.Provide(NewSystemService)
+
 }
