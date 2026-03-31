@@ -39,15 +39,16 @@ func NewSystemService(
 func (s *SystemService) MigrateImage(ctx context.Context, stopRunning bool) (*model.MigrationResult, error) {
 	image := env.GetACCImage()
 
-	reader, err := s.dockerClient.ImagePull(ctx, image, dockerimage.PullOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to pull image %s: %v", image, err)
+	// Attempt to pull the image from a remote registry. This is best-effort —
+	// acc-wine is typically a locally-built image so the pull may not succeed,
+	// but container recreation below will still use whatever local image matches.
+	if reader, err := s.dockerClient.ImagePull(ctx, image, dockerimage.PullOptions{}); err != nil {
+		logging.Warn("Could not pull image %s (may be local-only): %v", image, err)
+	} else {
+		io.Copy(io.Discard, reader)
+		reader.Close()
+		logging.Info("Pulled image %s", image)
 	}
-	if _, err := io.Copy(io.Discard, reader); err != nil {
-		logging.Warn("Error draining image pull response for %s: %v", image, err)
-	}
-	reader.Close()
-	logging.Info("Pulled image %s", image)
 
 	servers, err := s.repo.GetAll(ctx, &model.ServerFilter{})
 	if err != nil {
