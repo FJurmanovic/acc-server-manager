@@ -13,12 +13,10 @@ RUN dpkg --add-architecture i386 && \
     apt-get update && \
     apt-get install -y --install-recommends \
         winehq-staging \
-        xvfb \
         tcpdump \
         && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
 WORKDIR /root
 
