@@ -78,10 +78,19 @@ func (s *SystemService) MigrateImage(ctx context.Context, stopRunning bool) (*mo
 			if err := s.dockerClient.ContainerRemove(ctx, server.ContainerID, container.RemoveOptions{Force: true}); err != nil {
 				logging.Warn("Failed to remove container %s for server %s: %v", server.ContainerID, server.ID, err)
 			}
+			server.ContainerID = ""
 		}
-		server.ContainerID = ""
+
+		if err := s.runtime.Create(ctx, &server); err != nil {
+			result.Failed = append(result.Failed, model.ServerMigrationError{
+				ID:    server.ID.String(),
+				Name:  server.Name,
+				Error: fmt.Sprintf("recreate failed: %v", err),
+			})
+			continue
+		}
 		if err := s.repo.Update(ctx, &server); err != nil {
-			logging.Warn("Failed to clear ContainerID for server %s: %v", server.ID, err)
+			logging.Warn("Failed to persist new ContainerID for server %s: %v", server.ID, err)
 		}
 
 		if isRunning {
